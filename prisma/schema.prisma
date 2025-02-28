@@ -1,0 +1,41 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  createdAt DateTime @default(now())
+}
+
+model UserEmbedding {
+  id          Int      @id @default(autoincrement())
+  sessionId   String
+  question    String
+  embedding   Float[]  // Corrigido para Float[] pois Prisma ainda não suporta pgvector diretamente
+  createdAt   DateTime @default(now())
+}
+
+model Message {
+  id        String  @id @default(uuid())
+  messageId String  @unique
+  sender    String
+  content   String
+  embedding Float[] // Alterado de Double[] para Float[]
+  createdAt DateTime @default(now())
+}
+
+model InstructionEmbedding {
+  id          Int      @id @default(autoincrement())
+  instruction String
+  embedding   Float[]  // Representação do embedding da instrução
+  createdAt   DateTime @default(now())
+}
+
+
