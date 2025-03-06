@@ -10,32 +10,43 @@ datasource db {
 model User {
   id        String   @id @default(uuid())
   name      String
-  email     String   @unique
   createdAt DateTime @default(now())
-}
 
-model UserEmbedding {
-  id          Int      @id @default(autoincrement())
-  sessionId   String
-  question    String
-  embedding   Float[]  // Corrigido para Float[] pois Prisma ainda não suporta pgvector diretamente
-  createdAt   DateTime @default(now())
+  messages  Message[] // Relacionamento com mensagens enviadas pelo usuário
 }
 
 model Message {
-  id        String  @id @default(uuid())
-  messageId String  @unique
-  sender    String
-  content   String
-  embedding Float[] // Alterado de Double[] para Float[]
+  id        String   @id @default(uuid()) 
+  messageId String   @unique // Garante que esse campo seja sempre passado
+  sender    String   // Número do WhatsApp ou identificador do usuário
+  content   String?  // Texto da mensagem (pode ser opcional)
+  embedding Float[]  // Embedding da mensagem
   createdAt DateTime @default(now())
+
+  sessionId String?  
+  userId    String?  
+  user         User?    @relation(fields: [userId], references: [id], onDelete: Cascade) 
+  response     Response? 
+  instructions InstructionEmbedding[] 
+}
+
+
+model Response {
+  id         Int      @id @default(autoincrement())
+  messageId  String   @unique // Mensagem associada a esta resposta
+  content    String   
+  isAI       Boolean  
+  embedding  Float[]  
+  createdAt  DateTime @default(now())
+
+  message    Message  @relation(fields: [messageId], references: [id]) // A relação fica definida aqui
 }
 
 model InstructionEmbedding {
   id          Int      @id @default(autoincrement())
-  instruction String
-  embedding   Float[]  // Representação do embedding da instrução
+  instruction String   
+  embedding   Float[]  
   createdAt   DateTime @default(now())
+
+  messages    Message[] 
 }
-
-

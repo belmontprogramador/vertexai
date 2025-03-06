@@ -1,49 +1,58 @@
 const { PrismaClient } = require("@prisma/client");
-const { getEmbedding, saveEmbedding } = require("./embeddingService");
 
 const prisma = new PrismaClient();
 
-// Função para verificar se uma mensagem já existe no banco
-const messageExists = async (messageId) => {
+// 🔹 Função para armazenar mensagem recebida
+const storeReceivedMessage = async ({ messageId, senderId, senderName, content, embedding }) => {
   try {
-    const existingMessage = await prisma.message.findUnique({ where: { messageId } });
-    return existingMessage !== null;
-  } catch (error) {
-    console.error("Erro ao verificar existência da mensagem:", error);
-    return false;
-  }
-};
+    // 📌 Verifica se o usuário já existe, senão cria um novo
+    let user = await prisma.user.findUnique({
+      where: { id: senderId },
+    });
 
-// Função para salvar uma nova mensagem
-const saveMessage = async (messageId, sender, content) => {
-  try {
-    // Verifica se a mensagem já existe para evitar duplicação
-    const exists = await messageExists(messageId);
-    if (exists) {
-      console.log(`Mensagem ${messageId} já armazenada, evitando duplicação.`);
-      return;
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          id: senderId,
+          name: senderName,
+        },
+      });
     }
 
-    // Criar o registro da mensagem sem o embedding (será adicionado depois)
-    await prisma.message.create({
+    // 📌 Insere a mensagem no banco
+    const message = await prisma.message.create({
       data: {
-        messageId,
-        sender,
+        id: messageId,
+        sender: senderId,
         content,
-        embedding: [], // Placeholder
+        embedding,
+        userId: user.id, // Relaciona com o usuário
       },
     });
 
-    // Gerar embedding e atualizar no banco
-    const embedding = await getEmbedding(content);
-    if (embedding) {
-      await saveEmbedding(messageId, embedding);
-    }
-
-    console.log("Mensagem e embedding armazenados com sucesso!");
+    console.log("✅ Mensagem recebida armazenada com sucesso!", message);
   } catch (error) {
-    console.error("Erro ao salvar mensagem:", error);
+    console.error("❌ Erro ao armazenar mensagem recebida:", error);
   }
 };
 
-module.exports = { saveMessage };
+// 🔹 Função para armazenar mensagem enviada (humano ou IA)
+const storeSentMessage = async ({ messageId, recipientId, content, embedding, isAI }) => {
+  try {
+    // 📌 Armazena a resposta no banco
+    const response = await prisma.response.create({
+      data: {
+        messageId,
+        content,
+        embedding,
+        isAI,
+      },
+    });
+
+    console.log("✅ Resposta armazenada com sucesso!", response);
+  } catch (error) {
+    console.error("❌ Erro ao armazenar mensagem enviada:", error);
+  }
+};
+
+module.exports = { storeReceivedMessage, storeSentMessage };
