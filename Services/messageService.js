@@ -1,58 +1,50 @@
 const { PrismaClient } = require("@prisma/client");
-
 const prisma = new PrismaClient();
 
-// 🔹 Função para armazenar mensagem recebida
-const storeReceivedMessage = async ({ messageId, senderId, senderName, content, embedding }) => {
+const storeReceivedMessage = async ({ senderId, messageId, pushName, content, embedding, additionalData }) => {
   try {
-    // 📌 Verifica se o usuário já existe, senão cria um novo
-    let user = await prisma.user.findUnique({
-      where: { id: senderId },
-    });
-
-    if (!user) {
-      user = await prisma.user.create({
-        data: {
-          id: senderId,
-          name: senderName,
-        },
-      });
-    }
-
-    // 📌 Insere a mensagem no banco
-    const message = await prisma.message.create({
+    const userMessage = await prisma.userMessage.create({
       data: {
         id: messageId,
-        sender: senderId,
-        content,
-        embedding,
-        userId: user.id, // Relaciona com o usuário
+        senderId,
+        pushName,
+        conversation: content || "Mensagem sem texto", // Aqui estava o erro
+        embedding: embedding || [],
+        additionalData: additionalData || {},
       },
     });
 
-    console.log("✅ Mensagem recebida armazenada com sucesso!", message);
+    console.log("✅ Mensagem armazenada com sucesso:", userMessage);
+    return userMessage;
   } catch (error) {
-    console.error("❌ Erro ao armazenar mensagem recebida:", error);
+    console.error("❌ Erro ao armazenar mensagem no banco:", error);
   }
 };
 
+
+
 // 🔹 Função para armazenar mensagem enviada (humano ou IA)
-const storeSentMessage = async ({ messageId, recipientId, content, embedding, isAI }) => {
+const storeSentMessage = async ({ messageId, senderId, verifiedBizName, recipientId, content, embedding, isAI }) => {
   try {
-    // 📌 Armazena a resposta no banco
-    const response = await prisma.response.create({
+    const sentMessage = await prisma.sentMessage.create({
       data: {
-        messageId,
-        content,
-        embedding,
+        id: messageId,
+        senderId,
+        verifiedBizName,
+        recipientId,
+        content: content || "Mensagem sem texto",
+        embedding: embedding || [],
         isAI,
       },
     });
 
-    console.log("✅ Resposta armazenada com sucesso!", response);
+    console.log("✅ Mensagem enviada armazenada com sucesso:", sentMessage);
+    return sentMessage;
   } catch (error) {
-    console.error("❌ Erro ao armazenar mensagem enviada:", error);
+    console.error("❌ Erro ao armazenar mensagem enviada no banco:", error);
   }
 };
+
+
 
 module.exports = { storeReceivedMessage, storeSentMessage };

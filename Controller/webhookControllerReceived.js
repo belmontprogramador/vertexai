@@ -1,4 +1,5 @@
 const { storeReceivedMessage } = require("../Services/messageService");
+const { processAndSendMessage } = require("../Services/sentMessage"); // ✅ Importa serviço atualizado
 const { pipeline } = require("@xenova/transformers");
 
 let embedder = null;
@@ -20,14 +21,23 @@ const generateEmbedding = async (text) => {
     return Array.from(embedding.data);
   } catch (error) {
     console.error("❌ Erro ao gerar embedding:", error);
-    return null;
+    return [];
   }
 };
 
 // 📩 Controller para mensagens recebidas
 const webhookControllerReceived = async (req, res) => {
   try {
-    const { messageId, sender, msgContent } = req.body;
+    console.log("🔍 Dados completos recebidos no webhook:");
+    console.dir(req.body, { depth: null });
+
+    // Captura todas as informações recebidas
+    const {
+      messageId,
+      sender,
+      msgContent,
+      ...additionalData
+    } = req.body;
 
     if (!messageId || !sender?.id) {
       console.log("🚨 Nenhuma mensagem válida recebida.");
@@ -36,22 +46,39 @@ const webhookControllerReceived = async (req, res) => {
 
     const senderId = sender.id;
     const senderName = sender.pushName || sender.name || "Desconhecido";
-    const content = msgContent?.conversation || msgContent?.extendedTextMessage?.text || null;
+
+    // 🚨 Verifica se a mensagem foi enviada pelo próprio bot
+    if (senderId === process.env.BOT_PHONE_NUMBER) {
+      console.log("🚨 Mensagem do próprio bot detectada. Ignorando...");
+      return res.status(200).json({ message: "Mensagem ignorada (enviada pelo próprio bot)." });
+    }
+
+    // 📌 Captura mensagens de texto normais e formatadas
+    const content = msgContent?.conversation?.trim() ||
+                    msgContent?.extendedTextMessage?.text?.trim() ||
+                    undefined;
+
+    // 📌 Se não houver mensagem de texto válida, ignora
+    if (!content || content.length === 0) {
+      console.log("🚨 Mensagem ignorada (não contém texto válido).");
+      return res.status(200).json({ message: "Mensagem ignorada (não contém texto válido)." });
+    }
 
     console.log(`📩 Mensagem recebida:
       - ID: ${messageId}
       - Remetente: ${senderName} (${senderId})
       - Conteúdo: ${content}`);
 
-    let embedding = null;
-    if (content) {
-      embedding = await generateEmbedding(content);
-    }
+    // Gera embedding apenas se houver texto na mensagem
+    const embedding = await generateEmbedding(content);
 
-    // 🔄 Salva a mensagem no banco
-    await storeReceivedMessage({ messageId, senderId, senderName, content, embedding });
+    // 🔄 Salva a mensagem no banco, incluindo os dados extras
+    await storeReceivedMessage({ messageId, senderId, pushName: senderName, content, embedding, additionalData });
 
-    res.json({ message: "Mensagem processada com sucesso!" });
+    // 🔄 Envia para o serviço de resposta automática
+    await processAndSendMessage(senderId, content);
+
+    res.json({ message: "Mensagem processada e armazenada com sucesso!", data: req.body });
   } catch (error) {
     console.error("❌ Erro ao processar webhook:", error);
     res.status(500).json({ error: "Erro ao processar a mensagem recebida." });

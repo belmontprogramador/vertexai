@@ -7,46 +7,31 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(uuid())
-  name      String
-  createdAt DateTime @default(now())
-
-  messages  Message[] // Relacionamento com mensagens enviadas pelo usuário
+model UserMessage {
+  id            String   @id @unique // ID único da mensagem (messageId)
+  senderId      String   // ID do usuário (número do WhatsApp)
+  pushName      String   // Nome do remetente no WhatsApp
+  conversation  String?  // Conteúdo da mensagem (pode ser nulo)
+  embedding     Float[]  // Embedding da mensagem como array de floats (correção de Double[])
+  additionalData Json?    // Armazena dados extras do webhook
+  createdAt     DateTime @default(now()) // Data de criação automática
 }
 
-model Message {
-  id        String   @id @default(uuid()) 
-  messageId String   @unique // Garante que esse campo seja sempre passado
-  sender    String   // Número do WhatsApp ou identificador do usuário
-  content   String?  // Texto da mensagem (pode ser opcional)
-  embedding Float[]  // Embedding da mensagem
-  createdAt DateTime @default(now())
-
-  sessionId String?  
-  userId    String?  
-  user         User?    @relation(fields: [userId], references: [id], onDelete: Cascade) 
-  response     Response? 
-  instructions InstructionEmbedding[] 
+model SentMessage {
+  id             String   @id @unique  // ID da mensagem enviada (messageId)
+  senderId       String   // ID do remetente (número do WhatsApp)
+  verifiedBizName String? // Nome verificado do negócio, se existir
+  recipientId    String   // ID do destinatário (número do WhatsApp)
+  content        String?  // Conteúdo da mensagem enviada (pode ser nulo)
+  embedding      Float[]  // Embedding da mensagem como array de floats
+  isAI           Boolean  @default(false) // Define se foi enviada pela IA (padrão: false)
+  createdAt      DateTime @default(now()) // Data de criação automática
 }
 
-
-model Response {
-  id         Int      @id @default(autoincrement())
-  messageId  String   @unique // Mensagem associada a esta resposta
-  content    String   
-  isAI       Boolean  
-  embedding  Float[]  
-  createdAt  DateTime @default(now())
-
-  message    Message  @relation(fields: [messageId], references: [id]) // A relação fica definida aqui
-}
 
 model InstructionEmbedding {
   id          Int      @id @default(autoincrement())
   instruction String   
   embedding   Float[]  
-  createdAt   DateTime @default(now())
-
-  messages    Message[] 
+  createdAt   DateTime @default(now())  
 }
