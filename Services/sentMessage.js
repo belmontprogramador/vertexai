@@ -15,6 +15,9 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 let embedder = null;
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
+// 🔄 Memória para armazenar contexto das conversas
+const conversationMemory = new Map();
+
 // 🔄 Carrega o modelo de embeddings (se ainda não foi carregado)
 const loadModel = async () => {
   if (!embedder) {
@@ -36,105 +39,96 @@ const generateEmbedding = async (text) => {
   }
 };
 
-// 🔍 Busca as últimas 50 mensagens enviadas PELO USUÁRIO
-const getUserMessageHistory = async (senderId) => {
+// 🔍 Calcula a similaridade de cosseno entre dois vetores
+const cosineSimilarity = (vecA, vecB) => {
+  const dotProduct = vecA.reduce((sum, a, i) => sum + a * vecB[i], 0);
+  const magnitudeA = Math.sqrt(vecA.reduce((sum, a) => sum + a * a, 0));
+  const magnitudeB = Math.sqrt(vecB.reduce((sum, b) => sum + b * b, 0));
+  return magnitudeA && magnitudeB ? dotProduct / (magnitudeA * magnitudeB) : 0;
+};
+
+// 🔍 Busca respostas passadas e calcula similaridade
+const getSimilarResponses = async (userEmbedding, topN = 5) => {
   try {
-    const messages = await prisma.userMessage.findMany({
-      where: { senderId },
-      orderBy: { createdAt: "desc" },
-      take: 50,
-      select: { conversation: true },
+    const pastResponses = await prisma.sentMessage.findMany({
+      select: { content: true, embedding: true },
     });
 
-    const history = messages.map((msg) => msg.conversation).filter(Boolean);
-    
-    // 🚀 LOG: Últimas mensagens do usuário
-    console.log(`📜 Últimas 50 mensagens enviadas pelo usuário (${senderId}):`, history);
+    let similarResponses = pastResponses.map((resp) => {
+      return {
+        text: resp.content,
+        similarity: cosineSimilarity(userEmbedding, resp.embedding),
+      };
+    });
 
-    return history;
+    similarResponses.sort((a, b) => b.similarity - a.similarity);
+
+    return similarResponses.slice(0, topN).map(resp => resp.text);
   } catch (error) {
-    console.error("❌ Erro ao buscar histórico do usuário:", error);
+    console.error("❌ Erro ao buscar respostas similares:", error);
     return [];
   }
 };
 
-// 🔍 Busca as últimas 50 mensagens enviadas PARA o usuário (humanos + bot)
-const getConversationHistoryWithUser = async (senderId) => {
-  try {
-    const messages = await prisma.sentMessage.findMany({
-      where: { recipientId: senderId },
-      orderBy: { createdAt: "desc" },
-      take: 50,
-      select: { content: true, isAI: true },
-    });
-
-    const conversation = messages.map((msg) => `(${msg.isAI ? "Bot" : "Humano"}) ${msg.content}`).filter(Boolean);
-    
-    // 🚀 LOG: Últimas mensagens enviadas para o usuário
-    console.log(`💬 Últimas 50 mensagens enviadas PARA o usuário (${senderId}):`, conversation);
-
-    return conversation;
-  } catch (error) {
-    console.error("❌ Erro ao buscar histórico de mensagens para o usuário:", error);
-    return [];
+// 🔍 Mantém contexto na memória para múltiplos usuários
+const updateConversationMemory = (senderId, message) => {
+  if (!conversationMemory.has(senderId)) {
+    conversationMemory.set(senderId, []);
   }
+  const conversation = conversationMemory.get(senderId);
+  conversation.push(message);
+  if (conversation.length > 50) conversation.shift(); // Mantém as últimas 50 mensagens
 };
 
-// 🔮 Gera uma resposta usando o ChatGPT com base no contexto, histórico do usuário e mensagens recebidas
-const generateChatGPTResponse = async (senderId, context, userMessage) => {
+// 🔮 Gera uma resposta usando o ChatGPT com base no contexto relevante
+const generateChatGPTResponse = async (senderId, userMessage) => {
   try {
-    const userHistory = await getUserMessageHistory(senderId);
-    const conversationHistory = await getConversationHistoryWithUser(senderId);
+    updateConversationMemory(senderId, { role: "user", content: userMessage });
+    const userEmbedding = await generateEmbedding(userMessage);
+    const similarResponses = await getSimilarResponses(userEmbedding, 5);
 
-    let contextText = context.map((msg, i) => `Mensagem ${i + 1}: "${msg.content}"`).join("\n");
-    let historyText = userHistory.map((msg, i) => `Usuário ${i + 1}: "${msg}"`).join("\n");
-    let conversationText = conversationHistory.map((msg, i) => `Mensagem ${i + 1}: "${msg}"`).join("\n");
+    let messages = [
+      { role: "system", content: "Você é um assistente virtual da Vertex Store. Responda ao usuário com base nas informações anteriores da conversa, mantendo a coerência e oferecendo respostas úteis." }
+    ];
 
-    const prompt = `
-Você é um assistente virtual da Vertex Store. Responda ao usuário com base nas informações que já foram trocadas anteriormente.
+    // Adiciona respostas semelhantes
+    similarResponses.forEach(response => {
+      messages.push({ role: "assistant", content: response });
+    });
 
-### CONTEXTO DE MENSAGENS SEMELHANTES:
-${contextText || "Nenhuma mensagem relevante encontrada no histórico."}
+    // Adiciona o contexto da conversa do usuário
+    messages = messages.concat(conversationMemory.get(senderId) || []);
 
-### HISTÓRICO DAS ÚLTIMAS MENSAGENS DO USUÁRIO:
-${historyText || "Nenhum histórico de conversa disponível."}
-
-### HISTÓRICO DAS ÚLTIMAS RESPOSTAS PARA O USUÁRIO:
-${conversationText || "Nenhum histórico de conversa disponível."}
-
-### MENSAGEM DO USUÁRIO:
-"${userMessage}"
-
-### SUA RESPOSTA:
-Forneça uma resposta clara e objetiva, utilizando o contexto e o histórico do usuário sempre que possível para manter a coerência da conversa.
-    `;
+    messages.push({ role: "user", content: userMessage });
 
     const response = await openai.chat.completions.create({
       model: "gpt-4",
-      messages: [{ role: "system", content: prompt }],
+      messages,
       temperature: 0.7,
     });
 
-    return response.choices[0].message.content;
+    const botResponse = response.choices[0].message.content;
+    updateConversationMemory(senderId, { role: "assistant", content: botResponse });
+    return botResponse;
   } catch (error) {
     console.error("❌ Erro ao gerar resposta com ChatGPT:", error);
     return "Desculpe, não consegui entender sua pergunta.";
   }
 };
 
-// 🚀 Processa e envia resposta baseada no histórico, contexto e ChatGPT
+// 🚀 Processa e envia resposta baseada no contexto
 const processAndSendMessage = async (senderId, content) => {
-  if (content.toLowerCase().startsWith("kisuco")) {
-    console.log(`🚀 Mensagem detectada com palavra-chave "kisuco". Processando resposta contextual...`);
-
-    const userEmbedding = await generateEmbedding(content);
-    const chatResponse = await generateChatGPTResponse(senderId, [], content);
-
-    await sendBotMessage(senderId, chatResponse);
+  if (!content.toLowerCase().startsWith("kisuco")) {
+    console.log("❌ Mensagem ignorada (não começa com 'kisuco').");
+    return;
   }
+  
+  console.log(`🚀 Processando mensagem de ${senderId}: ${content}`);
+  const chatResponse = await generateChatGPTResponse(senderId, content);
+  await sendBotMessage(senderId, chatResponse);
 };
 
-// 📤 Envia mensagem e armazena no banco com isAI: true
+// 📤 Envia mensagem e armazena no banco
 const sendBotMessage = async (recipientId, content) => {
   try {
     const response = await axios.post(API_URL, {
@@ -149,7 +143,6 @@ const sendBotMessage = async (recipientId, content) => {
     });
 
     const messageId = response.data.messageId || `BOT_MSG_${Date.now()}`;
-
     console.log(`✅ Mensagem enviada pelo bot para ${recipientId}: ${content} (ID: ${messageId})`);
 
     const embedding = await generateEmbedding(content);
