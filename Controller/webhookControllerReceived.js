@@ -1,5 +1,5 @@
 const { storeReceivedMessage } = require("../Services/messageService");
-const { processAndSendMessage } = require("../Services/sentMessage"); // ✅ Importa serviço atualizado
+const { processAndSendMessage} = require("../Services/sentMessage"); // ✅ Importa serviço atualizado
 const { pipeline } = require("@xenova/transformers");
 
 let embedder = null;
