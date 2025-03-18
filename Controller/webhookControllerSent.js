@@ -58,7 +58,7 @@ const webhookControllerSent = async (req, res) => {
     // 🔄 Salva a resposta no banco
     await storeSentMessage({ messageId, senderId, verifiedBizName, recipientId, content, embedding, isAI });
 
-    res.json({ message: "Mensagem enviada processada com sucesso!", data: req.body });
+    res.json({ message: "Mensagem enviada processada com sucesso!" });
   } catch (error) {
     console.error("❌ Erro ao processar webhook de mensagens enviadas:", error);
     res.status(500).json({ error: "Erro ao processar a mensagem enviada" });

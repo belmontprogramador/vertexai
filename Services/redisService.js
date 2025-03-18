@@ -21,8 +21,7 @@ const storeUserMessage = async (userId, message) => {
 
         // 📜 Log para confirmar que a mensagem foi armazenada corretamente
         const updatedHistory = await redis.lrange(key, 0, -1);
-        console.log(`✅ Mensagem armazenada para ${userId}:`, message);
-        console.log(`📜 Histórico atualizado (${userId} - últimas 50 mensagens):`, updatedHistory);
+         
 
     } catch (error) {
         console.error(`❌ Erro ao armazenar mensagem no Redis: ${error.message}`);
@@ -64,7 +63,7 @@ const getUserChatHistory = async (userId) => {
       const key = `chat_history:${userId}`;
       const history = await redis.lrange(key, 0, -1);
       
-      console.log(`📜 Histórico recuperado (${userId}):`, history); // 🔍 Log para depuração
+    
   
       return history.length > 0 ? history : ["Sem histórico"]; // Evita retornar array vazio
     } catch (error) {

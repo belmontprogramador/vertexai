@@ -29,7 +29,7 @@ const generateEmbedding = async (text) => {
 const webhookControllerReceived = async (req, res) => {
   try {
     console.log("🔍 Dados completos recebidos no webhook:");
-    console.dir(req.body, { depth: null });
+    
 
     // Captura todas as informações recebidas
     const {
@@ -78,7 +78,7 @@ const webhookControllerReceived = async (req, res) => {
     // 🔄 Envia para o serviço de resposta automática
     await processAndSendMessage(senderId, content);
 
-    res.json({ message: "Mensagem processada e armazenada com sucesso!", data: req.body });
+    res.json({ message: "Mensagem processada e armazenada com sucesso!" });
   } catch (error) {
     console.error("❌ Erro ao processar webhook:", error);
     res.status(500).json({ error: "Erro ao processar a mensagem recebida." });

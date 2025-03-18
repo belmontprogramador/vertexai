@@ -1,5 +1,5 @@
 const axios = require("axios");
-const { generateRoutine } = require("./routineService");
+
 
 const INSTANCE_ID = process.env.INSTANCE_ID;
 const API_URL = `https://api.w-api.app/v1/message/send-text?instanceId=${INSTANCE_ID}`;
@@ -9,6 +9,7 @@ const TOKEN = process.env.TOKEN;
  * 📌 Processa e envia resposta baseada no Routine Service, incluindo a rotina e a resposta gerada
  */
 const processAndSendMessage = async (senderId, content) => {
+  const { generateRoutine } = require("./routineService");
   if (!content.toLowerCase().startsWith("kisuco")) {
     console.log("❌ Mensagem ignorada (não começa com 'kisuco').");
     return;
@@ -59,9 +60,7 @@ const sendBotMessage = async (recipientId, content) => {
           "Content-Type": "application/json",
         },
       }
-    );
-
-    console.log(`✅ Resposta da API do WhatsApp:`, response.data);
+    );    
 
     return response.data;
   } catch (error) {
