@@ -106,4 +106,5 @@ module.exports = {
   getUserChatHistory,
   setLastInteraction,
   getLastInteraction,
+  redis
 };
