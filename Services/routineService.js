@@ -45,8 +45,7 @@ const generateRoutine = async (userId, userInput) => {
         return await handleSurvey(userId, userInput, userStage, sendBotMessage);
     }
 
-    // 🔄 Caso o estágio não seja identificado corretamente
-    return { routine: `Rotina baseada no estágio: ${userStage}`, response: "Não entendi sua solicitação. Pode reformular?" };
+     
 };
 
 module.exports = { generateRoutine };

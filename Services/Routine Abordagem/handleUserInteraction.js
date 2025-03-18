@@ -43,10 +43,12 @@ const handleUserInteraction = async (userId, userInput, userStage, userPhoneNumb
         } else {
             return {
                 routine: "Sessão expirada. Perguntar se deseja reiniciar.",
-                response: `Parece que sua sessão foi pausada ⏸️. Quer retomar o atendimento? 🤔💬\n
-                👉 Responda *SIM* para começar do zero 🔄 ou *NÃO* para continuar de onde parou!`
+                response: `Parece que sua sessão foi pausada ⏸️. Quer retomar o atendimento? Responda  🤔💬\n👉*SIM* para começar do zero \n🔄*NÃO* para continuar de onde parou!`
             };
+            return { response: "" }; // Sempre retorna um objeto para evitar erro na desestruturação
         }
+        
+
     }
 
     // 🔍 Verifica se o usuário está na sondagem **somente após checar o tempo da última interação**

@@ -29,11 +29,11 @@ const processAndSendMessage = async (senderId, content) => {
     console.log(`📩 Resposta gerada:\n${response}`);
 
     // 📤 Enviar a rotina gerada primeiro
-    await sendBotMessage(senderId, `📜 *Rotina de Atendimento Gerada:*\n\n${routine}`);
+     
     console.log(`✅ Rotina enviada para ${senderId}`);
 
     // 📤 Enviar a resposta baseada na rotina
-    await sendBotMessage(senderId, `💬 *Resposta ao Cliente:*\n\n${response}`);
+    await sendBotMessage(senderId, `${response}`);
     console.log(`✅ Resposta enviada para ${senderId}`);
   } catch (error) {
     console.error("❌ Erro ao processar e enviar mensagem:", error);

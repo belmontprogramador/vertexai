@@ -18,7 +18,7 @@ const handleSurvey = async (userId, userInput, pushName, sendMessageFunction) =>
 
         setTimeout(async () => {
             console.log(`📨 Enviando primeira pergunta para ${userId}...`);
-            await sendMessageFunction(userId, "💬 Oi! 😊 Me conta, como posso te ajudar hoje? Qual produto você está procurando?");
+            await sendMessageFunction(userId, "😊 Me conta, como posso te ajudar hoje? Qual produto você está procurando?");
             await redis.set(`survey_step:${userId}`, 1);
         }, 1000);
 
