@@ -8,7 +8,7 @@ const storeReceivedMessage = async ({ senderId, messageId, pushName, content, em
         id: messageId,
         senderId,
         pushName,
-        conversation: content || "Mensagem sem texto", // Aqui estava o erro
+        conversation: content || "Mensagem sem texto",   
         embedding: embedding || [],
         additionalData: additionalData || {},
       },

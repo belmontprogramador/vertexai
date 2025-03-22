@@ -10,26 +10,54 @@ const redis = new Redis({
  * 🔄 Armazena mensagens do usuário no Redis
  */
 const storeUserMessage = async (userId, message) => {
-    try {
-        const key = `chat_history:${userId}`;
+  try {
+    const key = `chat_history:${userId}`;
 
-        // 🔄 Adiciona a nova mensagem no final da lista
-        await redis.rpush(key, message);
+    // 🔄 Adiciona a nova mensagem no final da lista
+    await redis.rpush(key, message);
 
-        // 🔄 Mantém apenas as últimas 50 mensagens, eliminando as mais antigas
-        await redis.ltrim(key, -50, -1);
+    // 🔄 Mantém apenas as últimas 50 mensagens, eliminando as mais antigas
+    await redis.ltrim(key, -150, -1);
 
-        // 📜 Log para confirmar que a mensagem foi armazenada corretamente
-        const updatedHistory = await redis.lrange(key, 0, -1);
-         
+    // 📜 Log para confirmar que a mensagem foi armazenada corretamente
+    const updatedHistory = await redis.lrange(key, 0, -1);
 
-    } catch (error) {
-        console.error(`❌ Erro ao armazenar mensagem no Redis: ${error.message}`);
-    }
+
+  } catch (error) {
+    console.error(`❌ Erro ao armazenar mensagem no Redis: ${error.message}`);
+  }
 };
 
-  
-  
+/**
+ * 🔍 Recupera o histórico de mensagens do usuário no Redis
+ */
+const getUserChatHistory = async (userId) => {
+  try {
+    const key = `chat_history:${userId}`;
+    const history = await redis.lrange(key, 0, -1);
+
+
+
+    return history.length > 0 ? history : ["Sem histórico"]; // Evita retornar array vazio
+  } catch (error) {
+    console.error(`❌ Erro ao recuperar histórico de mensagens: ${error.message}`);
+    return ["Erro ao recuperar histórico"];
+  }
+};
+
+/**
+ * ❌ Remove o histórico de mensagens do usuário no Redis
+ */
+const deleteUserChatHistory = async (userId) => {
+  try {
+    const key = `chat_history:${userId}`;
+    await redis.del(key);
+    console.log(`✅ Histórico de mensagens do usuário ${userId} removido com sucesso.`);
+  } catch (error) {
+    console.error(`❌ Erro ao remover histórico de mensagens do usuário: ${error.message}`);
+  }
+};
+
 
 /**
  * 🔄 Define o estágio do usuário no Redis
@@ -48,7 +76,7 @@ const setUserStage = async (userId, stage) => {
 const getUserStage = async (userId) => {
   try {
     const stage = await redis.get(`user_stage:${userId}`);
-    return stage || "abordagem";
+    return stage;
   } catch (error) {
     console.error(`❌ Erro ao obter estágio do usuário: ${error.message}`);
     return "abordagem";
@@ -56,22 +84,18 @@ const getUserStage = async (userId) => {
 };
 
 /**
- * 🔍 Recupera o histórico de mensagens do usuário no Redis
+ * ❌ Remove o estágio do usuário no Redis
  */
-const getUserChatHistory = async (userId) => {
-    try {
-      const key = `chat_history:${userId}`;
-      const history = await redis.lrange(key, 0, -1);
-      
-    
-  
-      return history.length > 0 ? history : ["Sem histórico"]; // Evita retornar array vazio
-    } catch (error) {
-      console.error(`❌ Erro ao recuperar histórico de mensagens: ${error.message}`);
-      return ["Erro ao recuperar histórico"];
-    }
-  };
-  
+const deleteUserStage = async (userId) => {
+  try {
+    const key = `user_stage:${userId}`;
+    await redis.del(key);
+    console.log(`✅ Estágio do usuário ${userId} removido com sucesso.`);
+  } catch (error) {
+    console.error(`❌ Erro ao remover estágio do usuário: ${error.message}`);
+  }
+};
+
 
 /**
  * 🔄 Define o timestamp da última interação do usuário no Redis
@@ -98,12 +122,96 @@ const getLastInteraction = async (userId) => {
   }
 };
 
+/**
+ * ❌ Remove a última interação do usuário no Redis
+ */
+const deleteLastInteraction = async (userId) => {
+  try {
+    const key = `last_interaction:${userId}`;
+    await redis.del(key);
+    console.log(`✅ Última interação do usuário ${userId} removida com sucesso.`);
+  } catch (error) {
+    console.error(`❌ Erro ao remover última interação do usuário: ${error.message}`);
+  }
+};
+
+
+/**
+ * 🔄 Armazena uma resposta específica do usuário em um hash no Redis, separando por rotina
+ */
+const storeUserResponse = async (userId, routine = "default", key, response) => {
+  try {
+    const redisKey = `user_responses:${routine}:${userId}`;
+    const timestamp = Date.now();
+
+    await redis.hset(redisKey, key, response);
+    await redis.hset(redisKey, `${key}_timestamp`, timestamp); // grava o timestamp junto
+
+    console.log(`💾 [DEBUG] Resposta salva: "${key}" = "${response}" com timestamp ${timestamp}`);
+  } catch (error) {
+    console.error(`❌ Erro ao armazenar resposta do usuário na rotina ${routine}: ${error.message}`);
+  }
+};
+
+
+/**
+ * 🔍 Obtém todas as respostas armazenadas do usuário em uma rotina específica no Redis
+ */
+const getUserResponses = async (userId, routine = "default") => {
+  try {
+    const redisKey = `user_responses:${routine}:${userId}`;
+    console.log(`🔍 [DEBUG] Buscando respostas do usuário no Redis - Chave: ${redisKey}`);
+    
+    const responses = await redis.hgetall(redisKey);
+
+    console.log(`📩 [DEBUG] Respostas encontradas para ${userId}:`, responses);
+
+    return responses || {};
+  } catch (error) {
+    console.error(`❌ Erro ao recuperar respostas do usuário na rotina ${routine}: ${error.message}`);
+    return {};
+  }
+};
+
+
+/**
+ * ❌ Remove todas as respostas do usuário de uma rotina específica
+ */
+const deleteUserResponses = async (userId, routine) => {
+  try {
+    const redisKey = `user_responses:${routine}:${userId}`;
+    await redis.del(redisKey);
+  } catch (error) {
+    console.error(`❌ Erro ao remover respostas do usuário na rotina ${routine}: ${error.message}`);
+  }
+};
+
+
+ 
+
+
 module.exports = {
-  storeUserMessage,
+  storeUserResponse,
+  getUserResponses,
   setUserStage,
   getUserStage,
+  deleteUserStage,
+  storeUserMessage,
   getUserChatHistory,
+  deleteUserChatHistory,
   setLastInteraction,
   getLastInteraction,
+  deleteLastInteraction,  
+  getUserResponses,
+  deleteUserResponses,
+  
   redis
 };
+
+
+
+
+
+
+
+

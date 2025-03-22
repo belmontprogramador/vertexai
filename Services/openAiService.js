@@ -17,8 +17,9 @@ const generateSurveyQuestion = async (chatHistory, userStage) => {
     Use um tom humanizado, amigável e persuasivo.
     `;
 
-    return await callOpenAi(userContext, 300);
+    return await callOpenAi(userContext, { max_tokens: 50 });
 };
+
 
 /**
  * 📌 Gera uma mensagem de acompanhamento para engajar o cliente na conversa

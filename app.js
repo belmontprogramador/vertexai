@@ -8,7 +8,7 @@ const app = express();
 // Middlewares
 app.use(express.json());
 app.use(cors());
-app.use(morgan("dev"));
+
 
 // Rotas
 app.use("/api", router);
