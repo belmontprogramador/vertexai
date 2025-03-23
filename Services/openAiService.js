@@ -2,25 +2,7 @@ const OpenAI = require("openai");
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-/**
- * 🔍 Gera uma pergunta para a fase de sondagem com base nas respostas anteriores
- */
-const generateSurveyQuestion = async (chatHistory, userStage) => {
-    const userContext = `
-    O cliente já interagiu anteriormente. Aqui está o histórico:
-    ${chatHistory || "Nenhuma interação registrada."}
-    
-    Ele está atualmente na etapa de venda: ${userStage}.
-    
-    Gere uma pergunta emocional e envolvente para continuar a sondagem do cliente.
-    A pergunta deve considerar o estágio de venda e criar conexão emocional com o cliente.
-    Use um tom humanizado, amigável e persuasivo.
-    `;
-
-    return await callOpenAi(userContext, { max_tokens: 50 });
-};
-
-
+ 
 /**
  * 📌 Gera uma mensagem de acompanhamento para engajar o cliente na conversa
  */
@@ -36,26 +18,7 @@ const generateFollowUpMessage = async (chatHistory, userStage) => {
     `;
 
     return await callOpenAi(userContext, 300);
-};
-
-/**
- * 🛍️ Gera uma recomendação de produto com base nas respostas do cliente
- */
-const generateProductRecommendation = async (produtoDesejado, necessidade, investimento, chatHistory) => {
-    const userContext = `
-    O cliente mencionou interesse no seguinte produto: ${produtoDesejado}.
-    Ele precisa desse produto para: ${necessidade}.
-    O orçamento disponível é: ${investimento}.
-
-    Aqui está o histórico de interação com o cliente:
-    ${chatHistory || "Nenhuma interação registrada."}
-
-    Gere uma resposta envolvente e persuasiva, destacando os benefícios do produto no dia a dia do cliente.
-    Finalize com uma pergunta natural que incentive o cliente a continuar interagindo antes da demonstração do produto.
-    `;
-
-    return await callOpenAi(userContext, 500);
-};
+};  
 
 /**
  * 🔥 Gera uma mensagem de fechamento para incentivar a conversão
@@ -97,9 +60,7 @@ const callOpenAi = async (userContext, maxTokens) => {
     }
 };
 
-module.exports = {
-    generateSurveyQuestion,
-    generateFollowUpMessage,
-    generateProductRecommendation,
+module.exports = {    
+    generateFollowUpMessage,  
     generateClosingMessage,
 };

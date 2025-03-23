@@ -4,7 +4,8 @@ const{ checagemInicial } = require ("../Services/checagemInicial")
 
 const webhookControllerReceived = async (req, res) => {
   try {
-    const { messageId, sender, msgContent } = req.body;  
+    const { messageId, sender, msgContent } = req.body; 
+    const pushName = sender?.pushName;     
 
     if (!messageId || !sender?.id) {
       console.log("🚨 Nenhuma mensagem válida recebida.");
@@ -30,7 +31,7 @@ const webhookControllerReceived = async (req, res) => {
     }  
     
     console.log("---------------------------------------")
-    await checagemInicial(senderId, content)
+    await checagemInicial(senderId, content, pushName)
 
     res.json({ message: "Mensagem processada com sucesso!" });    
 
