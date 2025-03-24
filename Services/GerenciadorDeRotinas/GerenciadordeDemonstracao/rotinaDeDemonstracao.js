@@ -1,4 +1,4 @@
-const { sendBotMessage } = require('../messageSender')
+const { sendBotMessage } = require('../../messageSender')
 const {
    setLastInteraction,
    setUserStage,
@@ -6,7 +6,7 @@ const {
    storeUserResponse,
    getUserResponses,
    getUserChatHistory
-} = require('../redisService');
+} = require('../../redisService');
 
 const rotinaDeDemonstracao = async(sender, msgContent) =>{
    const cleanedContent = msgContent.replace(/^again\s*/i, "").trim().toLowerCase();

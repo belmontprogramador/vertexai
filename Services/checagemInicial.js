@@ -1,81 +1,52 @@
+const { validarFluxoInicial } = require("../Services/ValidacaoDeResposta/CentralDeValidacoes");
+const { rotinaDeReincioAtedimento } = require("../Services/GerenciadorDeRotinas/GerenciadorDeAbordagem/rotinaDeReinicioAtendimento");
+const { rotinaDeSondagem } = require("../Services/GerenciadorDeRotinas/GerenciadorDeSondagem/rotinaDeSondagem");
+const { rotinaDeDemonstracao } = require("../Services/GerenciadorDeRotinas/GerenciadorDeDemonstracao/rotinaDeDemonstracao");
+const { rotinaDeAtedimentoInicial } = require("./GerenciadorDeRotinas/GerenciadorDeAbordagem/rotinaDeAtedimentoInicial");
+const { rotinaDeContinuidade } = require("../Services/GerenciadorDeRotinas/GerenciadorDeAbordagem/rotinaDeContinuidade");
+const { setarReset } = require('../Services/ValidacaoDeResposta/validadorDeReset')
 const { sendBotMessage } = require("./messageSender");
-const { getLastInteraction, setUserStage, getUserStage, setLastInteraction, storeUserMessage } = require("./redisService");
-const { rotinaDeAtedimento } = require("../Services/GerenciadorDeRotinas/rotinaDeAtendimento");
-const { rotinaDeSondagem } = require("./GerenciadorDeRotinas/GerenciadorDeSondagem/rotinaDeSondagem")
-const { rotinaDeDemonstracao } = require("./GerenciadordeDemonstracao/rotinaDeDemonstracao")
+const { setUserStage, redis,  } = require('./redisService')
 
-const checagemInicial = async (sender, msgContent, pushName) => {     
-    const cleanedContent = msgContent.replace(/^again\s*/i, "").trim().toLowerCase();
-    const lastInteraction = await getLastInteraction(sender);
-    const currentTime = Date.now();
-    const CHECK_TIME_LIMIT = 1 * 60 * 1000;
-    await setLastInteraction(sender, currentTime);
-    const avanço = await getUserStage(sender)  
-    await storeUserMessage(sender, cleanedContent);
+const checagemInicial = async (sender, msgContent, pushName) => {
+  const cleanedContent = msgContent.replace(/^again\s*/i, "").trim().toLowerCase();
 
-    // 🔄 Caso o tempo tenha expirado, inicia reinício
-    if (!lastInteraction || currentTime - lastInteraction > CHECK_TIME_LIMIT) {
-        await setUserStage(sender, "reinicio_de_atendimento");
-        console.log(`⏳ [DEBUG] Tempo expirado. Stage setado: reinicio_de_atendimento`);
-    }
+  let novoStage;
 
-    // Estagio do usuario com reposta dentro do tenmpo
-    const sequencia_de_atendimento = await getUserStage(sender);
-    const sequencia_de_demonstracao = await getUserStage(sender);
-
-
-// 🔄 Caso o tempo tenha expirado, inicia reinício
-if (!lastInteraction || currentTime - lastInteraction > CHECK_TIME_LIMIT) {
-  await setUserStage(sender, "reinicio_de_atendimento");
-  console.log(`⏳ [DEBUG] Tempo expirado. Stage setado: reinicio_de_atendimento`);
+if (cleanedContent === "resetardados") {         
+    await setarReset(sender, msgContent)   
+    novoStage = "primeiro_atendimento"
+    console.log(`🎯 [DEBUG] Executando switch para stage: ${novoStage}`); 
+} else {
+    novoStage = await validarFluxoInicial(sender, msgContent, pushName);
+    console.log(`🎯 [DEBUG] Executando switch para stage: ${novoStage}`);
 }
+ 
 
-// ⏱️ Se dentro do tempo e usuário respondeu
-if (    
-    cleanedContent === "d"
-  ) {
-    await setUserStage(sender, "sequencia_de_demonstracao"); 
-  }else if(cleanedContent !== "sim" &&
-    cleanedContent !== "não" &&
-    cleanedContent !== "nao" &&
-    sequencia_de_atendimento === "sequencia_de_atendimento"){
-        await setUserStage(sender, "sequencia_de_atendimento");
-    
-  } else if (cleanedContent === "sim") {
-    await setUserStage(sender, "sondagem");
-    console.log(`✅ [DEBUG] Resposta SIM. Stage setado: sondagem`);
-  } else if (cleanedContent === "não" || cleanedContent === "nao") {
-    await setUserStage(sender, "continuar_de_onde_parou");
-    console.log(`✅ [DEBUG] Resposta NÃO. Stage setado: continuar_de_onde_parou`);
+  switch (novoStage) {
+    case "primeiro_atendimento":
+      return await rotinaDeAtedimentoInicial(sender, msgContent, pushName);
+
+    case "reinicio_de_atendimento":
+      return await rotinaDeReincioAtedimento(sender, msgContent, pushName);
+
+    case "sondagem":
+      await sendBotMessage(sender, "Perfeito! Vamos retomar seu atendimento 😄");
+      return await rotinaDeSondagem({ sender, msgContent, pushName });
+
+    case "sequencia_de_atendimento":
+      return await rotinaDeSondagem({ sender, msgContent, pushName });
+
+    case "sequencia_de_demonstracao":
+      return await rotinaDeDemonstracao(sender, msgContent, pushName);
+
+    case "continuar_de_onde_parou":
+      return await rotinaDeContinuidade(sender, msgContent, pushName);
+
+    default:
+      console.log("⚠️ [DEBUG] Nenhum stage válido encontrado.");
+      return await sendBotMessage(sender, "Não consegui identificar seu estágio 😕");
   }
-  
+};
 
-
-        // 🔁 Executa a rotina de acordo com o estágio atual
-        const stage = await getUserStage(sender);
-        console.log(`🎯 [DEBUG] Executando switch para stage: ${stage}`);
-
-        switch (stage) {
-            case "reinicio_de_atendimento":
-                return await rotinaDeAtedimento(sender, cleanedContent, pushName);
-
-            case "sondagem":
-                await sendBotMessage(sender, "Perfeito! Vamos retomar seu atendimento 😄");
-                return await rotinaDeSondagem({ sender, msgContent: cleanedContent, pushName });
-
-            case "sequencia_de_atendimento":               
-            return await rotinaDeSondagem({ sender, msgContent: cleanedContent, pushName });
-
-            case "sequencia_de_demonstracao":
-                return await rotinaDeDemonstracao(sender, cleanedContent, pushName)
-
-            case "continuar_de_onde_parou":
-                return await sendBotMessage(sender, "Perfeito! Vamos continuar de onde paramos 😄");
-
-            default:
-                console.log("⚠️ [DEBUG] Nenhum stage válido encontrado.");
-                return await sendBotMessage(sender, "Não consegui identificar seu estágio 😕");
-        }
-    };
-
-    module.exports = { checagemInicial };
+module.exports = { checagemInicial };

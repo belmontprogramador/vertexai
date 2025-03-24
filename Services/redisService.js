@@ -177,14 +177,11 @@ const getUserResponses = async (userId, routine = "default") => {
 /**
  * ❌ Remove todas as respostas do usuário de uma rotina específica
  */
-const deleteUserResponses = async (userId, routine) => {
-  try {
-    const redisKey = `user_responses:${routine}:${userId}`;
-    await redis.del(redisKey);
-  } catch (error) {
-    console.error(`❌ Erro ao remover respostas do usuário na rotina ${routine}: ${error.message}`);
-  }
+const deleteUserResponses = async (userId, routine = "default") => {
+  const redisKey = `user_responses:${routine}:${userId}`;
+  await redis.del(redisKey);
 };
+
 
 
  
