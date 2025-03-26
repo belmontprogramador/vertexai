@@ -1,0 +1,11 @@
+{
+  "version": "1.0",
+  "apis": [
+    {
+      "identifier": "kommo",
+      "source": "@kommo/v1.0#4nav23m8cy8ine",
+      "integrity": "sha512-9lGIZ0KFZ9P+kTIMQeT5xaFLDxtXhc9ODt5uQczfrGzFS3fBPpVts5Z3uCo/4pskD9K3GIMId1zX/KiQjJNWwg==",
+      "installerVersion": "6.1.3"
+    }
+  ]
+}

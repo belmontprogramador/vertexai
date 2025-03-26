@@ -1,52 +1,70 @@
 const { validarFluxoInicial } = require("../Services/ValidacaoDeResposta/CentralDeValidacoes");
 const { rotinaDeReincioAtedimento } = require("../Services/GerenciadorDeRotinas/GerenciadorDeAbordagem/rotinaDeReinicioAtendimento");
-const { rotinaDeSondagem } = require("../Services/GerenciadorDeRotinas/GerenciadorDeSondagem/rotinaDeSondagem");
-const { rotinaDeDemonstracao } = require("../Services/GerenciadorDeRotinas/GerenciadorDeDemonstracao/rotinaDeDemonstracao");
+const { rotinaDeSondagemDeCelular } = require("./GerenciadorDeRotinas/GerenciadorDeSondagem/rotinaDeSondagemDeCelular");
+const { rotinaDeRedirecionamentoDeAbordagem } = require("../Services/GerenciadorDeRotinas/GerenciadorDeAbordagem/rotinaDeRedirecionamentoDeAbordagem");
+const { rotinaDeDemonstracao } = require("../Services/GerenciadorDeRotinas/GerenciadorDeDemonstracao/rotinaDeDemonstracao"); 
 const { rotinaDeAtedimentoInicial } = require("./GerenciadorDeRotinas/GerenciadorDeAbordagem/rotinaDeAtedimentoInicial");
-const { rotinaDeContinuidade } = require("../Services/GerenciadorDeRotinas/GerenciadorDeAbordagem/rotinaDeContinuidade");
+const { agenteDeFechamentoSondagem } = require("../Services/GerenciadorDeRotinas/GerenciadorDeSondagem/openAiServicesFechamentoDeSondagem")
+const { rotinaDeContinuidade } = require("./GerenciadorDeRotinas/GerenciadorDeAbordagem/rotinaDeContinuidade");
+const { rotinaDeAbordagem } = require("./GerenciadorDeRotinas/GerenciadorDeAbordagem/rotinaDeAbordagem")
 const { setarReset } = require('../Services/ValidacaoDeResposta/validadorDeReset')
 const { sendBotMessage } = require("./messageSender");
-const { setUserStage, redis,  } = require('./redisService')
+const { setUserStage, getUserResponses,redis, } = require('./redisService')
 
 const checagemInicial = async (sender, msgContent, pushName) => {
-  const cleanedContent = msgContent.replace(/^again\s*/i, "").trim().toLowerCase();
+    const cleanedContent = msgContent.replace(/^again\s*/i, "").trim().toLowerCase();
 
-  let novoStage;
+    let novoStage;
 
-if (cleanedContent === "resetardados") {         
-    await setarReset(sender, msgContent)   
-    novoStage = "primeiro_atendimento"
-    console.log(`🎯 [DEBUG] Executando switch para stage: ${novoStage}`); 
-} else {
-    novoStage = await validarFluxoInicial(sender, msgContent, pushName);
-    console.log(`🎯 [DEBUG] Executando switch para stage: ${novoStage}`);
-}
- 
+    if (cleanedContent === "resetardados") {
+        await setarReset(sender, msgContent)
+        novoStage = "primeiro_atendimento"
+        console.log(`🎯 [DEBUG] Executando switch para stage: ${novoStage}`);
+        return;
+    } else {
+        novoStage = await validarFluxoInicial(sender, msgContent, pushName);
+        console.log(`🎯 [DEBUG] Executando switch para stage: ${novoStage}`);
+    }
 
-  switch (novoStage) {
-    case "primeiro_atendimento":
-      return await rotinaDeAtedimentoInicial(sender, msgContent, pushName);
+    switch (novoStage) {
+        case "primeiro_atendimento":
+            return await rotinaDeAtedimentoInicial(sender, msgContent, pushName);
 
-    case "reinicio_de_atendimento":
-      return await rotinaDeReincioAtedimento(sender, msgContent, pushName);
+        case "reinicio_de_atendimento":
+            return await rotinaDeReincioAtedimento(sender, msgContent, pushName);
 
-    case "sondagem":
-      await sendBotMessage(sender, "Perfeito! Vamos retomar seu atendimento 😄");
-      return await rotinaDeSondagem({ sender, msgContent, pushName });
+        case "abordagem":
+            return await rotinaDeAbordagem({ sender, msgContent, pushName });
 
-    case "sequencia_de_atendimento":
-      return await rotinaDeSondagem({ sender, msgContent, pushName });
+        case "sequencia_de_abordagem":
+            return await rotinaDeRedirecionamentoDeAbordagem({ sender, msgContent, pushName });
 
-    case "sequencia_de_demonstracao":
-      return await rotinaDeDemonstracao(sender, msgContent, pushName);
+        case "sequencia_de_atendimento":
+            return await rotinaDeSondagemDeCelular({ sender, msgContent, pushName });
 
-    case "continuar_de_onde_parou":
-      return await rotinaDeContinuidade(sender, msgContent, pushName);
+        case "sondagem_de_celular":
+            await sendBotMessage(sender, "Perfeito! Vamos retomar seu atendimento 😄");
+            return await rotinaDeSondagemDeCelular({ sender, msgContent, pushName });
 
-    default:
-      console.log("⚠️ [DEBUG] Nenhum stage válido encontrado.");
-      return await sendBotMessage(sender, "Não consegui identificar seu estágio 😕");
-  }
+        case "agente_de_fechamento_de_sondagem": 
+            const respostas = await getUserResponses(sender, "sondagem");
+
+            const produto = respostas.pergunta_1;
+            const finalidadeUso = respostas.pergunta_2;
+            const investimento = respostas.pergunta_3;  
+            console.log(produto, finalidadeUso, investimento)         
+            return await agenteDeFechamentoSondagem(sender, msgContent, produto, finalidadeUso, investimento, pushName);
+
+        case "sequencia_de_demonstracao":
+            return await rotinaDeDemonstracao(sender, msgContent, pushName);
+
+        case "continuar_de_onde_parou":
+            return await rotinaDeContinuidade(sender, msgContent, pushName);
+
+        default:
+            console.log("⚠️ [DEBUG] Nenhum stage válido encontrado.");
+            return await sendBotMessage(sender, "Não consegui identificar seu estágio 😕");
+    }
 };
 
 module.exports = { checagemInicial };

@@ -5,13 +5,18 @@ const {
    getUserStage,
    storeUserResponse,
    getUserResponses,
-   getUserChatHistory
+   getUserChatHistory,
+   setStageHistory
 } = require('../../redisService');
 
-const rotinaDeDemonstracao = async(sender, msgContent) =>{
+const rotinaDeDemonstracao = async({ sender, msgContent, produto, finalidadeUso, investimento, pushName }) =>{
    const cleanedContent = msgContent.replace(/^again\s*/i, "").trim().toLowerCase();
     const currentTime = Date.now();
     await setLastInteraction(sender, currentTime);
+    const stageAtual = await getUserStage(sender);
+await setStageHistory(sender, stageAtual);
+await setUserStage(sender, "sequencia_de_demonstracao");
+
     
    await sendBotMessage(sender, "to  na rotina de demosmtração")
 

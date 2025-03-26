@@ -83,6 +83,20 @@ const getUserStage = async (userId) => {
   }
 };
 
+const setStageHistory = async (sender, newStage) => {
+  const stageAnterior1 = await redis.get(`previous_stage:${sender}`);
+  if (stageAnterior1) {
+    await redis.set(`previous_stage_2:${sender}`, stageAnterior1); // mais antigo
+  }
+  await redis.set(`previous_stage:${sender}`, newStage); // o mais recente
+};
+
+const getStageHistory = async (sender) => {
+  const stage1 = await redis.get(`previous_stage:${sender}`);
+  const stage2 = await redis.get(`previous_stage_2:${sender}`);
+  return { stage1, stage2 };
+};
+
 /**
  * ❌ Remove o estágio do usuário no Redis
  */
@@ -180,11 +194,7 @@ const getUserResponses = async (userId, routine = "default") => {
 const deleteUserResponses = async (userId, routine = "default") => {
   const redisKey = `user_responses:${routine}:${userId}`;
   await redis.del(redisKey);
-};
-
-
-
- 
+}; 
 
 
 module.exports = {
@@ -201,6 +211,8 @@ module.exports = {
   deleteLastInteraction,  
   getUserResponses,
   deleteUserResponses,
+  setStageHistory,
+  getStageHistory,
   
   redis
 };

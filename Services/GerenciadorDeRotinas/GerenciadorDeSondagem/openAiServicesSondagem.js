@@ -32,19 +32,28 @@ const agenteDeDesondagem = async (produtoDesejado, necessidade, investimento, hi
  * 🙋‍♀️ Gera uma mensagem humanizada de introdução à fase de sondagem
  * Objetivo: Engajar o usuário de forma natural antes da primeira pergunta
  */
-const agenteDeSondagemAterrizagem = async () => {
+const agenteDeSondagemAterrizagem = async (pushName) => {
     const prompt = `
-  Você é uma atendente virtual simpática e acolhedora.
-  Gere uma mensagem curta e humanizada (até 2 frases) para iniciar uma conversa com o cliente antes de fazer a primeira pergunta da sondagem.
+  Você é Anna vendendora da loja de Produtos Eletronico VertexStore
+  
+
+  Você é especializada em celulares, cabos fones, peliculas e tudo mais relacionado a isso
+  Gere uma mensagem curta e humanizada (até 2 frases) para contiuar uma conversa com o cliente antes de fazer a primeira pergunta da sondagem, baseado nesse contexto 'tenho muitas oportunidades bacanas aqui em loja!!'
   O objetivo é deixá-lo à vontade e engajado para responder.
   
   ⚠️ Regras:
+  - Voce ja se apresentou não se apresente novamente
   - Não use linguagem técnica
   - Seja simpática, natural e direta
   - Não diga "vamos iniciar a sondagem"
-  - Finalize com algo como: "Me conta..." ou "Pode me dizer..."
+  - Utilize de emoção para criar conexão emocional com o cliente
+  - Tente reproduzir o maximo o comportamento humano
+  - Não faça perguntas - Não faça nenhuma pergunta.
+  - Não use # ao final de cada mensagem.
+  - Sempre utilize o nome da loja
+  - Repdroduza o comportamento humano
+  - Não mande a reposta entre ""
   
-  Exemplo: "Que bom ter você aqui! Me conta, o que você está procurando hoje?"
   `;
   
     const completion = await openai.chat.completions.create({
@@ -65,16 +74,22 @@ const agenteDeSondagemAterrizagem = async () => {
  */
 const agenteDeSondagemDeProduto = async (produtoAnterior, pushNameProduto) => {
     const prompt = `
-  O cliente de nome "${pushNameProduto}" informou que está interessado no seguinte produto: "${produtoAnterior}".
+  Você é Anna vendendora da loja de Produtos Eletronico VertexStore
+  Você é especializada em celulares, cabos fones, peliculas e tudo mais relacionado a isso
+  Resposta do Usuario: O cliente de nome "${pushNameProduto}" informou que está interessado no seguinte produto: "${produtoAnterior}".
   
-  Crie uma mensagem curta e humanizada (1 ou 2 frases no máximo), demonstrando que você entendeu o produto que ele quer e conduzindo naturalmente para a próxima pergunta, que será sobre a finalidade de uso do produto.
-  
+  Crie uma mensagem curta e humanizada (1 ou 2 frases no máximo), demonstrando que você entendeu o produto que ele quer.
+  Esse processo é suporte para pegunta anterior.
+  No suporte voce deve fazer uma conexão emocional e humanizada entre o cliente e o produto, gerando valor agregado ao que o cliente deseja. Encaixando o que ele pediu numa utilidade pratica do dia a dia. Exemplo "meu relogio smartch das me ajudando muito no controle dos meu exercicio"
+ 
   ⚠️ Regras:
   - Não use linguagem técnica
   - Repita o nome do produto uma vez
-  -chame pelo nome
-  - Seja natural, empático e conduza com leveza
-  - Finalize com algo como: "Pra que tipo de uso você está pensando?" ou similar
+  - chame pelo nome
+  - Seja natural, empático e conduza com leveza  
+  - Não use # ao final de cada mensagem.
+  - Repdroduza o comportamento humano
+  - Não mande a reposta entre ""
   `;
   
     const completion = await openai.chat.completions.create({
@@ -90,18 +105,23 @@ const agenteDeSondagemDeProduto = async (produtoAnterior, pushNameProduto) => {
   /**
  * 💬 Gera uma introdução humanizada antes da pergunta sobre finalidade de uso (pergunta 2)
  */
-const agenteDeNecessidade = async (necessidade, produtoDesejado2) => {
+const agenteDeSondagemNecessidade = async (necessidade, produtoDesejado2) => {
     const prompt = `
+  Você é Anna vendendora da loja de Produtos Eletronico VertexStore
+  Você é especializada em celulares, cabos fones, peliculas e tudo mais relacionado a isso
   O cliente informou que tem seguinte necessidade para o produto: "${necessidade}".
   O cliente informou que está interessado no seguinte produto: "${ produtoDesejado2}".
   
-  Gere uma mensagem curta (1 ou 2 frases), acolhedora e natural, demonstrando que você entendeu o produto desejado e engajando o cliente para responder sobre a finalidade de uso.
+  Crie uma mensagem curta e humanizada (1 ou 2 frases no máximo), demonstrando que você entendeu o produto que ele quer.
+  Esse processo é suporte para pegunta anterior.
+  No suporte voce deve fazer uma conexão emocional e humanizada entre o cliente e o produto, gerando valor agregado ao que o cliente deseja e sua utilidade no dia a dia. Exemplo "esse celular tem uma otima camera suas fotos no insta vão ficar top"
   
   ⚠️ Regras:
   - Não seja genérico
-  - Use o nome do produto e sua finalidade uma única vez de forma natural
-  - Finalize com algo leve como: "Me conta, pra que você pretende usar?" ou "E no seu dia a dia, como esse produto vai te ajudar?"
-  - NÃO faça a pergunta diretamente, apenas prepare o terreno
+  - Use o nome do produto e sua finalidade uma única vez de forma  
+  - Seja natural, empático e conduza com leveza
+  - Repdroduza o comportamento humano
+  - Não mande a reposta entre ""
   `;
   
     const completion = await openai.chat.completions.create({
@@ -112,40 +132,12 @@ const agenteDeNecessidade = async (necessidade, produtoDesejado2) => {
     });
   
     return completion.choices[0].message.content.trim();
-  }; 
-
-/**
- * 🙌 Gera uma mensagem de fechamento da sondagem, abrindo espaço para seguir para a demonstração
- */
-const agenteDeFechamentoSondagem = async () => {
-  const prompt = `
-Você é uma atendente virtual simpática.
-
-Crie uma mensagem de encerramento da etapa de sondagem. A mensagem deve demonstrar que todas as informações foram coletadas e que o sistema já está pronto para seguir para a próxima etapa: a demonstração de produtos.
-
-⚠️ Regras:
-- Seja natural, acolhedora e positiva
-- Não repita as respostas do cliente
-- Indique que em breve ele verá as melhores opções
-- Finalize com uma pergunta simples que incentive o usuário a responder e seguir adiante, como:
-  - "Quer ver o que separamos pra você?"
-  - "Posso te mostrar algumas sugestões agora?"
-`;
-
-  const completion = await openai.chat.completions.create({
-    model: "gpt-3.5-turbo",
-    messages: [{ role: "user", content: prompt }],
-    temperature: 0.7,
-    max_tokens: 100
-  });
-
-  return completion.choices[0].message.content.trim();
-};   
+  };   
 
 module.exports = { 
     agenteDeSondagemAterrizagem,
     agenteDeSondagemDeProduto,
-    agenteDeNecessidade,
+    agenteDeSondagemNecessidade,
     agenteDeDesondagem,
-    agenteDeFechamentoSondagem
+     
 }
