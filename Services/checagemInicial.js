@@ -56,7 +56,7 @@ const checagemInicial = async (sender, msgContent, pushName) => {
             return await agenteDeFechamentoSondagem(sender, msgContent, produto, finalidadeUso, investimento, pushName);
 
         case "sequencia_de_demonstracao":
-            return await rotinaDeDemonstracao(sender, msgContent, pushName);
+            return await rotinaDeDemonstracao({ sender, msgContent, produto, finalidadeUso, investimento, pushName });
 
         case "continuar_de_onde_parou":
             return await rotinaDeContinuidade(sender, msgContent, pushName);

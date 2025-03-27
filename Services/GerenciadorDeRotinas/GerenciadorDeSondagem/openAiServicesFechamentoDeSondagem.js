@@ -23,13 +23,12 @@ const handlers = {
   obterInvestimento: async (sender, _produto, _finalidade, _investimento, pushName) => {
     await sendBotMessage(sender, `💰 Qual é o seu orçamento aproximado para esse celular?`);
   },
-  demonstrarProdutos: async (sender, produto, finalidadeUso, investimento, pushName) => {
+  demonstrarProdutos: async (sender, produto, finalidadeUso, investimento, pushName, msgContent) => {
     await sendBotMessage(sender, `✅ Saquei ${pushName} vou te mostrar alguns modelos aqui da loja`);
     await setUserStage(sender, "demonstracao_de_produtos");
     await rotinaDeDemonstracao({ sender, msgContent, produto, finalidadeUso, investimento, pushName });
-
-
   }
+  
 };
 
 // Funções disponíveis que o modelo pode chamar
@@ -149,7 +148,8 @@ const agenteDeFechamentoSondagem = async (sender, msgContent, _produto, _finalid
           args.produto || produto,
           args.finalidadeUso || finalidadeUso,
           args.investimento || investimento,
-          pushName
+          pushName,
+          msgContent
         );
       }
     }

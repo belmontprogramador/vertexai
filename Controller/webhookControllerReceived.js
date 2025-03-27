@@ -31,6 +31,7 @@ const webhookControllerReceived = async (req, res) => {
     }  
     
     console.log("---------------------------------------")
+    //fila
     await checagemInicial(senderId, content, pushName)
 
     res.json({ message: "Mensagem processada com sucesso!" });    

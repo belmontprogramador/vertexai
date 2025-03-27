@@ -32,12 +32,12 @@ const validarFluxoInicial = async (sender, msgContent, pushName) => {
     return "reinicio_de_atendimento";
   }
 
-  // 🔀 Resposta direta para pular pra demonstração
-  if (cleanedContent === "d") {
-    await setStageHistory(sender, stageAtual);
-    await setUserStage(sender, "sequencia_de_demonstracao");
-    return "sequencia_de_demonstracao";
-  }
+  // // 🔀 Resposta direta para pular pra demonstração
+  // if (cleanedContent === "d") {
+  //   await setStageHistory(sender, stageAtual);
+  //   await setUserStage(sender, "sequencia_de_demonstracao");
+  //   return "sequencia_de_demonstracao";
+  // }
 
   // ✅ Resposta SIM → vai para sondagem
   if (cleanedContent === "sim") {
