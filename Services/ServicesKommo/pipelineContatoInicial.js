@@ -1,8 +1,12 @@
 const axios = require('axios');
 require('dotenv').config();
+const { normalizePhone } = require('../normalizePhone');
 
 const KOMMO_BASE_URL = "https://contatovertexstorecombr.kommo.com";
 const KOMMO_TOKEN = process.env.KOMMO_TOKEN;
+
+const PIPELINE_ID = 7214739; // COMERCIAL VERTEX
+const STAGE_ID_CONTATO_INICIAL = 59717047; // Contato Inicial
 
 const headers = {
   Authorization: `Bearer ${KOMMO_TOKEN}`,
@@ -10,119 +14,105 @@ const headers = {
 };
 
 /**
- * Busca pipeline "COMERCIAL VERTEX" e estágio "Contato Inicial"
+ * Busca contato pelo telefone normalizado e retorna também o lead (se houver)
  */
-async function getComercialVertexPipeline() {
-  const res = await axios.get(`${KOMMO_BASE_URL}/api/v4/leads/pipelines`, { headers });
-  const pipelines = res.data._embedded?.pipelines || [];
-  const pipeline = pipelines.find(p => p.name === "COMERCIAL VERTEX");
+async function findContactAndLeadByPhone(phone) {
+  const normalized = normalizePhone(phone);
+  console.log("📞 Número normalizado:", normalized);
 
-  if (!pipeline) throw new Error("❌ Pipeline 'COMERCIAL VERTEX' não encontrado.");
-  const contatoInicialStage = pipeline.statuses.find(s => s.name === "Contato Inicial");
-
-  if (!contatoInicialStage) throw new Error("❌ Estágio 'Contato Inicial' não encontrado.");
-
-  return { pipelineId: pipeline.id, stageId: contatoInicialStage.id };
-}
-
-/**
- * Busca contato pelo telefone
- */
-async function findContactByPhone(phone) {
-  const response = await axios.get(`${KOMMO_BASE_URL}/api/v4/contacts`, {
+  const res = await axios.get(`${KOMMO_BASE_URL}/api/v4/contacts`, {
     headers,
-    params: { query: phone }
+    params: { query: normalized, with: 'leads' }
   });
 
-  const contatos = response.data?._embedded?.contacts || [];
-  return contatos.length ? contatos[0] : null;
+  console.log("📦 Resposta da API Kommo (contacts):", JSON.stringify(res.data, null, 2));
+
+  const contact = res.data._embedded?.contacts?.[0];
+
+  if (!contact) {
+    console.log("❌ Nenhum contato encontrado com esse número.");
+    return null;
+  }
+
+  console.log("✅ Contato encontrado:", {
+    id: contact.id,
+    name: contact.name,
+    phones: contact.custom_fields_values?.find(f => f.field_code === 'PHONE')?.values || []
+  });
+
+  const lead = contact._embedded?.leads?.[0] || null;
+
+  if (!lead) {
+    console.log("ℹ️ Contato encontrado, mas sem leads vinculados.");
+  } else {
+    console.log("✅ Lead vinculado encontrado:", {
+      id: lead.id,
+      status_id: lead.status_id,
+      pipeline_id: lead.pipeline_id
+    });
+  }
+
+  return { contact, lead };
 }
 
-/**
- * Move um lead para o pipeline e estágio corretos
- */
-async function moveLeadToContatoInicial(leadId, pipelineId, stageId) {
-  await axios.patch(`${KOMMO_BASE_URL}/api/v4/leads`, [{
-    id: leadId,
-    pipeline_id: pipelineId,
-    status_id: stageId
-  }], { headers });
-
-  console.log(`📦 Lead ${leadId} movido para pipeline '${pipelineId}' e estágio 'Contato Inicial'`);
-}
 
 /**
  * Cria novo lead vinculado a um contato existente
  */
-async function createLeadForContact(contactId, name, pipelineId, stageId) {
-  const leadData = [{
+async function createLeadForContact(contactId, name) {
+  const payload = [{
     name,
-    status_id: stageId,
-    pipeline_id: pipelineId,
-    _embedded: {
-      contacts: [{ id: contactId }]
-    }
+    status_id: STAGE_ID_CONTATO_INICIAL,
+    pipeline_id: PIPELINE_ID,
+    _embedded: { contacts: [{ id: contactId }] }
   }];
 
-  const res = await axios.post(`${KOMMO_BASE_URL}/api/v4/leads`, leadData, { headers });
+  const res = await axios.post(`${KOMMO_BASE_URL}/api/v4/leads`, payload, { headers });
   const leadId = res.data._embedded?.leads?.[0]?.id;
+
   console.log("🆕 Lead criado para contato existente:", leadId);
   return leadId;
 }
 
 /**
- * Cria contato + lead novo
+ * Move um lead para o estágio "Contato Inicial"
  */
-async function createContactAndLead({ name, phone, firstName, pipelineId, stageId }) {
-  const leadData = [{
-    name,
-    status_id: stageId,
-    pipeline_id: pipelineId,
-    _embedded: {
-      contacts: [{
-        first_name: firstName,
-        custom_fields_values: [{
-          field_code: "PHONE",
-          values: [{ value: phone, enum_code: "WORK" }]
-        }]
-      }]
-    }
+async function moveLeadToContatoInicial(leadId) {
+  const payload = [{
+    id: leadId,
+    pipeline_id: PIPELINE_ID,
+    status_id: STAGE_ID_CONTATO_INICIAL
   }];
 
-  const res = await axios.post(`${KOMMO_BASE_URL}/api/v4/leads`, leadData, { headers });
-
-  const leadId = res.data._embedded?.leads?.[0]?.id;
-  const contactId = res.data._embedded?.contacts?.[0]?.id;
-
-  console.log("✅ Contato e lead criados:", { leadId, contactId });
-  return { leadId, contactId };
+  await axios.patch(`${KOMMO_BASE_URL}/api/v4/leads`, payload, { headers });
+  console.log(`📦 Lead ${leadId} movido para 'Contato Inicial'`);
 }
 
 /**
- * Função principal que gerencia a lógica de lead no estágio "Contato Inicial"
+ * Função principal
  */
-async function pipelineContatoInicial({ name, phone, firstName }) {
-  const { pipelineId, stageId } = await getComercialVertexPipeline();
-  const contact = await findContactByPhone(phone);
+async function pipelineContatoInicial({ name, phone }) {
+  const result = await findContactAndLeadByPhone(phone);
+  if (!result || !result.contact) throw new Error("❌ Contato não encontrado");
 
-  if (!contact) {
-    return await createContactAndLead({ name, phone, firstName, pipelineId, stageId });
+  const contactId = result.contact.id;
+
+  if (!result.lead) {
+    await createLeadForContact(contactId, name);
+    return;
   }
 
-  const contactId = contact.id;
-  const leads = contact._embedded?.leads || [];
+  const lead = result.lead;
 
-  if (leads.length === 0) {
-    // Sem leads: cria novo
-    const leadId = await createLeadForContact(contactId, name, pipelineId, stageId);
-    return { leadId, contactId };
+  const alreadyInContatoInicial =
+    lead.pipeline_id === PIPELINE_ID &&
+    lead.status_id === STAGE_ID_CONTATO_INICIAL;
+
+  if (!alreadyInContatoInicial) {
+    await moveLeadToContatoInicial(lead.id);
+  } else {
+    console.log("✅ Lead já está em 'Contato Inicial'. Nenhuma ação necessária.");
   }
-
-  const lead = leads[0];
-
-  // Qualquer lead existente (mesmo fora do pipeline): move para COMERCIAL VERTEX / Contato Inicial
-  await moveLeadToContatoInicial(lead.id, pipelineId, stageId);
-  return { leadId: lead.id, contactId };
 }
 
 module.exports = { pipelineContatoInicial };

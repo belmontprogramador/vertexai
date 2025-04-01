@@ -1,12 +1,12 @@
 // agenteDeFechamentoSondagem.js
 
-const { sendBotMessage } = require("../../messageSender");
+const { sendBotMessage } = require("../../../messageSender");
 const {
   setUserStage,
   storeUserResponse,
   getUserResponses
-} = require("../../redisService");
-const { rotinaDeDemonstracao } = require("../GerenciadorDeDemonstracao/rotinaDeDemonstracao");
+} = require("../../../redisService");
+const { rotinaDeDemonstracao } = require("../../GerenciadorDeDemonstracao/rotinaDeDemonstracao");
 const OpenAI = require("openai");
 require("dotenv").config();
 

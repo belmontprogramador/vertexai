@@ -13,11 +13,11 @@ const {
   agenteDeSondagemDeProduto,
   agenteDeSondagemNecessidade
 } = require('./ServicesOpenAiSondagem/openAiServicesSondagem');
-const { agenteDeFechamentoSondagem } = require("./ServicesOpenAiSondagem/openAiServicesFechamentoDeSondagem");
-const { pipelineContatoInicial } = require("../../ServicesKommo/pipelineContatoInicial");
+const { agenteDeFechamentoSondagemDeAcessorio } = require("./ServicesOpenAiSondagem/openAiServicesFechamentoDeSondagemAcessorios");
+const { pipelineContatoInicialAcessorios } = require("../../ServicesKommo/pipelineContatoInicialAcessorios");
 
-const rotinaDeSondagemDeCelular = async ({ sender, msgContent, pushName }) => {
-  console.log('🚀 Entrei dentro da rotina de sondagem');
+const rotinaDeSondagemDeAcessorios = async ({ sender, msgContent, pushName }) => {
+  console.log('🚀 Entrei dentro da rotina de sondagemdeacessorio');
 
   const cleanedContent = msgContent.replace(/^again\s*/i, "").trim().toLowerCase();
   const currentTime = Date.now();
@@ -30,7 +30,7 @@ const rotinaDeSondagemDeCelular = async ({ sender, msgContent, pushName }) => {
   console.log(`🎯 Estágio global: ${mainStage} | Etapa: ${etapa}`);
 
   if (
-    mainStage !== "sondagem_de_celular" &&
+    mainStage !== "sondagem_de_acessorios" &&
     mainStage !== "sequencia_de_atendimento" &&
     mainStage !== "continuar_de_onde_parou"
   ) {
@@ -42,18 +42,17 @@ const rotinaDeSondagemDeCelular = async ({ sender, msgContent, pushName }) => {
   // Criar lead na Kommo quando entra na rotina
   if (!respostas?.kommo_lead_criado) {
     try {
-      await pipelineContatoInicial({
+      await pipelineContatoInicialAcessorios({
         name: `Lead do WhatsApp - ${pushName}`,
         phone: `+${sender}`,
-        firstName: pushName       
+        firstName: pushName
       });
-      console.log(phone)
       await storeUserResponse(sender, "sondagem", "kommo_lead_criado", true);
     } catch (error) {
       console.error("❌ Erro ao criar lead na Kommo:", error.message);
     }
   }
- 
+
   const getNextIndex = (respostas, chave, total) => {
     const atual = parseInt(respostas[`${chave}_index`] || 0, 10);
     return atual >= total - 1 ? 0 : atual + 1;
@@ -66,9 +65,9 @@ const rotinaDeSondagemDeCelular = async ({ sender, msgContent, pushName }) => {
       await sendBotMessage(sender, msgIntro);
 
       const perguntas1 = [
-        "Qual celular desperta mais seu interesse para que eu possa te fornecer mais informações?",
-        "Sobre qual celular você tem mais interesse para eu te enviar mais informações!",
-        "Tem algum celular que te interessou mais? Me fala para que eu possa te explicar melhor!"
+        "Qual acessório desperta mais seu interesse para que eu possa te fornecer mais informações?",
+        "Sobre qual acessório você tem mais interesse para eu te enviar mais informações!",
+        "Tem algum acessório que te interessou mais? Me fala para que eu possa te explicar melhor!"
       ];
       const index1 = getNextIndex(respostas, "pergunta_1", perguntas1.length);
       await storeUserResponse(sender, "sondagem", "pergunta_1_index", index1);
@@ -89,9 +88,9 @@ const rotinaDeSondagemDeCelular = async ({ sender, msgContent, pushName }) => {
       await sendBotMessage(sender, intro2);
 
       const perguntas2 = [
-        "Qual suas prioridades de uso com o aparelho que esta procurando? 🧐",
-        "Me conta o que é mais importante para você ao utilizar o aparelho que esta procurando? 🧐",
-        "Quais benefícios você busca ao adquirir o que esta aparelho? 🧐"
+        "Qual suas prioridades de uso com o acessório que esta procurando? 🧐",
+        "Me conta o que é mais importante para você ao utilizar o acessório que esta procurando? 🧐",
+        "Quais benefícios você busca ao adquirir o que esta acessório? 🧐"
       ];
       const index2 = getNextIndex(respostas, "pergunta_2", perguntas2.length);
       await storeUserResponse(sender, "sondagem", "pergunta_2_index", index2);
@@ -112,7 +111,7 @@ const rotinaDeSondagemDeCelular = async ({ sender, msgContent, pushName }) => {
       const perguntas3 = [
         "Qual é a ideia de valor que você gostaria de investir?",
         "Tem uma faixa de valor em mente? 😊",
-        "Já pensou em quanto gostaria de gastar no seu próximo smartphone? 🤔"
+        "Já pensou em quanto gostaria de gastar no seu acessório? 🤔"
       ];
       const index3 = getNextIndex(respostas, "pergunta_3", perguntas3.length);
       await storeUserResponse(sender, "sondagem", "pergunta_3_index", index3);
@@ -130,7 +129,7 @@ const rotinaDeSondagemDeCelular = async ({ sender, msgContent, pushName }) => {
       const finalidadeUso = respostasSondagem.pergunta_2;
       const investimento = respostasSondagem.pergunta_3;
 
-      await agenteDeFechamentoSondagem(
+      await agenteDeFechamentoSondagemDeAcessorio(
         sender,
         msgContent,
         produto,
@@ -143,4 +142,4 @@ const rotinaDeSondagemDeCelular = async ({ sender, msgContent, pushName }) => {
   }
 };
 
-module.exports = { rotinaDeSondagemDeCelular };
+module.exports = { rotinaDeSondagemDeAcessorios };

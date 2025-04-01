@@ -49,8 +49,8 @@ const validarFluxoInicial = async (sender, msgContent, pushName) => {
 
   // ❌ Resposta NÃO → continua com stage anterior
   if (cleanedContent === "não" || cleanedContent === "nao") {
-    const { stage1, stage2 } = await getStageHistory(sender);
-    const previousStage = stage2 || stage1;
+    const stage = await getUserStage(sender);
+    const previousStage = stage
 
     console.log(`↩️ [DEBUG] Stage anterior recuperado: ${previousStage}`);
 

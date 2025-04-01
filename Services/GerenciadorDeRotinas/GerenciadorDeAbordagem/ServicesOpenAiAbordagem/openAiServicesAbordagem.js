@@ -10,6 +10,7 @@ const {
     getStageHistory
   } = require("../../../redisService");
 const { rotinaDeSondagemDeCelular } = require("../../GerenciadorDeSondagem/rotinaDeSondagemDeCelular");
+const { rotinaDeSondagemDeAcessorios} = require("../../GerenciadorDeSondagem/rotinaDeSondagemAcessorios");
 
 const OpenAI = require("openai");
 require("dotenv").config();
@@ -23,7 +24,8 @@ const handlers = {
     await rotinaDeSondagemDeCelular({ sender, msgContent, pushName });
   },
   consultarAcessorios: async (sender, msgContent, pushName) => {
-    await sendBotMessage(sender, `🔌 Oi ${pushName}, trabalhamos com carregadores, fones e películas. Algum acessório específico?`);
+    await setUserStage(sender, "sondagem_de_acessorios");
+    await rotinaDeSondagemDeAcessorios({ sender, msgContent, pushName });
   },
   consultarBoletos: async (sender, msgContent, pushName) => {
     await sendBotMessage(sender, `💳 Oi ${pushName}, sim, aceitamos boleto! Você deseja gerar um agora?`);

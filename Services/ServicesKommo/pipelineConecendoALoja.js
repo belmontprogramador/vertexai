@@ -15,75 +15,55 @@ const headers = {
 };
 
 /**
- * Busca um contato pelo número de telefone
+ * Busca um contato e retorna o primeiro lead associado
  */
-async function findContactByPhone(phone) {
-  const response = await axios.get(`${KOMMO_BASE_URL}/api/v4/contacts`, {
+async function findLeadIdByPhone(phone) {
+  const res = await axios.get(`${KOMMO_BASE_URL}/api/v4/contacts`, {
     headers,
-    params: { query: phone }
+    params: {
+      query: phone,
+      with: 'leads'
+    }
   });
 
-  const contatos = response.data?._embedded?.contacts || [];
-  return contatos.length ? contatos[0] : null;
+  const contato = res.data._embedded?.contacts?.[0];
+
+  if (!contato) {
+    throw new Error("❌ Contato não encontrado.");
+  }
+
+  const lead = contato._embedded?.leads?.[0];
+
+  if (!lead?.id) {
+    throw new Error("❌ Nenhum lead vinculado a esse contato.");
+  }
+
+  return lead.id;
 }
 
 /**
- * Move um lead existente para o estágio "Conhecendo a loja"
+ * Atualiza o lead para o pipeline correto e move para "Conhecendo a loja"
  */
-async function moveLeadToConhecendoALojaStage(leadId) {
-  const payload = [{
-    id: leadId,
-    pipeline_id: PIPELINE_ID, // obrigatório se quiser garantir consistência
-    status_id: STAGE_ID_CONHECENDO_A_LOJA
-  }];
+async function updateLeadToConhecendoALoja(leadId) {
+  const payload = [
+    {
+      id: leadId,
+      pipeline_id: PIPELINE_ID,
+      status_id: STAGE_ID_CONHECENDO_A_LOJA
+    }
+  ];
 
   await axios.patch(`${KOMMO_BASE_URL}/api/v4/leads`, payload, { headers });
-  console.log(`📦 Lead ${leadId} movido para o estágio 'Conhecendo a loja'`);
+  console.log(`📦 Lead ${leadId} movido para o estágio 'Conhecendo a loja' no pipeline correto.`);
 }
 
 /**
- * Cria um novo lead no pipeline "COMERCIAL VERTEX" no estágio "Conhecendo a loja"
+ * Função principal: localiza o lead e atualiza o pipeline + estágio
  */
-async function createLeadInConhecendoALojaStage(contactId, name) {
-  const leadData = [{
-    name,
-    pipeline_id: PIPELINE_ID,
-    status_id: STAGE_ID_CONHECENDO_A_LOJA,
-    _embedded: {
-      contacts: [{ id: contactId }]
-    }
-  }];
-
-  const response = await axios.post(`${KOMMO_BASE_URL}/api/v4/leads`, leadData, { headers });
-  const createdLead = response.data._embedded?.leads?.[0];
-
-  if (!createdLead?.id) {
-    throw new Error("❌ Erro ao criar lead no estágio 'Conhecendo a loja'.");
-  }
-
-  console.log("✅ Lead criado no estágio 'Conhecendo a loja':", createdLead.id);
-  return createdLead.id;
-}
-
-/**
- * Função principal que move ou cria um lead no estágio "Conhecendo a loja"
- */
-async function pipelineConhecendoALoja(phone, name = "Lead do WhatsApp") {
-  const contato = await findContactByPhone(phone);
-  if (!contato) throw new Error("❌ Contato não encontrado no Kommo.");
-
-  const leads = contato._embedded?.leads || [];
-
-  // 🔍 Busca um lead existente no pipeline "COMERCIAL VERTEX"
-  const leadNoPipeline = leads.find(lead => lead?.pipeline_id === PIPELINE_ID);
-
-  if (leadNoPipeline?.id) {
-    // ✅ Se já tem lead no pipeline, apenas move de estágio
-    await moveLeadToConhecendoALojaStage(leadNoPipeline.id);
-  } else {
-    // 🚀 Caso não tenha lead no pipeline, cria um novo
-    await createLeadInConhecendoALojaStage(contato.id, name);
-  }
+async function pipelineConhecendoALoja(phone) {
+  const telefoneComMais = phone.startsWith('+') ? phone : `+${phone}`;
+  const leadId = await findLeadIdByPhone(telefoneComMais);
+  await updateLeadToConhecendoALoja(leadId);
 }
 
 module.exports = { pipelineConhecendoALoja };

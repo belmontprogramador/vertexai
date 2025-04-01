@@ -3,10 +3,8 @@ const {
   getLastInteraction,
   setLastInteraction,
   storeUserMessage,
-  getStageHistory // nova função que retorna previous_stage e previous_stage_2
-} = require("../../redisService");
-
-const { rotinaDeSondagem } = require("../GerenciadorDeSondagem/rotinaDeSondagemDeCelular");
+  getStageHistory   
+} = require("../../redisService");   
 const { rotinaDeDemonstracao } = require("../GerenciadorDeDemonstracao/rotinaDeDemonstracao");
 const { rotinaDeAtedimentoInicial } = require("./rotinaDeAtedimentoInicial");
 
@@ -20,36 +18,57 @@ const rotinaDeContinuidade = async (sender, msgContent, pushName) => {
   await storeUserMessage(sender, cleanedContent);
 
   // Recupera os dois últimos estágios do histórico
-  const { stage1, stage2 } = await getStageHistory(sender);
-  const previousStage = stage2 || stage1;
+  const  stage  = await getStageHistory(sender);
+   
 
-  console.log(`🧭 [DEBUG] Stage anterior mais antigo recuperado na continuidade: ${previousStage}`);
+  console.log(`🧭 [DEBUG] Stage anterior mais antigo recuperado na continuidade: ${stage}`);
 
   const responseMessage = "Perfeito! Vamos continuar de onde paramos 😄";
   await sendBotMessage(sender, responseMessage);
 
-  switch (true) {
-    case previousStage?.includes("sondagem"):
-      console.log("🚀 [DEBUG] Entrando na rotina de sondagem por continuidade");
-      return await rotinaDeSondagem({ sender, msgContent, pushName });
+  switch (novoStage) {
+    case "primeiro_atendimento":
+        return await rotinaDeAtedimentoInicial(sender, msgContent, pushName);
 
-    case previousStage?.includes("sequencia_de_demonstracao"):
-      console.log("🚀 [DEBUG] Entrando na rotina de demonstração por continuidade");
-      return await rotinaDeDemonstracao(sender, msgContent, pushName);
+    case "reinicio_de_atendimento":
+        return await rotinaDeReincioAtedimento(sender, msgContent, pushName);
 
-    case previousStage?.includes("abordagem") || previousStage?.includes("atendimento"):
-      console.log("🚀 [DEBUG] Entrando na rotina de atendimento inicial por continuidade");
-      return await rotinaDeAtedimentoInicial(sender, msgContent, pushName);
+    case "abordagem":
+        return await rotinaDeAbordagem({ sender, msgContent, pushName });
 
-    case !previousStage:
-      return await sendBotMessage(sender, "⚠️ [DEBUG] Não encontrei o estágio anterior. Me ajuda com mais contexto?");
+    case "sequencia_de_abordagem":
+        return await rotinaDeRedirecionamentoDeAbordagem({ sender, msgContent, pushName });
+
+    case "sequencia_de_atendimento":
+        return await rotinaDeSondagemDeCelular({ sender, msgContent, pushName });
+
+    case "sondagem_de_celular":
+        await sendBotMessage(sender, "Perfeito! Vamos retomar seu atendimento 😄");
+        return await rotinaDeSondagemDeCelular({ sender, msgContent, pushName });
+
+    case "sondagem_de_acessorios":
+            await sendBotMessage(sender, "Perfeito! Vamos retomar seu atendimento 😄");
+            return await rotinaDeSondagemDeAcessorios({ sender, msgContent, pushName });
+
+    case "agente_de_fechamento_de_sondagem": 
+        const respostas = await getUserResponses(sender, "sondagem");
+
+        const produto = respostas.pergunta_1;
+        const finalidadeUso = respostas.pergunta_2;
+        const investimento = respostas.pergunta_3;  
+        console.log(produto, finalidadeUso, investimento)         
+        return await agenteDeFechamentoSondagem(sender, msgContent, produto, finalidadeUso, investimento, pushName);
+
+    case "sequencia_de_demonstracao":
+        return await rotinaDeDemonstracao({ sender, msgContent, produto, finalidadeUso, investimento, pushName });
+
+    case "continuar_de_onde_parou":
+        return await rotinaDeContinuidade(sender, msgContent, pushName);
 
     default:
-      return await sendBotMessage(
-        sender,
-        `🎯 [DEBUG] Ao dar continuidade no atendimento, não consegui identificar a etapa anterior corretamente. Stage: ${previousStage}`
-      );
-  }
+        console.log("⚠️ [DEBUG] Nenhum stage válido encontrado.");
+        return await sendBotMessage(sender, "Não consegui identificar seu estágio 😕");
+}
 };
 
 module.exports = { rotinaDeContinuidade };
