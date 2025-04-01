@@ -7,6 +7,8 @@ const { rotinaDeAtedimentoInicial } = require("./GerenciadorDeRotinas/Gerenciado
 const { agenteDeFechamentoSondagem } = require("../Services/GerenciadorDeRotinas/GerenciadorDeSondagem/ServicesOpenAiSondagem/openAiServicesFechamentoDeSondagem")
 const { rotinaDeContinuidade } = require("./GerenciadorDeRotinas/GerenciadorDeAbordagem/rotinaDeContinuidade");
 const { rotinaDeAbordagem } = require("./GerenciadorDeRotinas/GerenciadorDeAbordagem/rotinaDeAbordagem")
+const { rotinaDeAgendamento } = require("../Services/GerenciadorDeRotinas/GerenciamentoDeAgendamento/rotinaDeAgendamento");
+const { rotinaDeBoleto } = require("../Services/GerenciadorDeRotinas/GerenciadordeBoleto/rotinaDeBoleto")
 const { rotinaDeSondagemDeAcessorios} = require("./GerenciadorDeRotinas/GerenciadorDeSondagem/rotinaDeSondagemAcessorios");
 const { setarReset } = require('../Services/ValidacaoDeResposta/validadorDeReset')
 const { sendBotMessage } = require("./messageSender");
@@ -48,8 +50,14 @@ const checagemInicial = async (sender, msgContent, pushName) => {
             return await rotinaDeSondagemDeCelular({ sender, msgContent, pushName });
 
         case "sondagem_de_acessorios":
-                await sendBotMessage(sender, "Perfeito! Vamos retomar seu atendimento 😄");
-                return await rotinaDeSondagemDeAcessorios({ sender, msgContent, pushName });
+            await sendBotMessage(sender, "Perfeito! Vamos retomar seu atendimento 😄");
+            return await rotinaDeSondagemDeAcessorios({ sender, msgContent, pushName });
+
+        case "boleto":             
+            return await rotinaDeBoleto({ sender, msgContent, pushName });
+
+        case "agendamento":             
+            return await rotinaDeAgendamento({ sender, msgContent, pushName });
 
         case "agente_de_fechamento_de_sondagem": 
             const respostas = await getUserResponses(sender, "sondagem");

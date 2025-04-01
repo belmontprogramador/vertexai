@@ -11,6 +11,8 @@ const {
   } = require("../../../redisService");
 const { rotinaDeSondagemDeCelular } = require("../../GerenciadorDeSondagem/rotinaDeSondagemDeCelular");
 const { rotinaDeSondagemDeAcessorios} = require("../../GerenciadorDeSondagem/rotinaDeSondagemAcessorios");
+const { rotinaDeBoleto } = require("../../GerenciadordeBoleto/rotinaDeBoleto")
+const { rotinaDeSuporte } = require("../../GerenciadorDeSuporte/rotinaDeSuporte")
 
 const OpenAI = require("openai");
 require("dotenv").config();
@@ -28,10 +30,11 @@ const handlers = {
     await rotinaDeSondagemDeAcessorios({ sender, msgContent, pushName });
   },
   consultarBoletos: async (sender, msgContent, pushName) => {
-    await sendBotMessage(sender, `💳 Oi ${pushName}, sim, aceitamos boleto! Você deseja gerar um agora?`);
+    await setUserStage(sender, "boleto");
+    await rotinaDeBoleto({ sender, msgContent, pushName })
   },
   consultarOutros: async (sender, msgContent, pushName) => {
-    await sendBotMessage(sender, `❓ Oi ${pushName}, poderia dar mais detalhes sobre sua dúvida para que eu possa te ajudar melhor?`);
+    await rotinaDeSuporte(sender, msgContent, pushName)
   },
 };
 
