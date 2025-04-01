@@ -14,7 +14,7 @@ const handlers = {
       "📄 Parcelamos o boleto pela Enjoy em até 10 vezes, mediante aprovação. Para verificar sua aprovação, envie seu nome, CPF e data de nascimento."
     );
   },
-  preAprovacao: async (sender) => {
+  preAprovacao: async (sendeer) => {
     await sendBotMessage(
       sender,
       "✅ Com essas informações, você já possui uma pré-aprovação de 90%! Tem alguma dúvida ou gostaria de agendar uma visita à loja para finalizar?"

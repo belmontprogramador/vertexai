@@ -12,7 +12,6 @@ const { rotinaDeBoleto } = require("../Services/GerenciadorDeRotinas/Gerenciador
 const { rotinaDeSondagemDeAcessorios} = require("./GerenciadorDeRotinas/GerenciadorDeSondagem/rotinaDeSondagemAcessorios");
 const { setarReset } = require('../Services/ValidacaoDeResposta/validadorDeReset')
 const { sendBotMessage } = require("./messageSender");
-const { setUserStage, getUserResponses,redis, } = require('./redisService')
 
 const checagemInicial = async (sender, msgContent, pushName) => {
     const cleanedContent = msgContent.replace(/^again\s*/i, "").trim().toLowerCase();
