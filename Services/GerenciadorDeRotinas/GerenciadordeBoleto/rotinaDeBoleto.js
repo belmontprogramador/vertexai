@@ -1,5 +1,5 @@
 const { sendBotMessage } = require("../../messageSender");
-const { openAiServicesBoleto } = require("./ServicesOpenAiBoleto/openAiServicesBoleto");
+
 const {
   setLastInteraction,
   setUserStage,
@@ -24,9 +24,10 @@ const rotinaDeBoleto = async ({ sender, msgContent, pushName }) => {
     });
 
     // envia ma mensagem seta stage ia de boleto e da um return
+    await sendBotMessage(sender, "mensagem explicando boleto")
 
-    // Inicia a conversa com IA
-    await openAiServicesBoleto(sender, msgContent, pushName);
+    return await setUserStage(sender, "boleto_agente");
+    
   } catch (error) {
     console.error("❌ Erro na rotina de boleto:", error.message);
     await sendBotMessage(sender, "❌ Ocorreu um erro ao iniciar o atendimento de boleto. Por favor, tente novamente mais tarde.");

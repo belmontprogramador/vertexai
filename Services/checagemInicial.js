@@ -6,12 +6,14 @@ const { rotinaDeDemonstracao } = require("../Services/GerenciadorDeRotinas/Geren
 const { rotinaDeAtedimentoInicial } = require("./GerenciadorDeRotinas/GerenciadorDeAbordagem/rotinaDeAtedimentoInicial");
 const { agenteDeFechamentoSondagem } = require("../Services/GerenciadorDeRotinas/GerenciadorDeSondagem/ServicesOpenAiSondagem/openAiServicesFechamentoDeSondagem")
 const { rotinaDeContinuidade } = require("./GerenciadorDeRotinas/GerenciadorDeAbordagem/rotinaDeContinuidade");
+const { openAiServicesBoleto } = require("../Services/GerenciadorDeRotinas/GerenciadordeBoleto/ServicesOpenAiBoleto/openAiServicesBoleto");
 const { rotinaDeAbordagem } = require("./GerenciadorDeRotinas/GerenciadorDeAbordagem/rotinaDeAbordagem")
 const { rotinaDeAgendamento } = require("../Services/GerenciadorDeRotinas/GerenciamentoDeAgendamento/rotinaDeAgendamento");
 const { rotinaDeBoleto } = require("../Services/GerenciadorDeRotinas/GerenciadordeBoleto/rotinaDeBoleto")
 const { rotinaDeSondagemDeAcessorios} = require("./GerenciadorDeRotinas/GerenciadorDeSondagem/rotinaDeSondagemAcessorios");
 const { setarReset } = require('../Services/ValidacaoDeResposta/validadorDeReset')
 const { sendBotMessage } = require("./messageSender");
+const { getUserResponses } = require("./redisService");
 
 const checagemInicial = async (sender, msgContent, pushName) => {
     const cleanedContent = msgContent.replace(/^again\s*/i, "").trim().toLowerCase();
@@ -27,6 +29,8 @@ const checagemInicial = async (sender, msgContent, pushName) => {
         novoStage = await validarFluxoInicial(sender, msgContent, pushName);
         console.log(`🎯 [DEBUG] Executando switch para stage: ${novoStage}`);
     }
+
+    let produto, finalidadeUso, investimento;
 
     switch (novoStage) {
         case "primeiro_atendimento":
@@ -55,21 +59,35 @@ const checagemInicial = async (sender, msgContent, pushName) => {
         case "boleto":             
             return await rotinaDeBoleto({ sender, msgContent, pushName });
 
+        case "boleto_agente":             
+            return await await openAiServicesBoleto({sender, msgContent, pushName});            
+
         case "agendamento":             
             return await rotinaDeAgendamento({ sender, msgContent, pushName });
 
-        case "agente_de_fechamento_de_sondagem": 
+        case "agente_de_fechamento_de_sondagem":
             const respostas = await getUserResponses(sender, "sondagem");
-
-            const produto = respostas.pergunta_1;
-            const finalidadeUso = respostas.pergunta_2;
-            const investimento = respostas.pergunta_3;  
-            console.log(produto, finalidadeUso, investimento)         
+            produto = respostas.pergunta_1;
+            finalidadeUso = respostas.pergunta_2;
+            investimento = respostas.pergunta_3;
             return await agenteDeFechamentoSondagem(sender, msgContent, produto, finalidadeUso, investimento, pushName);
 
-        case "sequencia_de_demonstracao":
-            return await rotinaDeDemonstracao({ sender, msgContent, produto, finalidadeUso, investimento, pushName });
 
+        case "sequencia_de_demonstracao":
+            const respostasDemonstracao = await getUserResponses(sender, "sondagem");
+            produto = respostasDemonstracao.pergunta_1;
+            finalidadeUso = respostasDemonstracao.pergunta_2;
+            investimento = respostasDemonstracao.pergunta_3;
+            return await rotinaDeDemonstracao({ sender, msgContent, produto, finalidadeUso, investimento, pushName });
+              
+
+        case "agente_de_demonstração":
+            const respostasAgenteDemonstracao = await getUserResponses(sender, "sondagem");
+            produto =respostasAgenteDemonstracao.pergunta_1;
+            finalidadeUso = respostasAgenteDemonstracao.pergunta_2;
+            investimento = respostasAgenteDemonstracao.pergunta_3;
+            return await rotinaDeDemonstracao({ sender, msgContent, produto, finalidadeUso, investimento, pushName });
+        
         case "continuar_de_onde_parou":
             return await rotinaDeContinuidade(sender, msgContent, pushName);
 

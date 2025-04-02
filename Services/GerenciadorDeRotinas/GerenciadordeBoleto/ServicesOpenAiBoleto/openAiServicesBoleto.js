@@ -14,10 +14,8 @@ const handlers = {
       "📄 Parcelamos o boleto pela Enjoy em até 10 vezes, mediante aprovação. Para verificar sua aprovação, envie seu nome, CPF e data de nascimento."
     );
   },
-  preAprovacao: async (sendeer) => {
-    await sendBotMessage(
-      sender,
-      "✅ Com essas informações, você já possui uma pré-aprovação de 90%! Tem alguma dúvida ou gostaria de agendar uma visita à loja para finalizar?"
+  preAprovacao: async (sender) => {
+    await sendBotMessage(sender,"✅ Com essas informações, você já possui uma pré-aprovação de 90%! Tem alguma dúvida ou gostaria de agendar uma visita à loja para finalizar?"
     );
   },
   tirarDuvidas: async (sender, args) => {
@@ -25,10 +23,11 @@ const handlers = {
     await sendBotMessage(sender, content || "😊 Posso te ajudar com qualquer dúvida sobre o boleto parcelado.");
     await sendBotMessage(sender, "📍 Gostaria de aproveitar e já agendar uma visita em nossa loja?");
   },
-  agendarVisita: async (sender,  msgContent, pushName) => {
+  agendarVisita: async (sender, args) => {
+    const { msgContent, pushName } = args;
     await sendBotMessage(sender, `📅 Perfeito, ${pushName}! Vamos agendar sua visita.`);
-    await rotinaDeAgendamento({sender, msgContent, pushName});
-  }
+    await rotinaDeAgendamento({ sender, msgContent, pushName });
+  }  
 };
 
 const functions = [
@@ -57,7 +56,7 @@ const functions = [
   }
 ];
 
-const openAiServicesBoleto = async (sender, msgContent = "", pushName = "") => {
+const openAiServicesBoleto = async ({ sender, msgContent = "", pushName = "" }) => {
   await setUserStage(sender, "boleto");
 
   try {
