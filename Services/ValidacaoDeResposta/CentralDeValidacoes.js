@@ -8,7 +8,8 @@ const {
   setStageHistory,
   getStageHistory,
   getUserResponses,
-  storeUserResponse
+  storeUserResponse,
+  redis
 } = require("../redisService");
 
 /**
@@ -25,19 +26,19 @@ const validarFluxoInicial = async (sender, msgContent, pushName) => {
 
   const stageAtual = await getUserStage(sender);
 
+  // 👶 Se o usuário nunca teve interação, começa com primeiro atendimento
+  if (!stageAtual) {
+    console.log(`👋 [DEBUG] Nenhum histórico encontrado. Setando como 'primeiro_atendimento'`);
+    await setUserStage(sender, "primeiro_atendimento");
+    return "primeiro_atendimento";
+  }
+
   // 🔄 Tempo expirado
   if (!lastInteraction || currentTime - lastInteraction > CHECK_TIME_LIMIT) {
     await setStageHistory(sender, stageAtual);
     await setUserStage(sender, "reinicio_de_atendimento");
     return "reinicio_de_atendimento";
   }
-
-  // // 🔀 Resposta direta para pular pra demonstração
-  // if (cleanedContent === "d") {
-  //   await setStageHistory(sender, stageAtual);
-  //   await setUserStage(sender, "sequencia_de_demonstracao");
-  //   return "sequencia_de_demonstracao";
-  // }
 
   // ✅ Resposta SIM → vai para sondagem
   if (cleanedContent === "sim") {
@@ -47,32 +48,38 @@ const validarFluxoInicial = async (sender, msgContent, pushName) => {
     return "abordagem";
   }
 
-  // ❌ Resposta NÃO → continua com stage anterior
-  if (cleanedContent === "não" || cleanedContent === "nao") {
-    const stage = await getUserStage(sender);
-    const previousStage = stage
+  const precisaRepetirPergunta = (respostas, perguntaChave) => {
+    return !respostas[perguntaChave] || respostas[perguntaChave] === "" || respostas[perguntaChave] === "NÃO INFORMADO";
+  };
+  
 
-    console.log(`↩️ [DEBUG] Stage anterior recuperado: ${previousStage}`);
+  
+ // ❌ Resposta NÃO → volta um estágio anterior ao atual
+if (cleanedContent === "não" || cleanedContent === "nao") {
+  const previousStage = await redis.get(`previous_stage:${sender}`);
 
-    await setUserStage(sender, "continuar_de_onde_parou");
-    return "continuar_de_onde_parou";
-  }
+  console.log(`↩️ [DEBUG] Stage anterior recuperado: ${previousStage}`);
 
-  // 🔍 Se estiver no agente de fechamento de sondagem, atualiza a variável correta
-  if (stageAtual === "agente_de_fechamento_de_sondagem") {
-    const respostas = await getUserResponses(sender, "sondagem");
+  await setUserStage(sender, previousStage);
+  return previousStage;
+}
 
-    if (!respostas.pergunta_1 || respostas.pergunta_1 === "NÃO INFORMADO") {
-      await storeUserResponse(sender, "sondagem", "pergunta_1", cleanedContent);
-    } else if (!respostas.pergunta_2 || respostas.pergunta_2 === "NÃO INFORMADO") {
-      await storeUserResponse(sender, "sondagem", "pergunta_2", cleanedContent);
-    } else if (!respostas.pergunta_3 || respostas.pergunta_3 === "NÃO INFORMADO") {
-      await storeUserResponse(sender, "sondagem", "pergunta_3", cleanedContent);
-    }
 
-    await setUserStage(sender, "agente_de_fechamento_de_sondagem");
-    return "agente_de_fechamento_de_sondagem";
-  }
+  // // 🔍 Se estiver no agente de fechamento ou rotina de fechamento
+  // if (stageAtual === "agente_de_fechamento_de_sondagem" || stageAtual === "fechamento") {
+  //   const respostas = await getUserResponses(sender, "fechamento");
+
+  //   if (!respostas.pergunta_1 || respostas.pergunta_1 === "NÃO INFORMADO") {
+  //     await storeUserResponse(sender, "fechamento", "pergunta_1", cleanedContent);
+  //   } else if (!respostas.pergunta_2 || respostas.pergunta_2 === "NÃO INFORMADO") {
+  //     await storeUserResponse(sender, "fechamento", "pergunta_2", cleanedContent);
+  //   } else if (!respostas.pergunta_3 || respostas.pergunta_3 === "NÃO INFORMADO") {
+  //     await storeUserResponse(sender, "fechamento", "pergunta_3", cleanedContent);
+  //   }
+
+  //   await setUserStage(sender, "fechamento");
+  //   return "fechamento";
+  // }
 
   // 🔁 Mantém estágio atual, se for válido
   if (stageAtual === "sequencia_de_atendimento" || stageAtual === "sequencia_de_demonstracao") {

@@ -4,14 +4,15 @@ const { rotinaDeSondagemDeCelular } = require("./GerenciadorDeRotinas/Gerenciado
 const { rotinaDeRedirecionamentoDeAbordagem } = require("../Services/GerenciadorDeRotinas/GerenciadorDeAbordagem/rotinaDeRedirecionamentoDeAbordagem");
 const { rotinaDeDemonstracao } = require("../Services/GerenciadorDeRotinas/GerenciadorDeDemonstracao/rotinaDeDemonstracao"); 
 const { rotinaDeAtedimentoInicial } = require("./GerenciadorDeRotinas/GerenciadorDeAbordagem/rotinaDeAtedimentoInicial");
+const { compactadorDeSuporte } = require("../Services/GerenciadorDeRotinas/GerenciadorDeSuporte/compactadorDeSuporte")
 const { agenteDeFechamentoSondagem } = require("../Services/GerenciadorDeRotinas/GerenciadorDeSondagem/ServicesOpenAiSondagem/openAiServicesFechamentoDeSondagem")
-const { rotinaDeContinuidade } = require("./GerenciadorDeRotinas/GerenciadorDeAbordagem/rotinaDeContinuidade");
 const { openAiServicesBoleto } = require("../Services/GerenciadorDeRotinas/GerenciadordeBoleto/ServicesOpenAiBoleto/openAiServicesBoleto");
 const { rotinaDeAbordagem } = require("./GerenciadorDeRotinas/GerenciadorDeAbordagem/rotinaDeAbordagem")
+const { rotinaDeFechamento } = require("../Services/GerenciadorDeRotinas/GerenciadorDeFechamento/rotinaDeFechamento")
 const { rotinaDeAgendamento } = require("../Services/GerenciadorDeRotinas/GerenciamentoDeAgendamento/rotinaDeAgendamento");
 const { rotinaDeBoleto } = require("../Services/GerenciadorDeRotinas/GerenciadordeBoleto/rotinaDeBoleto")
 const { rotinaDeSondagemDeAcessorios} = require("./GerenciadorDeRotinas/GerenciadorDeSondagem/rotinaDeSondagemAcessorios");
-const { setarReset } = require('../Services/ValidacaoDeResposta/validadorDeReset')
+const { setarReset } = require('./setarReset')
 const { sendBotMessage } = require("./messageSender");
 const { getUserResponses } = require("./redisService");
 
@@ -45,15 +46,10 @@ const checagemInicial = async (sender, msgContent, pushName) => {
         case "sequencia_de_abordagem":
             return await rotinaDeRedirecionamentoDeAbordagem({ sender, msgContent, pushName });
 
-        case "sequencia_de_atendimento":
+        case "sondagem_de_celular":            
             return await rotinaDeSondagemDeCelular({ sender, msgContent, pushName });
 
-        case "sondagem_de_celular":
-            await sendBotMessage(sender, "Perfeito! Vamos retomar seu atendimento 😄");
-            return await rotinaDeSondagemDeCelular({ sender, msgContent, pushName });
-
-        case "sondagem_de_acessorios":
-            await sendBotMessage(sender, "Perfeito! Vamos retomar seu atendimento 😄");
+        case "sondagem_de_acessorios":            
             return await rotinaDeSondagemDeAcessorios({ sender, msgContent, pushName });
 
         case "boleto":             
@@ -72,14 +68,12 @@ const checagemInicial = async (sender, msgContent, pushName) => {
             investimento = respostas.pergunta_3;
             return await agenteDeFechamentoSondagem(sender, msgContent, produto, finalidadeUso, investimento, pushName);
 
-
         case "sequencia_de_demonstracao":
             const respostasDemonstracao = await getUserResponses(sender, "sondagem");
             produto = respostasDemonstracao.pergunta_1;
             finalidadeUso = respostasDemonstracao.pergunta_2;
             investimento = respostasDemonstracao.pergunta_3;
-            return await rotinaDeDemonstracao({ sender, msgContent, produto, finalidadeUso, investimento, pushName });
-              
+            return await rotinaDeDemonstracao({ sender, msgContent, produto, finalidadeUso, investimento, pushName });              
 
         case "agente_de_demonstração":
             const respostasAgenteDemonstracao = await getUserResponses(sender, "sondagem");
@@ -87,10 +81,20 @@ const checagemInicial = async (sender, msgContent, pushName) => {
             finalidadeUso = respostasAgenteDemonstracao.pergunta_2;
             investimento = respostasAgenteDemonstracao.pergunta_3;
             return await rotinaDeDemonstracao({ sender, msgContent, produto, finalidadeUso, investimento, pushName });
-        
-        case "continuar_de_onde_parou":
-            return await rotinaDeContinuidade(sender, msgContent, pushName);
 
+            case "fechamento":
+                const respostasAgenteFechamento = await getUserResponses(sender, "fechamento");
+                produto =respostasAgenteFechamento.pergunta_1;
+                finalidadeUso = respostasAgenteFechamento.pergunta_2;
+                investimento = respostasAgenteFechamento.pergunta_3;
+                return await rotinaDeFechamento({ sender, msgContent, produto, finalidadeUso, investimento, pushName })
+
+            case "suporte":                    
+                return await rotinaDeSuporte({ sender, msgContent, pushName })
+
+            case "compactador_de_suporte":                    
+                return await compactadorDeSuporte({ sender, msgContent, pushName })   
+        
         default:
             console.log("⚠️ [DEBUG] Nenhum stage válido encontrado.");
             return await sendBotMessage(sender, "Não consegui identificar seu estágio 😕");

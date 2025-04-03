@@ -1,6 +1,7 @@
 const { sendBotMessage } = require("../../../messageSender");
 const OpenAI = require("openai");
 const { setUserStage } = require("../../../redisService");
+const { rotinaDeFechamento } = require("../../GerenciadorDeFechamento/rotinaDeFechamento");
 require("dotenv").config();
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -61,6 +62,8 @@ const handlers = {
     }
 
     await sendBotMessage(sender, "❓ *Gostaria de tirar alguma dúvida sobre esses modelos ou deseja finalizar a compra de algum deles?*");
+    await setUserStage(sender, "fechamento");
+    return await rotinaDeFechamento({ sender, msgContent, produto, finalidadeUso, investimento, pushName });
   }
 };
 
@@ -73,7 +76,7 @@ const agenteDeDemonstracaoPorValor = async ({ sender, msgContent, produto, final
       messages: [
         {
           role: "system",
-          content: "Você é Anna, assistente da VertexStore. Seu trabalho é extrair o valor mencionado pelo cliente, mesmo que esteja por extenso ou dentro de frases, e chamar a função exibirModelosPorValor com esse valor."
+          content: "Você é Anna, assistente da VertexStore. Seu trabalho é extrair o valor mencionado pelo cliente, mesmo que esteja por extenso ou dentro de frases, e chamar a função exibirModelosPorValor com esse valor. Ou entender que o cliente ja quer finalizar a comprar e levar ele para a rotina de fechamento"
         },
         {
           role: "user",

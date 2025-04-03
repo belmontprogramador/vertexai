@@ -34,7 +34,8 @@ const handlers = {
     await rotinaDeBoleto({ sender, msgContent, pushName })
   },
   consultarOutros: async (sender, msgContent, pushName) => {
-    await rotinaDeSuporte(sender, msgContent, pushName)
+    await setUserStage(sender, "suporte")
+    await rotinaDeSuporte({ sender, msgContent, pushName })
   },
 };
 

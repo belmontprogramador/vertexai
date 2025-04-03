@@ -1,18 +1,11 @@
 const { sendBotMessage } = require("../../messageSender");
 const { setUserStage } = require("../../redisService");
-const { rotinaDeSondagem } = require("../GerenciadorDeSondagem/rotinaDeSondagemDeCelular");
+const { rotinaDeAbordagem } = require("../GerenciadorDeAbordagem/rotinaDeAbordagem");
 
-const rotinaDeAtedimentoInicial = async (sender, msgContent, pushName) => {
-  const responseMessage = `Oi ${pushName} Anna do time VERTEX aqui 🙋🏻‍♀️. Vou te ajudar no seu atendimento!`;
-  
-  console.log("📤 Enviando mensagem de atendimento inicial", responseMessage);
-  await sendBotMessage(sender, responseMessage);
+const rotinaDeAtedimentoInicial = async (sender, msgContent, pushName) => {   
+   
 
-  // 🟢 Define o stage para iniciar a sondagem
-  await setUserStage(sender, "sondagem");
-
-  // 🚀 Chama rotina de sondagem já com mensagem em branco
-  return await rotinaDeSondagem({ sender, msgContent: "", pushName });
+  return await rotinaDeAbordagem({sender, msgContent, pushName })
 };
 
 module.exports = { rotinaDeAtedimentoInicial };

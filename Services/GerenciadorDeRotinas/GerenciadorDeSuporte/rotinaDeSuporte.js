@@ -1,10 +1,11 @@
 const { sendBotMessage } = require("../../messageSender")
+const { getUserStage, setUserStage} = require("../../redisService");
 
-const rotinaDeSuporte = async(sender, msgContent, pushName) =>{
+const rotinaDeSuporte = async({ sender, msgContent, pushName }) =>{
     console.log("entrei em suporte")
+    await getUserStage(sender, "suporte")
     await sendBotMessage(sender, `❓ Oi ${pushName}, poderia dar mais detalhes sobre sua dúvida para que eu possa te ajudar melhor?`);
-    await sendBotMessage("5522988751744", "tem gente querendo suporte")
-
+    return setUserStage(sender, "compactador_de_suporte")
 }
 
 module.exports = { rotinaDeSuporte }
