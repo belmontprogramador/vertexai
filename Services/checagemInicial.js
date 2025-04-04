@@ -55,8 +55,12 @@ const checagemInicial = async (sender, msgContent, pushName) => {
         case "boleto":             
             return await rotinaDeBoleto({ sender, msgContent, pushName });
 
-        case "boleto_agente":             
-            return await await openAiServicesBoleto({sender, msgContent, pushName});            
+        case "boleto_agente":
+            return await openAiServicesBoleto({ sender, msgContent, pushName });
+
+        case "boleto_agente_duvidas":
+            return await openAiServicesBoleto({ sender, msgContent, pushName });    
+                       
 
         case "agendamento":             
             return await rotinaDeAgendamento({ sender, msgContent, pushName });

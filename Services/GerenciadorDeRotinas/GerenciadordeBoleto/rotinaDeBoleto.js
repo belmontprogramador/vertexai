@@ -24,8 +24,10 @@ const rotinaDeBoleto = async ({ sender, msgContent, pushName }) => {
     });
 
     // envia ma mensagem seta stage ia de boleto e da um return
-    await sendBotMessage(sender, "mensagem explicando boleto")
-
+    await sendBotMessage(sender, "Se você quer comprar seu celular mesmo sem cartão de crédito, eu tenho uma solução perfeita: o **financiamento via PayJoy**! 💳✨")
+    await sendBotMessage(sender, "🔓 Você paga uma entrada + parcelas acessíveis, e o próprio aparelho serve como garantia.")
+    await sendBotMessage(sender, "Temos um alto indice de aprovação.")
+    await sendBotMessage(sender, "Me manda seus dados *CPF, NOME e DATA DE NASCIMENTO*, para eu fazer uma pré analise")
     return await setUserStage(sender, "boleto_agente");
     
   } catch (error) {
