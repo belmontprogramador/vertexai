@@ -15,7 +15,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // Handlers para lidar com as funções que o modelo pode chamar
 const handlers = {
   obterProduto: async (sender, _produto, _finalidade, _investimento, pushName) => {
-    await sendBotMessage(sender, `📱 Oi ${pushName}, qual marca e modelo do celular você está buscando?`);
+    await sendBotMessage(sender, `📱 Oi ${pushName}, entendo que possa haver diversos modelos eu marcas de seu interesese, porem me diga uma marca e modelo do celular você está buscando, para que eu posso dar um atendimento top!`);
   },
   obterFinalidadeUso: async (sender, _produto, _finalidade, _investimento, pushName) => {
     await sendBotMessage(sender, `🤔 Para que você pretende usar esse celular? Trabalho, lazer, redes sociais...?`);
@@ -23,8 +23,7 @@ const handlers = {
   obterInvestimento: async (sender, _produto, _finalidade, _investimento, pushName) => {
     await sendBotMessage(sender, `💰 Qual é o seu orçamento aproximado para esse celular?`);
   },
-  demonstrarProdutos: async (sender, produto, finalidadeUso, investimento, pushName, msgContent) => {
-    await sendBotMessage(sender, `✅ Saquei ${pushName} vou te mostrar alguns modelos aqui da loja`);
+  demonstrarProdutos: async (sender, msgContent, produto, finalidadeUso, investimento, pushName) => {   
     await setUserStage(sender, "demonstracao_de_produtos");
     await rotinaDeDemonstracao({ sender, msgContent, produto, finalidadeUso, investimento, pushName });
   }
@@ -90,7 +89,15 @@ const classificarENormalizarEntrada = async (sender, msgContent) => {
     messages: [
       {
         role: "system",
-        content: `Classifique essa resposta do cliente como uma das categorias: produto, finalidadeUso, investimento ou desconhecido.`
+        content: `Você deve classificar a resposta do cliente em apenas uma das categorias a seguir: "produto", "finalidadeUso", "investimento" ou "desconhecido".
+
+Instruções:
+- **Produto:** Se a resposta mencionar alguma das marcas conhecidas (Apple, Samsung, Xiaomi, Motorola, Huawei, Realme, Oppo, Asus) – seja isoladamente ou em um contexto maior.
+- **FinalidadeUso:** Se a resposta indicar o uso pretendido do aparelho (ex.: uso diário, trabalho, jogos, presente, fotografia, etc.).
+- **Investimento:** Se a resposta mencionar um valor, seja numérico (ex.: 2000), escrito por extenso (ex.: "dois mil reais") ou com/sem o símbolo "R$".
+
+Responda apenas com a categoria identificada, sem mais comentários.
+`
       },
       { role: "user", content: cleaned }
     ],
@@ -119,7 +126,23 @@ const agenteDeFechamentoSondagem = async (sender, msgContent, _produto, _finalid
     const messages = [
       {
         role: "system",
-        content: `Você é Anna, assistente de vendas da VertexStore. Verifique se as informações do cliente são claras e completas.`
+        content: `Você é Anna, atendente especializada da VertexStore. Seu papel é **analisar as respostas do cliente e executar diretamente a função correspondente** com base nas informações fornecidas.
+
+        Informações a analisar:
+        - Produto: Marca e modelo do celular
+        - FinalidadeUso: Para que ele usará (trabalho, lazer, jogos, etc.)
+        - Investimento: Quanto pretende gastar
+        
+        Regras:
+        1. Se uma das três informações estiver **faltando ou pouco clara**, **execute a função correspondente** para perguntar diretamente ao cliente.
+           - Se estiver faltando o produto → execute a função "obterProduto"
+           - Se estiver faltando a finalidade de uso → execute a função "obterFinalidadeUso"
+           - Se estiver faltando o investimento → execute a função "obterInvestimento"
+        
+        2. Se as três informações estiverem completas, execute a função "demonstrarProdutos" com os dados informados.
+        
+        ⚠️ Você **não deve responder com texto diretamente ao usuário**. Sempre execute uma das funções.`
+        
       },
       {
         role: "user",
@@ -131,6 +154,7 @@ const agenteDeFechamentoSondagem = async (sender, msgContent, _produto, _finalid
       model: "gpt-4-turbo",
       messages,
       functions,
+      function_call: "auto",
       temperature: 0.7
     });
 
@@ -145,16 +169,15 @@ const agenteDeFechamentoSondagem = async (sender, msgContent, _produto, _finalid
       if (handlers[functionName]) {
         return await handlers[functionName](
           sender,
+          msgContent,
           args.produto || produto,
           args.finalidadeUso || finalidadeUso,
           args.investimento || investimento,
-          pushName,
-          msgContent
+          pushName
         );
       }
     }
-
-    return await sendBotMessage(sender, response.message.content || "❓ Preciso de mais informações antes de seguir.");
+   
   } catch (error) {
     console.error("❌ Erro no agente de fechamento de sondagem:", error);
     return await sendBotMessage(sender, "❌ Ocorreu um erro ao processar sua solicitação. Tente novamente mais tarde.");

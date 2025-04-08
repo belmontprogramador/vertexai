@@ -7,8 +7,11 @@ const { rotinaDeAtedimentoInicial } = require("./GerenciadorDeRotinas/Gerenciado
 const { compactadorDeSuporte } = require("../Services/GerenciadorDeRotinas/GerenciadorDeSuporte/compactadorDeSuporte")
 const { agenteDeFechamentoSondagem } = require("../Services/GerenciadorDeRotinas/GerenciadorDeSondagem/ServicesOpenAiSondagem/openAiServicesFechamentoDeSondagem")
 const { openAiServicesBoleto } = require("../Services/GerenciadorDeRotinas/GerenciadordeBoleto/ServicesOpenAiBoleto/openAiServicesBoleto");
+const { agenteDeDemonstracaoDetalhada} = require('../Services/GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/agenteDeDemonstraçãoDetalhada')
 const { rotinaDeAbordagem } = require("./GerenciadorDeRotinas/GerenciadorDeAbordagem/rotinaDeAbordagem")
+const { agenteDeDemonstracaoPorValor } = require('../Services/GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/agenteDeDemonstracaoPorValor')
 const { rotinaDeFechamento } = require("../Services/GerenciadorDeRotinas/GerenciadorDeFechamento/rotinaDeFechamento")
+const { identificarModeloEscolhido } = require("../Services/GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/identificarModeloEscolhido")
 const { rotinaDeAgendamento } = require("../Services/GerenciadorDeRotinas/GerenciamentoDeAgendamento/rotinaDeAgendamento");
 const { rotinaDeBoleto } = require("../Services/GerenciadorDeRotinas/GerenciadordeBoleto/rotinaDeBoleto")
 const { rotinaDeSondagemDeAcessorios} = require("./GerenciadorDeRotinas/GerenciadorDeSondagem/rotinaDeSondagemAcessorios");
@@ -84,20 +87,34 @@ const checagemInicial = async (sender, msgContent, pushName) => {
             produto =respostasAgenteDemonstracao.pergunta_1;
             finalidadeUso = respostasAgenteDemonstracao.pergunta_2;
             investimento = respostasAgenteDemonstracao.pergunta_3;
-            return await rotinaDeDemonstracao({ sender, msgContent, produto, finalidadeUso, investimento, pushName });
+            return await agenteDeDemonstracaoPorValor({ sender, msgContent, produto, finalidadeUso, investimento, pushName });
 
-            case "fechamento":
-                const respostasAgenteFechamento = await getUserResponses(sender, "fechamento");
-                produto =respostasAgenteFechamento.pergunta_1;
-                finalidadeUso = respostasAgenteFechamento.pergunta_2;
-                investimento = respostasAgenteFechamento.pergunta_3;
-                return await rotinaDeFechamento({ sender, msgContent, produto, finalidadeUso, investimento, pushName })
+        case "agente_de_demonstração_capturar":    
+            return await identificarModeloEscolhido({sender, pushName, msgContent });  
+            
 
-            case "suporte":                    
-                return await rotinaDeSuporte({ sender, msgContent, pushName })
+        case "agente_de_demonstração_detalhado":  
+            const cleaned = cleanedContent.trim().toLowerCase();
+            const respostasDemonstracaoDetalhada = await getUserResponses(sender, "sondagem");              
+            const modeloEscolhido = cleanedContent; // a entrada agora é a escolha do modelo
+            finalidadeUso = respostasDemonstracaoDetalhada.pergunta_2 || "uso geral";
+            investimento = respostasDemonstracaoDetalhada.pergunta_3 || "sem valor informado";
+              
+            return await agenteDeDemonstracaoDetalhada({sender, modeloEscolhido, finalidadeUso, investimento, pushName, msgContent });              
+              
 
-            case "compactador_de_suporte":                    
-                return await compactadorDeSuporte({ sender, msgContent, pushName })   
+        case "fechamento":
+            const respostasAgenteFechamento = await getUserResponses(sender, "fechamento");
+            produto =respostasAgenteFechamento.pergunta_1;
+            finalidadeUso = respostasAgenteFechamento.pergunta_2;
+            investimento = respostasAgenteFechamento.pergunta_3;
+            return await rotinaDeFechamento({ sender, msgContent, produto, finalidadeUso, investimento, pushName })
+
+        case "suporte":                    
+            return await rotinaDeSuporte({ sender, msgContent, pushName })
+
+        case "compactador_de_suporte":                    
+            return await compactadorDeSuporte({ sender, msgContent, pushName })   
         
         default:
             console.log("⚠️ [DEBUG] Nenhum stage válido encontrado.");

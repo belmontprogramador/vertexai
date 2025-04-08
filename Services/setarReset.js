@@ -3,7 +3,8 @@ const {
   deleteUserStage, 
   deleteLastInteraction, 
   deleteUserResponses, 
-  redis 
+  redis,
+  deleteSelectedModel // ✅ importação adicionada
 } = require("./redisService");
 
 /**
@@ -27,6 +28,9 @@ const setarReset = async (userId, msgContent) => {
     for (const rotina of rotinas) {
       await deleteUserResponses(userId, rotina);
     }
+
+    // 🧹 Apaga modelos sugeridos ao usuário
+    await deleteSelectedModel(userId);
 
     console.log(`✅ Reset concluído para o usuário ${userId}. Mensagem: ${msgContent}`);
   } catch (error) {

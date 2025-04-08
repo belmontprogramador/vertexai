@@ -196,8 +196,45 @@ const deleteUserResponses = async (userId, routine = "default") => {
   await redis.del(redisKey);
 }; 
 
+// Armazena os modelos sugeridos
+const storeSelectedModel = async (sender, modelList) => {
+  await redis.set(`selected_models:${sender}`, modelList);
+};
+
+// Recupera os modelos sugeridos
+const getSelectedModel = async (sender) => {
+  return await redis.get(`selected_models:${sender}`);
+};
+
+// Exclui os modelos sugeridos
+const deleteSelectedModel = async (sender) => {
+  await redis.del(`selected_models:${sender}`);
+};
+
+// Salva o modelo escolhido pelo usuário
+const storeChosenModel = async (sender, modelo) => {
+  await redis.set(`modelo_escolhido:${sender}`, modelo);
+};
+
+// Recupera o modelo escolhido pelo usuário
+const getChosenModel = async (sender) => {
+  return await redis.get(`modelo_escolhido:${sender}`);
+};
+
+// Deleta o modelo escolhido, se necessário
+const deleteChosenModel = async (sender) => {
+  await redis.del(`modelo_escolhido:${sender}`);
+};
+
+
 
 module.exports = {
+  storeSelectedModel,
+  getSelectedModel,
+  deleteSelectedModel,
+  deleteChosenModel,
+  storeChosenModel,
+  getChosenModel,
   storeUserResponse,
   getUserResponses,
   setUserStage,
@@ -212,15 +249,6 @@ module.exports = {
   getUserResponses,
   deleteUserResponses,
   setStageHistory,
-  getStageHistory,
-  
+  getStageHistory,  
   redis
 };
-
-
-
-
-
-
-
-

@@ -92,6 +92,8 @@ async function moveLeadToContatoInicial(leadId) {
  * Função principal
  */
 async function pipelineContatoInicial({ name, phone }) {
+  console.log("📥 Entrando no pipelineContatoInicial");
+
   const result = await findContactAndLeadByPhone(phone);
   if (!result || !result.contact) throw new Error("❌ Contato não encontrado");
 

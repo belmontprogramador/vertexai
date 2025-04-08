@@ -36,16 +36,22 @@ const rotinaDeSondagemDeAcessorios = async ({ sender, msgContent, pushName }) =>
 
   if (!respostas?.kommo_lead_criado) {
     try {
+      console.log("🚀 Chamando pipelineContatoInicialAcessorios para o número:", `+${sender}`);
+      
       await pipelineContatoInicialAcessorios({
         name: `Lead do WhatsApp - ${pushName}`,
         phone: `+${sender}`,
         firstName: pushName
       });
+  
       await storeUserResponse(sender, "sondagem_de_acessorios", "kommo_lead_criado", true);
+      console.log("✅ Lead criado ou movido para o pipeline de Acessórios com sucesso.");
+  
     } catch (error) {
-      console.error("❌ Erro ao criar lead na Kommo:", error.message);
+      console.error("❌ Erro ao criar ou mover lead na Kommo:", error.message);
     }
-  }
+  } 
+  
 
   const getNextIndex = (respostas, chave, total) => {
     const atual = parseInt(respostas[`${chave}_index`] || -1, 10);
