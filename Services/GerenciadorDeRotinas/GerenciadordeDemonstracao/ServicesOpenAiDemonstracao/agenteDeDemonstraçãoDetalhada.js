@@ -31,7 +31,7 @@ const functions = [
 const handlers = {
   fecharVenda: async (sender, args, extras) => {
     const { modeloEscolhido, finalidade, investimento, pushName, msgContent } = extras;
-    await sendBotMessage(sender, "🎯 Perfeito! Vamos agendar agora sua visita para garantir esse modelo.");
+    await sendBotMessage(sender, `🎯 Perfeito! Vamos agendar agora sua visita para garantir seu ${modeloEscolhido}.`);
     return await rotinaDeFechamento({
       sender,
       msgContent,
