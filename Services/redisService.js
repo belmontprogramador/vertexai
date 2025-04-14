@@ -226,10 +226,48 @@ const deleteChosenModel = async (sender) => {
   await redis.del(`modelo_escolhido:${sender}`);
 };
 
+const getHistoricoFormatadoParaPrompt = async (userId, quantidade = 3) => {
+  try {
+    const key = `chat_history:${userId}`;
+    const mensagens = await redis.lrange(key, -quantidade, -1); // últimas N
+
+    return mensagens.map(msg => ({
+      role: "user",
+      content: msg
+    }));
+  } catch (error) {
+    console.error(`❌ Erro ao recuperar histórico formatado: ${error.message}`);
+    return [{
+      role: "user",
+      content: "Erro ao recuperar histórico"
+    }];
+  }  
+};
+
+// Armazena os modelos sugeridos pela IA
+const storeModelosSugeridos = async (sender, modelos) => {
+  const json = JSON.stringify(modelos);
+  await redis.set(`modelos_sugeridos:${sender}`, json);
+};
+
+// Recupera os modelos sugeridos
+const getModelosSugeridos = async (sender) => {
+  const raw = await redis.get(`modelos_sugeridos:${sender}`);
+  return raw ? JSON.parse(raw) : [];
+};
+
+// Remove os modelos sugeridos
+const deleteModelosSugeridos = async (sender) => {
+  await redis.del(`modelos_sugeridos:${sender}`);
+};
+
 
 
 module.exports = {
   storeSelectedModel,
+  getModelosSugeridos,
+  storeModelosSugeridos,
+  deleteModelosSugeridos,
   getSelectedModel,
   deleteSelectedModel,
   deleteChosenModel,
@@ -249,6 +287,7 @@ module.exports = {
   getUserResponses,
   deleteUserResponses,
   setStageHistory,
-  getStageHistory,  
+  getStageHistory, 
+  getHistoricoFormatadoParaPrompt, 
   redis
 };

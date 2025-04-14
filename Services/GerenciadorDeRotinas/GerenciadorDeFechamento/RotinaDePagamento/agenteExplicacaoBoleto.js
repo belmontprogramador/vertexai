@@ -1,6 +1,6 @@
 const { sendBotMessage } = require("../../../messageSender");
 const { setUserStage } = require("../../../redisService");
-const { rotinaDeEntrega } = require("../../GerenciadorDeEntrega/rotinaDeEntrega");
+const { rotinaDeEntrega } = require("../RotinaDeEntrega/rotinaDeEntrega");
 const OpenAI = require("openai");
 require("dotenv").config();
 
@@ -32,9 +32,6 @@ const handlers = {
 };
 
 const AgenteExplicacaoBoleto = async ({ sender, msgContent = "", pushName = "" }) => {
-  await setUserStage(sender, "boleto_agente_fluxo");
-  console.log("🔁 [DEBUG] Agente de dúvidas sobre boleto ativo");
-
   const userMessage = msgContent?.trim() || "Tenho dúvidas sobre o boleto.";
 
   try {
@@ -61,25 +58,30 @@ Você é um especialista da VertexStore em boleto parcelado.
 
     const response = completion.choices[0];
 
-    // Se o modelo chamou a função explicitamente
+    // 🔁 Se a IA chamou a função explicitamente
     if (response.finish_reason === "function_call" && response.message.function_call) {
       const args = JSON.parse(response.message.function_call.arguments || "{}");
       return await handlers.seguirParaEntrega({ sender, msgContent, pushName, ...args });
     }
 
-    // Fallback manual: se o modelo não chamou a função, verifica no texto
-    const resposta = response.message?.content;
-    const lowerMsg = msgContent.toLowerCase();
+    // 🧠 Se a IA respondeu por texto e já sugeriu a entrega
+    const resposta = response.message?.content || "";
+    const lowerResposta = resposta.toLowerCase();
 
-    const querEntregar = [
-      "seguir", "pode seguir", "vamos para entrega", "finalizar", "quero receber", "pode continuar"
-    ].some(texto => lowerMsg.includes(texto));
+    const indicativos = [
+      "vamos seguir", "vamos para entrega", "pode seguir",
+      "fechado", "quero receber", "pode continuar", "próxima etapa", "prosseguir"
+    ];
 
-    if (querEntregar) {
-      return await handlers.seguirParaEntrega({ sender, msgContent, pushName });
+    const desejaSeguir = indicativos.some(f => lowerResposta.includes(f));
+
+    if (desejaSeguir) {
+      // ⚠️ Aqui é onde estava o loop: tentava continuar no mesmo fluxo
+      return await handlers.seguirParaEntrega({ sender, msgContent, pushName, confirmacao: "seguindo" });
     }
 
-    // Continua no loop de dúvidas
+    // ✅ Se não quiser seguir ainda, apenas responde e mantém o stage
+    await setUserStage(sender, "boleto_agente_fluxo");
     return await sendBotMessage(sender, resposta || "📩 Pode mandar sua dúvida sobre o boleto que te explico!");
   } catch (error) {
     console.error("❌ Erro no agente de dúvidas do boleto:", error);

@@ -1,7 +1,7 @@
 const { sendBotMessage } = require("../../../messageSender");
 const OpenAI = require("openai");
 const { setUserStage } = require("../../../redisService");
-const { rotinaDeEntrega } = require("../../GerenciadorDeEntrega/rotinaDeEntrega");
+const { rotinaDeEntrega } = require("../RotinaDeEntrega/rotinaDeEntrega");
 require("dotenv").config();
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });

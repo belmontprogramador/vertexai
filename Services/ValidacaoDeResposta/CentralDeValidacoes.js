@@ -19,7 +19,7 @@ const validarFluxoInicial = async (sender, msgContent, pushName) => {
   const cleanedContent = msgContent.replace(/^again\s*/i, "").trim().toLowerCase();
   const lastInteraction = await getLastInteraction(sender);
   const currentTime = Date.now();
-  const CHECK_TIME_LIMIT = 1 * 60 * 1000;
+  const CHECK_TIME_LIMIT = 10 * 60 * 1000;
 
   await setLastInteraction(sender, currentTime);
   await storeUserMessage(sender, cleanedContent);

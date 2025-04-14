@@ -2,21 +2,26 @@ const { validarFluxoInicial } = require("../Services/ValidacaoDeResposta/Central
 const { rotinaDeReincioAtedimento } = require("../Services/GerenciadorDeRotinas/GerenciadorDeAbordagem/rotinaDeReinicioAtendimento");
 const { rotinaDeSondagemDeCelular } = require("./GerenciadorDeRotinas/GerenciadorDeSondagem/rotinaDeSondagemDeCelular");
 const { rotinaDeRedirecionamentoDeAbordagem } = require("../Services/GerenciadorDeRotinas/GerenciadorDeAbordagem/rotinaDeRedirecionamentoDeAbordagem");
-const { rotinaDeDemonstracao } = require("../Services/GerenciadorDeRotinas/GerenciadorDeDemonstracao/rotinaDeDemonstracao");
+const { rotinaDeDemonstracaoPorNome } = require("../Services/GerenciadorDeRotinas/GerenciadorDeDemonstracao/rotinaDeDemonstracaoPorNome"); 
 const { rotinaDeAtedimentoInicial } = require("./GerenciadorDeRotinas/GerenciadorDeAbordagem/rotinaDeAtedimentoInicial");
 const { compactadorDeSuporte } = require("../Services/GerenciadorDeRotinas/GerenciadorDeSuporte/compactadorDeSuporte")
 const { agenteDePagamento } = require("../Services/GerenciadorDeRotinas/GerenciadorDeFechamento/RotinaDePagamento/agenteDePagemento")
 const { agenteDeFechamentoSondagem } = require("../Services/GerenciadorDeRotinas/GerenciadorDeSondagem/ServicesOpenAiSondagem/openAiServicesFechamentoDeSondagem")
 const { openAiServicesBoleto } = require("../Services/GerenciadorDeRotinas/GerenciadordeBoleto/ServicesOpenAiBoleto/openAiServicesBoleto");
 const { agenteDeDemonstracaoDetalhada } = require('../Services/GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/agenteDeDemonstraçãoDetalhada')
+const { agenteDeDecisao } = require("./GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/agenteDeDecisão")
 const { rotinaDeAbordagem } = require("./GerenciadorDeRotinas/GerenciadorDeAbordagem/rotinaDeAbordagem")
-const { rotinaDeEntrega } = require("../Services/GerenciadorDeRotinas/GerenciadorDeEntrega/rotinaDeEntrega")
+const { rotinaDeEntrega } = require("./GerenciadorDeRotinas/GerenciadorDeFechamento/RotinaDeEntrega/rotinaDeEntrega")
 const { agentePix } = require("../Services/GerenciadorDeRotinas/GerenciadorDeFechamento/RotinaDePagamento/agentePix")
 const { agenteCartao } = require("../Services/GerenciadorDeRotinas/GerenciadorDeFechamento/RotinaDePagamento/agenteCartao")
 const { explicacaoBoleto } = require("../Services/GerenciadorDeRotinas/GerenciadorDeFechamento/RotinaDePagamento/explicacaoBoleto")
 const { AgenteExplicacaoBoleto } = require("../Services/GerenciadorDeRotinas/GerenciadorDeFechamento/RotinaDePagamento/agenteExplicacaoBoleto")
-const { agenteDeDemonstracaoPorValor } = require('../Services/GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/agenteDeDemonstracaoPorValor')
+const { agenteDeEntrega } = require("../Services/GerenciadorDeRotinas/GerenciadorDeFechamento/RotinaDeEntrega/agenteDeEntrega")
+const { listarHorariosDisponiveis } = require("../Services/ServicesKommo/gerarDatasProximos15Dias")
+const { agendarParaContato } = require("../Services/ServicesKommo/agendarTarefa")
+const { agenteDeDemonstracaoPorNome } = require('./GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/agenteDeDemonstracaoPorNome');
 const { rotinaDeFechamento } = require("../Services/GerenciadorDeRotinas/GerenciadorDeFechamento/rotinaDeFechamento")
+const { handlerEscolherModelo } = require("./GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/handlerEscolherModelo")
 const { identificarModeloEscolhido } = require("../Services/GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/identificarModeloEscolhido")
 const { rotinaDeAgendamento } = require("../Services/GerenciadorDeRotinas/GerenciamentoDeAgendamento/rotinaDeAgendamento");
 const { rotinaDeBoleto } = require("../Services/GerenciadorDeRotinas/GerenciadordeBoleto/rotinaDeBoleto")
@@ -80,32 +85,34 @@ const checagemInicial = async (sender, msgContent, pushName) => {
             investimento = respostas.pergunta_3;
             return await agenteDeFechamentoSondagem(sender, msgContent, produto, finalidadeUso, investimento, pushName);
 
-        case "sequencia_de_demonstracao":
-            const respostasDemonstracao = await getUserResponses(sender, "sondagem");
-            produto = respostasDemonstracao.pergunta_1;
-            finalidadeUso = respostasDemonstracao.pergunta_2;
-            investimento = respostasDemonstracao.pergunta_3;
-            return await rotinaDeDemonstracao({ sender, msgContent, produto, finalidadeUso, investimento, pushName });
+        case "sequencia_de_demonstracao_por_nome":           
+            return await rotinaDeDemonstracaoPorNome({ sender, msgContent, pushName });
+        
+        case "identificar_modelo":
+            return await identificarModeloEscolhido({ sender, msgContent, pushName });
+
+        case "escolher_modelo":
+            return await handlerEscolherModelo({ sender, msgContent, pushName }); 
+
+        case "agente_de_demonstraçao_por_nome":
+            return await agenteDeDemonstracaoPorNome({ sender, msgContent, pushName })
 
         case "agente_de_demonstração":
             const respostasAgenteDemonstracao = await getUserResponses(sender, "sondagem");
             produto = respostasAgenteDemonstracao.pergunta_1;
             finalidadeUso = respostasAgenteDemonstracao.pergunta_2;
             investimento = respostasAgenteDemonstracao.pergunta_3;
-            return await agenteDeDemonstracaoPorValor({ sender, msgContent, produto, finalidadeUso, investimento, pushName });
+            return await agenteDeDemonstracaoPorNome({ sender, msgContent, produto, modeloMencionado, finalidadeUso, investimento, pushName });
 
         case "agente_de_demonstração_capturar":
             return await identificarModeloEscolhido({ sender, pushName, msgContent });
 
 
-        case "agente_de_demonstração_detalhado":
-            const cleaned = cleanedContent.trim().toLowerCase();
-            const respostasDemonstracaoDetalhada = await getUserResponses(sender, "sondagem");
-            const modeloEscolhido = cleanedContent; // a entrada agora é a escolha do modelo
-            finalidadeUso = respostasDemonstracaoDetalhada.pergunta_2 || "uso geral";
-            investimento = respostasDemonstracaoDetalhada.pergunta_3 || "sem valor informado";
+        case "agente_de_demonstração_detalhada":       
+            return await agenteDeDemonstracaoDetalhada({ sender, msgContent, pushName});
 
-            return await agenteDeDemonstracaoDetalhada({ sender, modeloEscolhido, finalidadeUso, investimento, pushName, msgContent });
+        case "agente_de_decisao":       
+            return await agenteDeDecisao({ sender, msgContent, pushName});    
 
         case "fechamento":
             return await rotinaDeFechamento({ sender, msgContent, produto, finalidadeUso, investimento, pushName })
@@ -124,9 +131,18 @@ const checagemInicial = async (sender, msgContent, pushName) => {
 
         case "boleto_agente_fluxo":
             return await AgenteExplicacaoBoleto({ sender, msgContent, pushName });
-            
+
         case "entrega":
             return await rotinaDeEntrega({ sender, msgContent, pushName });
+
+        case "agente_de_entrega":
+            return await agenteDeEntrega({ sender, msgContent, pushName });
+
+        case "datas_15_dias":
+            return await listarHorariosDisponiveis(sender);
+
+        case "agendamento_de_tarefas":
+            return await agendarParaContato({ sender, dataTimestamp, texto })
 
         case "suporte":
             return await rotinaDeSuporte({ sender, msgContent, pushName })

@@ -6,7 +6,7 @@ const {
   storeUserResponse,
   getUserResponses
 } = require("../../../redisService");
-const { rotinaDeDemonstracao } = require("../../GerenciadorDeDemonstracao/rotinaDeDemonstracao");
+const { rotinaDeDemonstracao } = require("../../GerenciadordeDemonstracao/rotinaDeDemonstracaoPorNome");
 const OpenAI = require("openai");
 require("dotenv").config();
 
