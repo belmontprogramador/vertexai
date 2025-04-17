@@ -28,8 +28,8 @@ const handlers = {
     await rotinaDeDemonstracaoPorNome({ sender, msgContent, modeloMencionado, pushName });
   },
   consultarParcelamento: async (sender, msgContent, pushName) => {
-    await setUserStage(sender, "parcelamento");
-    await await sendBotMessage(sender, "voce prefere no cartão ou no boleto?");
+    await setUserStage(sender, "agente_de_decisão_de_parcelamento");
+    await await sendBotMessage(sender, `${pushName} me tira uma duvida voce esta procurando parcelamento no boleto ou no cartão?`);
   },
   consultarAcessorios: async (sender, msgContent, pushName) => {
     await setUserStage(sender, "sondagem_de_acessorios");
@@ -76,7 +76,7 @@ const functions = [
   },  
   {
     name: "demonstrarCelular",
-    description: "Quando o usuário menciona marcas ou modelos específicos de celular, como 'iPhone 13', 'Samsung A23', 'Motorola', 'POCO X6 Pro', 'realme C55' e deseja ver detalhes do produto. ⚠️ Se o usuário também falar sobre formas de pagamento, a prioridade deve ser da função 'consultarParcelamento'.",
+    description: "Quando o usuário menciona marcas ou modelos específicos de celular, como 'iPhone 13', 'Samsung A23', 'Motorola', 'POCO X6 Pro', 'Xiaomi', realme C55' e deseja ver detalhes do produto. ⚠️ Se o usuário também falar sobre formas de pagamento, a prioridade deve ser da função 'consultarParcelamento'.",
     parameters: {
       type: "object",
       properties: {

@@ -261,10 +261,48 @@ const deleteModelosSugeridos = async (sender) => {
   await redis.del(`modelos_sugeridos:${sender}`);
 };
 
+// Armazena o valor que o usuário deseja investir em um aparelho
+const storeInvestimento = async (sender, valor) => {
+  try {
+    const redisKey = `user_investimento:${sender}`;
+    await redis.set(redisKey, valor);
+    console.log(`💰 Valor de investimento (${valor}) armazenado para ${sender}`);
+  } catch (error) {
+    console.error(`❌ Erro ao armazenar investimento: ${error.message}`);
+  }
+};
+
+// Recupera o valor de investimento do usuário
+const getInvestimento = async (sender) => {
+  try {
+    const redisKey = `user_investimento:${sender}`;
+    const valor = await redis.get(redisKey);
+    return valor ? parseFloat(valor) : null;
+  } catch (error) {
+    console.error(`❌ Erro ao recuperar investimento: ${error.message}`);
+    return null;
+  }
+};
+
+// Remove o valor de investimento armazenado
+const deleteInvestimento = async (sender) => {
+  try {
+    const redisKey = `user_investimento:${sender}`;
+    await redis.del(redisKey);
+    console.log(`🧹 Investimento do usuário ${sender} removido.`);
+  } catch (error) {
+    console.error(`❌ Erro ao deletar investimento: ${error.message}`);
+  }
+};
+
+
 
 
 module.exports = {
   storeSelectedModel,
+  getInvestimento,
+  storeInvestimento,
+  deleteInvestimento,
   getModelosSugeridos,
   storeModelosSugeridos,
   deleteModelosSugeridos,

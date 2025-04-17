@@ -2,7 +2,7 @@ const { sendBotMessage } = require("../../../messageSender");
 const {
   setUserStage,
   storeSelectedModel,
-  getChosenModel
+  getUserResponses
 } = require("../../../redisService");
 require("dotenv").config();
 
@@ -17,8 +17,6 @@ const celulares = [
   { nome: "Motorola Edge 40 Neo", preco: 2699, descricao: "256GB, 12GB RAM, pOLED 144Hz." },
   { nome: "iPhone SE (3ª geração)", preco: 3199, descricao: "64GB, chip A15 Bionic." },
   { nome: "Xiaomi Poco X6 Pro", preco: 2899, descricao: "256GB, 12GB RAM, Dimensity 8300-Ultra." },
-
-  // Novos modelos com valores estimados de entrada e parcelas
   { nome: "Xiaomi Note 14", preco: 300, descricao: "Sem NFC. Entrada a partir de R$ 300,00. Parcelas a partir de R$ 150,00." },
   { nome: "Realme C61", preco: 199, descricao: "Com NFC. Entrada a partir de R$ 199,00. Parcelas a partir de R$ 145,00." },
   { nome: "Note 60", preco: 150, descricao: "Sem NFC. Entrada a partir de R$ 150,00. Parcelas a partir de R$ 100,00." },
@@ -27,29 +25,39 @@ const celulares = [
 
 const formatarCelular = (cel) => `📱 *${cel.nome}* - R$${cel.preco}\n_${cel.descricao}_\n`;
 
-const agenteDeDemonstracaoPorNome = async ({ sender, msgContent, pushName }) => {
-  await setUserStage(sender, "agente_de_demonstraçao_por_nome");
+const agenteDeDemonstracaoPorValor = async ({ sender, pushName }) => {
+  const stage = await setUserStage(sender, "identificar_modelo");
+  console.log(`entrei aqui dentro ${stage}`)
 
-  const entradaOriginal = await getChosenModel(sender);
-  if (!entradaOriginal) {
-    return await sendBotMessage(sender, "❌ Não consegui identificar o modelo. Pode repetir o nome?");
+
+  const respostas = await getUserResponses(sender, "sondagem");
+  const valorBruto = respostas?.investimento;
+
+  const numeroExtraido = typeof valorBruto === 'string'
+    ? parseFloat(valorBruto.replace(/[^\d,\.]/g, '').replace(',', '.'))
+    : Number(valorBruto);
+
+  if (!numeroExtraido || isNaN(numeroExtraido)) {
+    return await sendBotMessage(sender, "❌ Não consegui entender o valor que você deseja investir. Pode me informar novamente?");
   }
 
-  const modelo = celulares.find(c => entradaOriginal.toLowerCase().includes(c.nome.toLowerCase()));
+  const limiteInferior = numeroExtraido - 300;
+  const limiteSuperior = numeroExtraido + 300;
 
-  if (!modelo) {
-    return await sendBotMessage(sender, "❌ Modelo não encontrado. Pode verificar o nome e tentar novamente?");
+  const modelosFiltrados = celulares.filter(cel => cel.preco >= limiteInferior && cel.preco <= limiteSuperior);
+
+  if (modelosFiltrados.length === 0) {
+    return await sendBotMessage(sender, "😕 Não encontrei nenhum modelo dentro da sua faixa de investimento. Quer tentar outro valor?");
   }
 
-  // Envia detalhes do modelo
-  await sendBotMessage(sender, `📱 Você mencionou o modelo *${modelo.nome}*. Aqui estão os detalhes:`);
-  await sendBotMessage(sender, formatarCelular(modelo));
+  await sendBotMessage(sender, `📊 Com base no seu investimento aproximado de *R$${numeroExtraido.toFixed(2)}*, aqui estão algumas opções:`);
 
-  // Define próximo stage para agente de decisão
-  await setUserStage(sender, "agente_de_decisao");
+  for (const modelo of modelosFiltrados) {
+    await sendBotMessage(sender, formatarCelular(modelo));
+  }
 
-  // Pergunta para o usuário o que ele deseja
-  await sendBotMessage(sender, "Deseja tirar dúvidas sobre esse modelo ou ver mais opções parecidas?");
+  await setUserStage(sender, "agente_de_demonstração_detalhado");
+  await sendBotMessage(sender, "👉 Qual desses modelos qual te chamou mais atenção?");
 };
 
-module.exports = { agenteDeDemonstracaoPorNome };
+module.exports = { agenteDeDemonstracaoPorValor };

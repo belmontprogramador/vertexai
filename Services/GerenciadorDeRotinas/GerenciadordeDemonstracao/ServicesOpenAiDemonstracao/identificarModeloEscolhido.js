@@ -20,8 +20,13 @@ const celulares = [
   "Samsung Galaxy A54 5G",
   "Motorola Edge 40 Neo",
   "iPhone SE (3ª geração)",
-  "Xiaomi Poco X6 Pro"
+  "Xiaomi Poco X6 Pro",
+  "Xiaomi Note 14",
+  "Realme C61",
+  "Note 60",
+  "Realme C75"
 ];
+
 
 // 🔤 Normaliza o texto
 function normalizar(texto) {

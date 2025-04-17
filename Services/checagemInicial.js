@@ -1,15 +1,19 @@
 const { validarFluxoInicial } = require("../Services/ValidacaoDeResposta/CentralDeValidacoes");
+const { setarReset } = require('./setarReset')
+const { rotinaDeAtedimentoInicial } = require("./GerenciadorDeRotinas/GerenciadorDeAbordagem/rotinaDeAtedimentoInicial");
 const { rotinaDeReincioAtedimento } = require("../Services/GerenciadorDeRotinas/GerenciadorDeAbordagem/rotinaDeReinicioAtendimento");
 const { rotinaDeSondagemDeCelular } = require("./GerenciadorDeRotinas/GerenciadorDeSondagem/rotinaDeSondagemDeCelular");
 const { rotinaDeRedirecionamentoDeAbordagem } = require("../Services/GerenciadorDeRotinas/GerenciadorDeAbordagem/rotinaDeRedirecionamentoDeAbordagem");
 const { rotinaDeDemonstracaoPorNome } = require("../Services/GerenciadorDeRotinas/GerenciadorDeDemonstracao/rotinaDeDemonstracaoPorNome"); 
-const { rotinaDeAtedimentoInicial } = require("./GerenciadorDeRotinas/GerenciadorDeAbordagem/rotinaDeAtedimentoInicial");
 const { compactadorDeSuporte } = require("../Services/GerenciadorDeRotinas/GerenciadorDeSuporte/compactadorDeSuporte")
 const { agenteDePagamento } = require("../Services/GerenciadorDeRotinas/GerenciadorDeFechamento/RotinaDePagamento/agenteDePagemento")
 const { agenteDeFechamentoSondagem } = require("../Services/GerenciadorDeRotinas/GerenciadorDeSondagem/ServicesOpenAiSondagem/openAiServicesFechamentoDeSondagem")
 const { openAiServicesBoleto } = require("../Services/GerenciadorDeRotinas/GerenciadordeBoleto/ServicesOpenAiBoleto/openAiServicesBoleto");
 const { agenteDeDemonstracaoDetalhada } = require('../Services/GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/agenteDeDemonstraçãoDetalhada')
 const { agenteDeDecisao } = require("./GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/agenteDeDecisão")
+const { agenteDeDecisaoParaBoletoOuSondagem } = require("./GerenciadorDeRotinas/GerenciadorDeAbordagem/ServicesOpenAiAbordagem/agenteDeDecisaoParaBoletoOuSondagem")
+const { agenteDeDecisaoParaDemonstracaoOuBoleto } =  require("./GerenciadorDeRotinas/GerenciadorDeAbordagem/ServicesOpenAiAbordagem/agenteDeDecisaoParaDemonstracaoOuBoleto")
+const { rotinaDeDemonstracaoPorValor } = require("./GerenciadorDeRotinas/GerenciadordeDemonstracao/rotinaDeDemonstracaoPorValor")
 const { rotinaDeAbordagem } = require("./GerenciadorDeRotinas/GerenciadorDeAbordagem/rotinaDeAbordagem")
 const { rotinaDeEntrega } = require("./GerenciadorDeRotinas/GerenciadorDeFechamento/RotinaDeEntrega/rotinaDeEntrega")
 const { agentePix } = require("../Services/GerenciadorDeRotinas/GerenciadorDeFechamento/RotinaDePagamento/agentePix")
@@ -26,7 +30,7 @@ const { identificarModeloEscolhido } = require("../Services/GerenciadorDeRotinas
 const { rotinaDeAgendamento } = require("../Services/GerenciadorDeRotinas/GerenciamentoDeAgendamento/rotinaDeAgendamento");
 const { rotinaDeBoleto } = require("../Services/GerenciadorDeRotinas/GerenciadordeBoleto/rotinaDeBoleto")
 const { rotinaDeSondagemDeAcessorios } = require("./GerenciadorDeRotinas/GerenciadorDeSondagem/rotinaDeSondagemAcessorios");
-const { setarReset } = require('./setarReset')
+
 const { sendBotMessage } = require("./messageSender");
 const { getUserResponses } = require("./redisService");
 
@@ -112,8 +116,17 @@ const checagemInicial = async (sender, msgContent, pushName) => {
             return await agenteDeDemonstracaoDetalhada({ sender, msgContent, pushName});
 
         case "agente_de_decisao":       
-            return await agenteDeDecisao({ sender, msgContent, pushName});    
+            return await agenteDeDecisao({ sender, msgContent, pushName}); 
+            
+        case "agente_de_decisão_de_parcelamento":       
+            return await agenteDeDecisaoParaBoletoOuSondagem({ sender, msgContent, pushName});
 
+            case "rotina_demonstração_por_valor":       
+            return await rotinaDeDemonstracaoPorValor({ sender, msgContent, pushName});   
+            
+            case "agente_de_decisao_hall_de_boletos":       
+            return await agenteDeDecisaoParaDemonstracaoOuBoleto({ sender, msgContent, pushName});    
+            
         case "fechamento":
             return await rotinaDeFechamento({ sender, msgContent, produto, finalidadeUso, investimento, pushName })
 
