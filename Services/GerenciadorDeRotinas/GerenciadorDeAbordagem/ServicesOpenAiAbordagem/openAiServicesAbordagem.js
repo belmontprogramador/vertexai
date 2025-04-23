@@ -117,7 +117,7 @@ const functions = [
   },
   { 
     name: "consultarOutros", 
-    description: "Usuário menciona algo fora das categorias definidas.", 
+    description: "Usuário menciona algo fora das categorias definidas ou fala suporte ou digita 4.", 
     parameters: { 
       type: "object", 
       properties: { 

@@ -1,34 +1,47 @@
-// ServicesOpenAiDemonstracao/identificarModeloEscolhido.js
 const {
   getChosenModel,
   storeChosenModel,
-  setUserStage, 
-  storeModelosSugeridos 
+  setUserStage,
+  storeModelosSugeridos
 } = require("../../../../Services/redisService");
 const { distance } = require("fastest-levenshtein");
+const { agenteDeDemonstracaoDetalhada } = require("../ServicesOpenAiDemonstracao/agenteDeDemonstraçãoDetalhada");
 const { agenteDeDemonstracaoPorNome } = require("./agenteDeDemonstracaoPorNome");
 const { sendBotMessage } = require("../../../messageSender");
+const axios = require("axios");
+const fs = require("fs");
 
+const REFRESH_TOKEN_PATH = './bling_refresh_token.json';
+const CATEGORIA_ID = 11356816;
 
-const celulares = [
-  "Samsung Galaxy A14",
-  "Motorola Moto E22",
-  "Xiaomi Redmi 12C",
-  "Samsung Galaxy M14 5G",
-  "Motorola Moto G73 5G",
-  "Realme C55",
-  "Samsung Galaxy A54 5G",
-  "Motorola Edge 40 Neo",
-  "iPhone SE (3ª geração)",
-  "Xiaomi Poco X6 Pro",
-  "Xiaomi Note 14",
-  "Realme C61",
-  "Note 60",
-  "Realme C75"
-];
+const getAccessToken = () => {
+  if (!fs.existsSync(REFRESH_TOKEN_PATH)) {
+    throw new Error('Arquivo bling_refresh_token.json não encontrado.');
+  }
+  const data = JSON.parse(fs.readFileSync(REFRESH_TOKEN_PATH, 'utf8'));
+  return data.access_token;
+};
 
+const obterCelularesDoBling = async () => {
+  try {
+    const token = getAccessToken();
+    const response = await axios.get('https://www.bling.com.br/Api/v3/produtos', {
+      headers: {
+        Authorization: `Bearer ${token}`
+      },
+      params: {
+        idCategoria: CATEGORIA_ID,
+        pagina: 1,
+        limite: 100
+      }
+    });
+    return response.data.data.map(p => p.nome);
+  } catch (err) {
+    console.error("❌ Erro ao buscar produtos do Bling:", err.response?.data || err.message);
+    return [];
+  }
+};
 
-// 🔤 Normaliza o texto
 function normalizar(texto) {
   return texto
     .normalize("NFD")
@@ -38,7 +51,6 @@ function normalizar(texto) {
     .toLowerCase();
 }
 
-// 🧹 Remove palavras irrelevantes da frase
 function limparFrase(texto) {
   return texto.replace(
     /(quero|procuro|gostaria de|to procurando|to a procura de|interessado em|queria ver|quero ver|vendo|vendo um|vendo celular|me mostra|ver|celular|modelo)/gi,
@@ -46,12 +58,10 @@ function limparFrase(texto) {
   ).trim();
 }
 
-// 🧩 Divide o texto em tokens úteis
 function tokenizar(texto) {
   return normalizar(texto).split(/\s+/).filter(Boolean);
 }
 
-// 🤖 Calcula um score inteligente de similaridade
 function scoreAvancado(entrada, modelo) {
   const tokensEntrada = tokenizar(entrada);
   const tokensModelo = tokenizar(modelo);
@@ -73,12 +83,40 @@ function scoreAvancado(entrada, modelo) {
   return scoreFinal;
 }
 
-// 🎯 Identifica o modelo com base no texto salvo
+// 🧠 Identifica o prefixo comum entre múltiplas strings
+function encontrarPrefixoComum(strs) {
+  if (!strs.length) return '';
+  let prefix = strs[0];
+  for (let i = 1; i < strs.length; i++) {
+    while (strs[i].indexOf(prefix) !== 0) {
+      prefix = prefix.slice(0, -1);
+      if (!prefix) return '';
+    }
+  }
+  return prefix;
+}
+
 async function identificarModeloEscolhido({ sender, msgContent, pushName }) {
-  const entradaOriginal = await getChosenModel(sender);
-  if (!entradaOriginal) {
-    console.log("⚠️ [DEBUG] Nenhuma entrada salva encontrada para comparação.");
+  const entradaOriginalCompleta = await getChosenModel(sender);
+  const entradaOriginal = entradaOriginalCompleta.replace(/^again\s+/i, "").trim();
+
+  const celulares = await obterCelularesDoBling();
+  if (!celulares.length) {
+    console.log("⚠️ [DEBUG] Nenhum modelo retornado da API do Bling.");
+    await sendBotMessage(sender, "❌ Não conseguimos acessar os modelos disponíveis no momento. Tente novamente mais tarde.");
     return null;
+  }
+
+  // Comparação direta
+  const modeloExato = celulares.find((modelo) => {
+    return normalizar(modelo) === normalizar(entradaOriginal);
+  });
+
+  if (modeloExato) {
+    await storeChosenModel(sender, modeloExato);
+    await setUserStage(sender, "agente_de_demonstração_detalhada");
+    console.log("🎯 [DEBUG] Modelo EXATO identificado:", modeloExato);
+    return await agenteDeDemonstracaoDetalhada({ sender, msgContent, pushName });
   }
 
   const entradaLimpa = limparFrase(entradaOriginal);
@@ -90,6 +128,20 @@ async function identificarModeloEscolhido({ sender, msgContent, pushName }) {
     })
     .filter(({ score }) => score >= 0.3)
     .sort((a, b) => b.score - a.score);
+
+  // NOVO: detectar prefixo comum em matches com score alto
+  const matchesAltos = matches.filter(m => m.score >= 0.8);
+  const prefixoComum = matchesAltos.length > 1
+    ? encontrarPrefixoComum(matchesAltos.map(m => m.modelo))
+    : null;
+
+  if (prefixoComum && prefixoComum.length >= 10) {
+    const modeloFinal = prefixoComum.trim();
+    console.log("🔍 [DEBUG] Prefixo comum detectado, encaminhando para demonstração detalhada:", modeloFinal);
+    await storeChosenModel(sender, modeloFinal);
+    await setUserStage(sender, "agente_de_demonstração_detalhada");
+    return await agenteDeDemonstracaoDetalhada({ sender, msgContent, pushName });
+  }
 
   if (matches.length > 1) {
     const nomes = matches.map(m => m.modelo);
@@ -104,19 +156,12 @@ async function identificarModeloEscolhido({ sender, msgContent, pushName }) {
     await storeChosenModel(sender, modeloFinal);
     await setUserStage(sender, "sequencia_de_demonstracao_por_nome");
     console.log("💾 [DEBUG] Modelo identificado e salvo no Redis:", modeloFinal);
-
     return await agenteDeDemonstracaoPorNome({ sender, msgContent, pushName });
   }
 
-  if (matches.length === 0) {    
-    await setUserStage(sender, "sondagem_de_celular");
-    console.log("💾 [DEBUG] Mencaminhando para sondagem");
-    await await sendBotMessage(sender, "vamos te encaminhar para sondagem para ver o que vc quer então,")
-
-    
-  }
-
+  await setUserStage(sender, "sondagem_de_celular");
   console.log("⚠️ [DEBUG] Nenhum modelo foi identificado com similaridade suficiente.");
+  await sendBotMessage(sender, "❌ Não consegui identificar o modelo. Pode me dizer o nome exato ou alguma característica principal do aparelho?");
   return null;
 }
 

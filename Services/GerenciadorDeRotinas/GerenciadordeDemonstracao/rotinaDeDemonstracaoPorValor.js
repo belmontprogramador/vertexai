@@ -6,13 +6,24 @@ const {
 const { pipelineConhecendoALoja } = require("../../ServicesKommo/pipelineConecendoALoja");
 const { agenteDeDemonstracaoPorValor } = require("./ServicesOpenAiDemonstracao/agenteDeDemonstracaoPorValor");
 
+// 🔤 Remove o prefixo "again" da mensagem, se existir
+function limparPrefixoAgain(texto) {
+  if (typeof texto === "string" && texto.toLowerCase().startsWith("again ")) {
+    return texto.slice(6).trim();
+  }
+  return texto;
+}
+
 const rotinaDeDemonstracaoPorValor = async ({ sender, msgContent, pushName }) => {
   try {
     // Define o stage atual do usuário
     await setUserStage(sender, "agente_de_demonstraçao_por_valor");
 
+    // 🔤 Limpa o conteúdo antes de salvar e utilizar
+    const respostaLimpa = limparPrefixoAgain(msgContent);
+
     // Armazena o valor informado pelo usuário dentro da rotina de sondagem
-    await storeUserResponse(sender, "sondagem", "investimento", msgContent);
+    await storeUserResponse(sender, "sondagem", "investimento", respostaLimpa);
 
     // Atualiza o lead para o estágio "Conhecendo a loja"
     await pipelineConhecendoALoja(`+${sender}`);

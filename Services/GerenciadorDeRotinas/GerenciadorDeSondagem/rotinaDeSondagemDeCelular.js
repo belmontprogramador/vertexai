@@ -10,7 +10,6 @@ const { sendBotMessage } = require("../../messageSender");
 const { pipelineContatoInicial } = require("../../ServicesKommo/pipelineContatoInicial");
 
 const rotinaDeSondagemDeCelular = async ({ sender, msgContent, pushName }) => {
-  console.log('🚀 Entrei dentro da rotina de sondagem');
 
   await setUserStage(sender, "rotina_demonstração_por_valor");   
 
