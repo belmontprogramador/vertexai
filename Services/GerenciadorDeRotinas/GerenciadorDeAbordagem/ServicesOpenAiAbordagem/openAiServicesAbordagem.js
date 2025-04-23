@@ -29,7 +29,7 @@ const handlers = {
   },
   consultarParcelamento: async (sender, msgContent, pushName) => {
     await setUserStage(sender, "agente_de_decisão_de_parcelamento");
-    await await sendBotMessage(sender, `${pushName} me tira uma duvida voce esta procurando parcelamento no boleto ou no cartão?`);
+    await sendBotMessage(sender, `${pushName} me tira uma duvida voce esta procurando parcelamento no boleto ou no cartão?`);
   },
   consultarAcessorios: async (sender, msgContent, pushName) => {
     await setUserStage(sender, "sondagem_de_acessorios");

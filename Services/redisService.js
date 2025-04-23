@@ -295,11 +295,44 @@ const deleteInvestimento = async (sender) => {
   }
 };
 
+// Armazena a intenção de uso do usuário
+const storeIntencaoDeUso = async (sender, intencao) => {
+  try {
+    const redisKey = `user_intencao_uso:${sender}`;
+    await redis.set(redisKey, intencao);
+    console.log(`📌 Intenção de uso armazenada para ${sender}: ${intencao}`);
+  } catch (error) {
+    console.error(`❌ Erro ao armazenar intenção de uso: ${error.message}`);
+  }
+};
 
+// Recupera a intenção de uso do usuário
+const getIntencaoDeUso = async (sender) => {
+  try {
+    const redisKey = `user_intencao_uso:${sender}`;
+    return await redis.get(redisKey);
+  } catch (error) {
+    console.error(`❌ Erro ao recuperar intenção de uso: ${error.message}`);
+    return null;
+  }
+};
 
+// Remove a intenção de uso do usuário
+const deleteIntencaoDeUso = async (sender) => {
+  try {
+    const redisKey = `user_intencao_uso:${sender}`;
+    await redis.del(redisKey);
+    console.log(`🧹 Intenção de uso do usuário ${sender} removida.`);
+  } catch (error) {
+    console.error(`❌ Erro ao deletar intenção de uso: ${error.message}`);
+  }
+};
 
 module.exports = {
   storeSelectedModel,
+  getIntencaoDeUso,
+  storeIntencaoDeUso,
+  deleteIntencaoDeUso,
   getInvestimento,
   storeInvestimento,
   deleteInvestimento,

@@ -18,6 +18,8 @@ const { agenteDeDecisaoParaBoletoOuSondagem } = require("./GerenciadorDeRotinas/
 const { handlerEscolherModeloPorValor } = require("./GerenciadorDeRotinas/GerenciadordeDemonstracao/handlerEscolherModeloPorValor")
 const { identificarModeloEscolhido } = require("../Services/GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/identificarModeloEscolhido")
 const { handlerEscolherModelo } = require("./GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/handlerEscolherModelo")
+const { agenteDeDemonstracaoDetalhada } = require("./GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/agenteDeDemonstraçãoDetalhada")
+const { rotinaDeCapturaDeIntencaoDeUso }  = require("./GerenciadorDeRotinas/GerenciadordeDemonstracao/rotinaDeCapturaDeIntencaoDeUso")
 
 //Rotinas de Acessorio
 const { rotinaDeSondagemDeAcessorios } = require("./GerenciadorDeRotinas/GerenciadorDeSondagem/rotinaDeSondagemAcessorios");
@@ -25,6 +27,7 @@ const { rotinaDeSondagemDeAcessorios } = require("./GerenciadorDeRotinas/Gerenci
 //Rotinas de Boleto
 const { rotinaDeBoleto } = require("../Services/GerenciadorDeRotinas/GerenciadordeBoleto/rotinaDeBoleto")
 const { openAiServicesBoleto } = require("../Services/GerenciadorDeRotinas/GerenciadordeBoleto/ServicesOpenAiBoleto/openAiServicesBoleto");
+const { agenteHallDeBoleto } = require("../Services/GerenciadorDeRotinas/GerenciadordeBoleto/ServicesOpenAiBoleto/agenteHallDeBoleto")
 
 //Rotinas de Suporte
 const { rotinaDeSuporte } = require("../Services/GerenciadorDeRotinas/GerenciadorDeSuporte/rotinaDeSuporte")
@@ -32,7 +35,6 @@ const { compactadorDeSuporte } = require("../Services/GerenciadorDeRotinas/Geren
 
 const { agenteDePagamento } = require("../Services/GerenciadorDeRotinas/GerenciadorDeFechamento/RotinaDePagamento/agenteDePagemento")
 const { agenteDeFechamentoSondagem } = require("../Services/GerenciadorDeRotinas/GerenciadorDeSondagem/ServicesOpenAiSondagem/openAiServicesFechamentoDeSondagem")
-const { agenteDeDemonstracaoDetalhada } = require('../Services/GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/agenteDeDemonstraçãoDetalhada')
 const { agenteDeDecisao } = require("./GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/agenteDeDecisão")
 const { agenteDeDecisaoParaDemonstracaoOuBoleto } = require("./GerenciadorDeRotinas/GerenciadorDeAbordagem/ServicesOpenAiAbordagem/agenteDeDecisaoParaDemonstracaoOuBoleto")
 
@@ -108,6 +110,12 @@ const checagemInicial = async (sender, msgContent, pushName) => {
         case "identificar_modelo":
             return await identificarModeloEscolhido({ sender, msgContent, pushName });
 
+        case "agente_de_demonstração_detalhado":
+            return await agenteDeDemonstracaoDetalhada({ sender, msgContent, pushName });
+
+        case "rotina_de_captura_de_intenção":
+            return await rotinaDeCapturaDeIntencaoDeUso({ sender, msgContent, pushName });   
+
         case "escolher_modelo":
             return await handlerEscolherModelo({ sender, msgContent, pushName });
 
@@ -116,6 +124,9 @@ const checagemInicial = async (sender, msgContent, pushName) => {
 
         case "sondagem_de_acessorios":
             return await rotinaDeSondagemDeAcessorios({ sender, msgContent, pushName });
+
+        case "hall_de_boleto":
+            return await agenteHallDeBoleto({ sender, msgContent, pushName });    
 
         case "boleto":
             return await rotinaDeBoleto({ sender, msgContent, pushName });
@@ -146,8 +157,8 @@ const checagemInicial = async (sender, msgContent, pushName) => {
         
 
 
-        case "agente_de_demonstração_detalhada":
-            return await agenteDeDemonstracaoDetalhada({ sender, msgContent, pushName });
+       
+
         case "agente_de_demonstração":
             const respostasAgenteDemonstracao = await getUserResponses(sender, "sondagem");
             produto = respostasAgenteDemonstracao.pergunta_1;

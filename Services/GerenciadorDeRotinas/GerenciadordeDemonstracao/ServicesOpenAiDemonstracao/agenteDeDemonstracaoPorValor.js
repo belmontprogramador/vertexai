@@ -20,8 +20,8 @@ _Resumo cativante sobre o aparelho, destacando o principal benefício._
 • *Processador:* destaque a performance  
 • *Design:* estilo visual e acabamento  
 • *Bateria:* duração  
-• *Câmera:* IA ou qualidade  
-• *Preço parcelado:* baseado no valor original aproximado  
+• *Câmera:* IA ou qualidade 
+  
 Finalize com:
 _Vertex Store: conectando você ao mundo e aproximando quem você ama!💜_
 
