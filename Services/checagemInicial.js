@@ -17,6 +17,7 @@ const { agenteDeDemonstracaoPorNome } = require('./GerenciadorDeRotinas/Gerencia
 const { agenteDeDecisaoParaBoletoOuSondagem } = require("./GerenciadorDeRotinas/GerenciadorDeAbordagem/ServicesOpenAiAbordagem/agenteDeDecisaoParaBoletoOuSondagem")
 const { handlerEscolherModeloPorValor } = require("./GerenciadorDeRotinas/GerenciadordeDemonstracao/handlerEscolherModeloPorValor")
 const { identificarModeloEscolhido } = require("../Services/GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/identificarModeloEscolhido")
+const { identificarModloEscolhidoPorValor }  = require("../Services/GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/identificarModeloEscolhidoPorValor")
 const { handlerEscolherModelo } = require("./GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/handlerEscolherModelo")
 const { agenteDeDemonstracaoDetalhada } = require("./GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/agenteDeDemonstraçãoDetalhada")
 const { rotinaDeCapturaDeIntencaoDeUso }  = require("./GerenciadorDeRotinas/GerenciadordeDemonstracao/rotinaDeCapturaDeIntencaoDeUso")
@@ -109,6 +110,9 @@ const checagemInicial = async (sender, msgContent, pushName) => {
 
         case "identificar_modelo":
             return await identificarModeloEscolhido({ sender, msgContent, pushName });
+
+            case "identificar_modelo_por_valor":
+                return await identificarModloEscolhidoPorValor({ sender, msgContent, pushName });     
 
         case "agente_de_demonstração_detalhado":
             return await agenteDeDemonstracaoDetalhada({ sender, msgContent, pushName });

@@ -8,7 +8,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const openAiAgenteDuvidasBoleto = async ({ sender, msgContent = "", pushName = "" }) => {
   await setUserStage(sender, "boleto_agente_duvidas");
-  console.log("to aqui no tira duvidas")
+// se o cliente perguntar por modelos trazer modelos do hall de boleto
 
   try {
     const userMessage = msgContent?.trim() || "Tenho dúvidas sobre o PayJoy.";

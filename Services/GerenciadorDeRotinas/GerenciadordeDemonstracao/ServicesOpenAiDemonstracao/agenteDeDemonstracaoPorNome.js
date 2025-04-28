@@ -20,9 +20,12 @@ _Resumo cativante sobre o aparelho, destacando o principal benefício._
 • *Processador:* destaque a performance  
 • *Design:* estilo visual e acabamento  
 • *Bateria:* duração  
-• *Câmera:* IA ou qualidade    
+• *Câmera:* IA ou qualidade  
+ao passar o preço de uma estiva porque ele pode variar de acordo com o parcelamento e juros da payjoy que normalmente é entre   **deixei isso  bem claro na mensagem**
+
 Finalize com:
 _Vertex Store: conectando você ao mundo e aproximando quem você ama!💜_
+
 
 Dados do celular:
 Nome: ${modelo.nome}
@@ -65,11 +68,8 @@ const agenteDeDemonstracaoPorNome = async ({ sender, msgContent, pushName }) => 
   const copy = await gerarCopyEstiloVendedor(modelo);
   await sendBotMessage(sender, copy);
 
-  // Define próximo stage
-  await setUserStage(sender, "rotina_de_captura_de_intenção");
-
-  // Faz pergunta final
-  await sendBotMessage(sender, "👉 Para o atendimento ficar mais top me diz para que vc precisa utilizar seu novo celular?");
+  //ligar direto no agente de detalhamento
+ 
 };
 
 module.exports = { agenteDeDemonstracaoPorNome };

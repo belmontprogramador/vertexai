@@ -19,7 +19,7 @@ const handlers = {
     await setUserStage(sender, "boleto_agente");
     return await sendBotMessage(
       sender,
-      `✅ ${pushName}, com seus dados conseguimos uma pré-aprovação de 90%! Gostaria de agendar uma visita ou tirar mais dúvidas?`
+      `✅ ${pushName}, com seus dados conseguimos uma pré-aprovação de 90%! Lembrando que toda analise definitiva é feito em loja! Gostaria de agendar uma visita para realizar sua nalise definitiva ou tirar mais dúvidas?`
     );
   },
 
@@ -29,6 +29,7 @@ const handlers = {
     await sendBotMessage(sender, `📅 Perfeito, ${pushName}! Vamos agendar sua visita.`);
     return await rotinaDeAgendamento({ sender, msgContent, pushName });
   }
+  // se o cliente perguntar por modelos trazer modelos do hall de boleto
 };
 
 const functions = [

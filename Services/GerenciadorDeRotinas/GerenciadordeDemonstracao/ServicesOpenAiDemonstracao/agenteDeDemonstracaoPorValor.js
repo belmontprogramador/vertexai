@@ -25,6 +25,7 @@ _Resumo cativante sobre o aparelho, destacando o principal benefício._
 Finalize com:
 _Vertex Store: conectando você ao mundo e aproximando quem você ama!💜_
 
+
 Dados do celular:
 Nome: ${modelo.nome}
 Descrição: ${modelo.descricao}
@@ -87,7 +88,7 @@ const agenteDeDemonstracaoPorValor = async ({ sender, pushName }) => {
     }
 
     // 🧭 Atualiza stage e pergunta sobre preferência
-    await setUserStage(sender, "identificar_modelo");
+    await setUserStage(sender, "identificar_modelo_por_valor");
     const stage = await getUserStage(sender);
     console.log(`📶 [DEBUG] Stage atualizado para: ${stage}`);
 
