@@ -21,7 +21,7 @@ const { identificarModloEscolhidoPorValor }  = require("../Services/GerenciadorD
 const { handlerEscolherModelo } = require("./GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/handlerEscolherModelo")
 const { agenteDeDemonstracaoDetalhada } = require("./GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/agenteDeDemonstraçãoDetalhada")
 const { rotinaDeCapturaDeIntencaoDeUso }  = require("./GerenciadorDeRotinas/GerenciadordeDemonstracao/rotinaDeCapturaDeIntencaoDeUso")
-
+const { agenteDeDecisaoPosDemonstracao } = require("../Services/GerenciadorDeRotinas/GerenciadorDeDemonstracao/ServicesOpenAiDemonstracao/agenteDeDecisaoPosDemonstracao");
 //Rotinas de Acessorio
 const { rotinaDeSondagemDeAcessorios } = require("./GerenciadorDeRotinas/GerenciadorDeSondagem/rotinaDeSondagemAcessorios");
 
@@ -29,6 +29,7 @@ const { rotinaDeSondagemDeAcessorios } = require("./GerenciadorDeRotinas/Gerenci
 const { rotinaDeBoleto } = require("../Services/GerenciadorDeRotinas/GerenciadordeBoleto/rotinaDeBoleto")
 const { openAiServicesBoleto } = require("../Services/GerenciadorDeRotinas/GerenciadordeBoleto/ServicesOpenAiBoleto/openAiServicesBoleto");
 const { agenteHallDeBoleto } = require("../Services/GerenciadorDeRotinas/GerenciadordeBoleto/ServicesOpenAiBoleto/agenteHallDeBoleto")
+const { hallDeboletosModelos } = require("./GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/hallDeboletosModelos");
 
 //Rotinas de Suporte
 const { rotinaDeSuporte } = require("../Services/GerenciadorDeRotinas/GerenciadorDeSuporte/rotinaDeSuporte")
@@ -56,6 +57,8 @@ const { rotinaDeAgendamento } = require("../Services/GerenciadorDeRotinas/Gerenc
 
 const { sendBotMessage } = require("./messageSender");
 const { getUserResponses } = require("./redisService");
+const { agenteDeDemonstracaoBoleto } = require("./GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/agenteDeDemonstracaoBoleto");
+
 
 const checagemInicial = async (sender, msgContent, pushName) => {
     const cleanedContent = msgContent.replace(/^again\s*/i, "").trim().toLowerCase();
@@ -111,8 +114,8 @@ const checagemInicial = async (sender, msgContent, pushName) => {
         case "identificar_modelo":
             return await identificarModeloEscolhido({ sender, msgContent, pushName });
 
-            case "identificar_modelo_por_valor":
-                return await identificarModloEscolhidoPorValor({ sender, msgContent, pushName });     
+        case "identificar_modelo_por_valor":
+            return await identificarModloEscolhidoPorValor({ sender, msgContent, pushName });     
 
         case "agente_de_demonstração_detalhado":
             return await agenteDeDemonstracaoDetalhada({ sender, msgContent, pushName });
@@ -125,6 +128,9 @@ const checagemInicial = async (sender, msgContent, pushName) => {
 
         case "agente_de_demonstração_capturar":
             return await identificarModeloEscolhido({ sender, pushName, msgContent });
+
+        case "aguardando_decisao_pos_demo":
+            return await agenteDeDecisaoPosDemonstracao({ sender, pushName, msgContent });
 
         case "sondagem_de_acessorios":
             return await rotinaDeSondagemDeAcessorios({ sender, msgContent, pushName });
@@ -140,6 +146,12 @@ const checagemInicial = async (sender, msgContent, pushName) => {
 
         case "boleto_agente_duvidas":
             return await openAiServicesBoleto({ sender, msgContent, pushName });
+
+        case "hall_de_boletos_modelos":
+            return await hallDeboletosModelos({ sender, msgContent, pushName });   
+            
+        case " aguardando_decisao_pos_demo":
+                return await agenteDeDemonstracaoBoleto({ sender, msgContent, pushName });      
 
         case "suporte":
             return await rotinaDeSuporte({ sender, msgContent, pushName })

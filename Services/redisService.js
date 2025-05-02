@@ -328,6 +328,19 @@ const deleteIntencaoDeUso = async (sender) => {
   }
 };
 
+const getHistoricoDeModelosMencionados = async (userId) => {
+  const key = `user_model_history:${userId}`;
+  const data = await redis.lrange(key, 0, -1);
+  return data.map(item => JSON.parse(item));
+};
+
+const storeHistoricoDeModelosMencionados = async (userId, modelo) => {
+  const key = `user_model_history:${userId}`;
+  const payload = JSON.stringify({ modelo, timestamp: Date.now() });
+  await redis.lpush(key, payload);
+  await redis.ltrim(key, 0, 9); // mantém os últimos 10 registros
+};
+
 module.exports = {
   storeSelectedModel,
   getIntencaoDeUso,
@@ -360,5 +373,7 @@ module.exports = {
   setStageHistory,
   getStageHistory, 
   getHistoricoFormatadoParaPrompt, 
+  getHistoricoDeModelosMencionados,
+  storeHistoricoDeModelosMencionados,
   redis
 };

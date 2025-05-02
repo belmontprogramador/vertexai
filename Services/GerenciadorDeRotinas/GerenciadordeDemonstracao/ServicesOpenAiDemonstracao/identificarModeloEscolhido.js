@@ -5,7 +5,7 @@ const {
   storeModelosSugeridos
 } = require("../../../../Services/redisService");
 
-const { agenteDeDemonstracaoPorNome } = require("./agenteDeDemonstracaoPorNome");
+const { agenteDeDemonstraçãoDetalhada } = require("./agenteDeDemonstraçãoDetalhada");
 const { sendBotMessage } = require("../../../messageSender");
 const axios = require("axios");
 const fs = require("fs");
@@ -48,7 +48,7 @@ const tokenizar = (texto) => {
   return normalizar(texto).split(/\s+/).filter(Boolean);
 };
 
-async function identificarModloEscolhido({ sender, msgContent, pushName }) {
+async function identificarModeloEscolhido({ sender, msgContent, pushName }) {
   const entradaOriginalCompleta = await getChosenModel(sender);
   const entradaOriginal = entradaOriginalCompleta.replace(/^again\s+/i, '').trim();
   console.log("📥 Entrada original:", entradaOriginal);
@@ -85,7 +85,7 @@ async function identificarModloEscolhido({ sender, msgContent, pushName }) {
   }
 
   await storeChosenModel(sender, melhorMatch.modelo);
-  return await agenteDeDemonstracaoPorNome({ sender, msgContent, pushName });
+  return await agenteDeDemonstraçãoDetalhada({ sender, msgContent, pushName });
 }
 
-module.exports = { identificarModloEscolhido };
+module.exports = { identificarModeloEscolhido };

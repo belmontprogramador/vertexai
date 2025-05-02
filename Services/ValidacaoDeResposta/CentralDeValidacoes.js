@@ -1,3 +1,4 @@
+const { agenteHallDeBoleto } = require("../GerenciadorDeRotinas/GerenciadordeBoleto/ServicesOpenAiBoleto/agenteHallDeBoleto");
 const {
   getLastInteraction,
   deleteUserResponses,
@@ -27,7 +28,11 @@ const validarFluxoInicial = async (sender, msgContent, pushName) => {
   const stageAtual = await getUserStage(sender);
 
   // 👶 Se o usuário nunca teve interação, começa com primeiro atendimento
-  if (!stageAtual) {
+  if (!stageAtual && cleanedContent === "boleto") {
+    await setUserStage(sender, "hall_de_boleto");
+    return await agenteHallDeBoleto({ sender, msgContent, pushName });
+  
+  } else if (!stageAtual) {
     console.log(`👋 [DEBUG] Nenhum histórico encontrado. Setando como 'primeiro_atendimento'`);
     await setUserStage(sender, "primeiro_atendimento");
     return "primeiro_atendimento";
@@ -46,6 +51,11 @@ const validarFluxoInicial = async (sender, msgContent, pushName) => {
     await setStageHistory(sender, stageAtual);
     await setUserStage(sender, "abordagem");
     return "abordagem";
+  }
+
+  if (cleanedContent === "boleto"){
+    await setUserStage(sender, "hall_de_boleto");
+    return await agenteHallDeBoleto({ sender, msgContent, pushName });
   }
 
   const precisaRepetirPergunta = (respostas, perguntaChave) => {
