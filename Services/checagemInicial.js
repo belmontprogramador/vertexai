@@ -1,63 +1,62 @@
 //Rotinas de Validações
 const { validarFluxoInicial } = require("../Services/ValidacaoDeResposta/CentralDeValidacoes");
 const { setarReset } = require('./setarReset')
-
-//Rotinas de Abordagem
-const { rotinaDeAtedimentoInicial } = require("./GerenciadorDeRotinas/GerenciadorDeAbordagem/rotinaDeAtedimentoInicial");
-const { rotinaDeReincioAtedimento } = require("../Services/GerenciadorDeRotinas/GerenciadorDeAbordagem/rotinaDeReinicioAtendimento");
-const { rotinaDeAbordagem } = require("./GerenciadorDeRotinas/GerenciadorDeAbordagem/rotinaDeAbordagem")
-const { rotinaDeRedirecionamentoDeAbordagem } = require("../Services/GerenciadorDeRotinas/GerenciadorDeAbordagem/rotinaDeRedirecionamentoDeAbordagem");
-
-//Rotinas de Celular
-const { rotinaDeSondagemDeCelular } = require("./GerenciadorDeRotinas/GerenciadorDeSondagem/rotinaDeSondagemDeCelular");
-const { rotinaDeDemonstracaoPorValor } = require("./GerenciadorDeRotinas/GerenciadordeDemonstracao/rotinaDeDemonstracaoPorValor")
-const { agenteDeDemonstracaoPorValor } = require("./GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/agenteDeDemonstracaoPorValor")
-const { rotinaDeDemonstracaoPorNome } = require("../Services/GerenciadorDeRotinas/GerenciadorDeDemonstracao/rotinaDeDemonstracaoPorNome");
-const { agenteDeDemonstracaoPorNome } = require('./GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/agenteDeDemonstracaoPorNome')
-const { agenteDeDecisaoParaBoletoOuSondagem } = require("./GerenciadorDeRotinas/GerenciadorDeAbordagem/ServicesOpenAiAbordagem/agenteDeDecisaoParaBoletoOuSondagem")
-const { handlerEscolherModeloPorValor } = require("./GerenciadorDeRotinas/GerenciadordeDemonstracao/handlerEscolherModeloPorValor")
-const { identificarModeloEscolhido } = require("../Services/GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/identificarModeloEscolhido")
-const { identificarModloEscolhidoPorValor }  = require("../Services/GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/identificarModeloEscolhidoPorValor")
-const { handlerEscolherModelo } = require("./GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/handlerEscolherModelo")
-const { agenteDeDemonstracaoDetalhada } = require("./GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/agenteDeDemonstraçãoDetalhada")
-const { rotinaDeCapturaDeIntencaoDeUso }  = require("./GerenciadorDeRotinas/GerenciadordeDemonstracao/rotinaDeCapturaDeIntencaoDeUso")
-const { agenteDeDecisaoPosDemonstracao } = require("../Services/GerenciadorDeRotinas/GerenciadorDeDemonstracao/ServicesOpenAiDemonstracao/agenteDeDecisaoPosDemonstracao");
-//Rotinas de Acessorio
-const { rotinaDeSondagemDeAcessorios } = require("./GerenciadorDeRotinas/GerenciadorDeSondagem/rotinaDeSondagemAcessorios");
-
-//Rotinas de Boleto
-const { rotinaDeBoleto } = require("../Services/GerenciadorDeRotinas/GerenciadordeBoleto/rotinaDeBoleto")
-const { openAiServicesBoleto } = require("../Services/GerenciadorDeRotinas/GerenciadordeBoleto/ServicesOpenAiBoleto/openAiServicesBoleto");
-const { agenteHallDeBoleto } = require("../Services/GerenciadorDeRotinas/GerenciadordeBoleto/ServicesOpenAiBoleto/agenteHallDeBoleto")
-const { hallDeboletosModelos } = require("./GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/hallDeboletosModelos");
-
-//Rotinas de Suporte
-const { rotinaDeSuporte } = require("../Services/GerenciadorDeRotinas/GerenciadorDeSuporte/rotinaDeSuporte")
-const { compactadorDeSuporte } = require("../Services/GerenciadorDeRotinas/GerenciadorDeSuporte/compactadorDeSuporte")
-
-const { agenteDePagamento } = require("../Services/GerenciadorDeRotinas/GerenciadorDeFechamento/RotinaDePagamento/agenteDePagemento")
-const { agenteDeFechamentoSondagem } = require("../Services/GerenciadorDeRotinas/GerenciadorDeSondagem/ServicesOpenAiSondagem/openAiServicesFechamentoDeSondagem")
-const { agenteDeDecisao } = require("./GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/agenteDeDecisão")
-const { agenteDeDecisaoParaDemonstracaoOuBoleto } = require("./GerenciadorDeRotinas/GerenciadorDeAbordagem/ServicesOpenAiAbordagem/agenteDeDecisaoParaDemonstracaoOuBoleto")
-
-const { rotinaDeEntrega } = require("./GerenciadorDeRotinas/GerenciadorDeFechamento/RotinaDeEntrega/rotinaDeEntrega")
-const { agentePix } = require("../Services/GerenciadorDeRotinas/GerenciadorDeFechamento/RotinaDePagamento/agentePix")
-const { agenteCartao } = require("../Services/GerenciadorDeRotinas/GerenciadorDeFechamento/RotinaDePagamento/agenteCartao")
-const { explicacaoBoleto } = require("../Services/GerenciadorDeRotinas/GerenciadorDeFechamento/RotinaDePagamento/explicacaoBoleto")
-const { AgenteExplicacaoBoleto } = require("../Services/GerenciadorDeRotinas/GerenciadorDeFechamento/RotinaDePagamento/agenteExplicacaoBoleto")
-const { agenteDeEntrega } = require("../Services/GerenciadorDeRotinas/GerenciadorDeFechamento/RotinaDeEntrega/agenteDeEntrega")
-const { listarHorariosDisponiveis } = require("../Services/ServicesKommo/gerarDatasProximos15Dias")
-const { agendarParaContato } = require("../Services/ServicesKommo/agendarTarefa")
-const { rotinaDeFechamento } = require("../Services/GerenciadorDeRotinas/GerenciadorDeFechamento/rotinaDeFechamento")
-
-
-const { rotinaDeAgendamento } = require("../Services/GerenciadorDeRotinas/GerenciamentoDeAgendamento/rotinaDeAgendamento");
-
-
-
 const { sendBotMessage } = require("./messageSender");
-const { getUserResponses } = require("./redisService");
-const { agenteDeDemonstracaoBoleto } = require("./GerenciadorDeRotinas/GerenciadordeDemonstracao/ServicesOpenAiDemonstracao/agenteDeDemonstracaoBoleto");
+
+//Rotinas de Atendimento 
+
+//Rotina de Atendimento Padrão
+const { rotinaDeCapturadeNome  } = require("./GerenciadorDeRotinas/GerenciadorDeAtendimento/rotinaDeCapturadeNome")
+const { agenteDeIdentificacaoDeNome } = require("./GerenciadorDeRotinas/GerenciadorDeAtendimento/agenteDeIdentificacaoDeNome");
+const { rotinaDePrimeiroAtendimento } = require("./GerenciadorDeRotinas/GerenciadorDeAtendimento/rotinaDePrimeiroAtendimento");
+const { openAiServicesAtendimento } = require("./GerenciadorDeRotinas/GerenciadorDeAtendimento/openAiServicesAtendimento");
+const { rotinaDeReincioAtendimento } = require("./GerenciadorDeRotinas/GerenciadorDeAtendimento/rotinaDeReincioDeAtendimento");
+
+//Rotina de atendimento para boleto
+const { rotinaDeCapturadeNomeParaBoleto } = require("./GerenciadorDeRotinas/GerenciadorDeAtendimento/rotinaDeCapturadeNomeParaBoleto");
+const { agenteDeIdentificacaoDeNomeParaBoleto } = require("./GerenciadorDeRotinas/GerenciadorDeAtendimento/agenteDeIdentificacaoDeNomeParaBoleto");
+
+//Rotina de atendimento para Trafego
+const { rotinaDeCapturadeNomeParaTrafego } = require("./GerenciadorDeRotinas/GerenciadorDeDemonstracao/PorTrafego/rotinaDeCapturadeNomeParaTrafego");
+const { agenteDeIdentificacaoDeNomeParaTrafego } = require("./GerenciadorDeRotinas/GerenciadorDeDemonstracao/PorTrafego/agenteDeIdentificacaoDeNomeParaTrafego");
+
+//Rotinas de Demonstração
+
+//Rotina de Demonstração por valor
+const { rotinaDeDemonstracaoDeCelularPorValor } = require("./GerenciadorDeRotinas/GerenciadorDeDemonstracao/PorValor/rotinaDeDemonstracaoDeCelularPorValor");
+const { filtroDeValor } = require("./GerenciadorDeRotinas/GerenciadorDeDemonstracao/PorValor/filtroDeValor");
+const { agenteDeDemonstracaoPorValor } = require("./GerenciadorDeRotinas/GerenciadorDeDemonstracao/PorValor/agenteDeDemonstracaoPorValor");
+const { identificarModeloPorValor } = require("./GerenciadorDeRotinas/GerenciadorDeDemonstracao/PorValor/identificarModeloPorValor");
+const { identificarModeloPorNomePosDemonstraçãoPorValor } = require("./GerenciadorDeRotinas/GerenciadorDeDemonstracao/PorValor/identificarModeloPorNomePosDemonstraçãoPorBoleto");
+
+
+//Rotina de Demonstração por Nome
+const { rotinaDeDemonstracaoDeCelularPorNome } = require("./GerenciadorDeRotinas/GerenciadorDeDemonstracao/PorNome/rotinaDeDemonstraçãoDeCelularPorNome");
+const { identificarModeloPorNome } = require("./GerenciadorDeRotinas/GerenciadorDeDemonstracao/PorNome/identificarModeloPorNome");
+const { identificarModeloPorNomePosDemonstração } = require("./GerenciadorDeRotinas/GerenciadorDeDemonstracao/PorNome/identificarModeloPorNomePosDemonstração");
+const { agenteDeDemonstracaoPorNome } = require("./GerenciadorDeRotinas/GerenciadorDeDemonstracao/PorNome/agenteDeDemonstracaoPorNome");
+const { agenteDeDecisaoPosDemonstracao } = require("./GerenciadorDeRotinas/GerenciadorDeDemonstracao/PorNome/agenteDeDecisaoPosDemonstracao");
+
+ //Rotina de Demonstração Detalhada
+const { agenteDeDemonstracaoDetalhada } = require("./GerenciadorDeRotinas/GerenciadorDeDemonstracao/agenteDeDemonstracaoDetalhada");
+
+
+//Rotina de Demonstração Boleto
+const { openaAiServicesBoletoDesicao1 } = require("./GerenciadorDeRotinas/GerenciadorDeDemonstracao/PorBoleto/openaAiServicesBoletoDesicao1");
+const { rotinaDeBoleto } = require("./GerenciadorDeRotinas/GerenciadorDeDemonstracao/PorBoleto/rotinaDeBoleto");
+const { openAiServicesBoletoDecisao2 } = require("./GerenciadorDeRotinas/GerenciadorDeDemonstracao/PorBoleto/openAiServicesBoletoDecisao2");
+const { openAiServicesDuvidasBoleto } = require("./GerenciadorDeRotinas/GerenciadorDeDemonstracao/PorBoleto/openAiServicesDuvidasBoleto");
+const { agenteDeDemonstracaoPorBoleto } = require("./GerenciadorDeRotinas/GerenciadorDeDemonstracao/PorBoleto/agenteDeDemonstracaoPorBoleto");
+const { agenteDeDemonstracaoPorNomePorBoleto } = require("./GerenciadorDeRotinas/GerenciadorDeDemonstracao/PorBoleto/agenteDeDemonstracaoPorNomePorBoleto");
+const { agenteDeDemonstracaoPosDecisaoPorBoleto } = require("./GerenciadorDeRotinas/GerenciadorDeDemonstracao/PorBoleto/agenteDeDemonstracaoPosDecisaoPorBoleto")
+//Rotina de Agendamento
+const { rotinaDeAgendamento } = require("./GerenciadorDeRotinas/GerenciadorDeAgendamento/rotinaDeAgendamento");
+
+
+
+
+
+ 
 
 
 const checagemInicial = async (sender, msgContent, pushName) => {
@@ -73,160 +72,92 @@ const checagemInicial = async (sender, msgContent, pushName) => {
     } else {
         novoStage = await validarFluxoInicial(sender, msgContent, pushName);
         console.log(`🎯 [DEBUG] Executando switch para stage: ${novoStage}`);
-    }
-
-    let produto, finalidadeUso, investimento;
+    }   
 
     switch (novoStage) {
-        case "primeiro_atendimento":
-            return await rotinaDeAtedimentoInicial(sender, msgContent, pushName);
 
+        //Rotinas de Atendimento
+
+        //Rotina de Atendimento Padrão
+        case "rotina_captura_de_nome":
+            return await rotinaDeCapturadeNome({ sender, msgContent, pushName });
+        case "agente_de_identificação_de_nome":
+            return await agenteDeIdentificacaoDeNome({ sender, msgContent, pushName });            
+        case "rotina_de_primeiro_atendimento":
+            return await rotinaDePrimeiroAtendimento({ sender, msgContent, pushName });           
+        case "opean_Ai_Services_Atendimento":
+            return await openAiServicesAtendimento({ sender, msgContent, pushName });
         case "reinicio_de_atendimento":
-            return await rotinaDeReincioAtedimento(sender, msgContent, pushName);
+            return await rotinaDeReincioAtendimento({sender, msgContent, pushName});
 
-        case "abordagem":
-            return await rotinaDeAbordagem({ sender, msgContent, pushName });
+        //Rotina de atendimento para boleto
+        case "rotina_captura_de_nome_para_boleto":
+            return await rotinaDeCapturadeNomeParaBoleto({ sender, msgContent, pushName });
+        case "agente_de_identificação_de_nome_para_boleto":
+            return await agenteDeIdentificacaoDeNomeParaBoleto({ sender, msgContent, pushName });
 
-        case "sequencia_de_abordagem":
-            return await rotinaDeRedirecionamentoDeAbordagem({ sender, msgContent, pushName });
-
-        case "sondagem_de_celular":
-            return await rotinaDeSondagemDeCelular({ sender, msgContent, pushName });
-
-        case "rotina_demonstração_por_valor":
-            return await rotinaDeDemonstracaoPorValor({ sender, msgContent, pushName });
-
-        case "agente_de_demonstraçao_por_valor":
-            return await agenteDeDemonstracaoPorValor({ sender, msgContent, pushName });
-
-        case "sequencia_de_demonstracao_por_nome":
-            return await rotinaDeDemonstracaoPorNome({ sender, msgContent, pushName });
-
-        case "agente_de_demonstraçao_por_nome":
-            return await agenteDeDemonstracaoPorNome({ sender, msgContent, pushName })
-
-        case "agente_de_decisão_de_parcelamento":
-            return await agenteDeDecisaoParaBoletoOuSondagem({ sender, msgContent, pushName });
+        //Rotina de atendimento para Trafego
+        case "rotina_captura_de_nome_para_trafego":
+            return await rotinaDeCapturadeNomeParaTrafego({ sender, msgContent, pushName });
+        case "agente_de_identificação_de_nome_para_trafego":
+            return await agenteDeIdentificacaoDeNomeParaTrafego({sender, msgContent, pushName});
             
-        case "identificar_modelo_por valor":
-            return await handlerEscolherModeloPorValor({ sender, msgContent, pushName });
+            
+            //Rotinas de Demonstração
 
-        case "identificar_modelo":
-            return await identificarModeloEscolhido({ sender, msgContent, pushName });
-
+        //Rotina de Demonstração por valor      
+        case "rotina_de_demonstracao_de_celular_por_valor":
+            return await rotinaDeDemonstracaoDeCelularPorValor({sender, msgContent, pushName});
+        case "filtro_de_valor":
+            return await filtroDeValor({sender, msgContent, pushName});            
+        case "agente_de_demonstraçao_por_valor":
+            return await agenteDeDemonstracaoPorValor({sender, msgContent, pushName});             
         case "identificar_modelo_por_valor":
-            return await identificarModloEscolhidoPorValor({ sender, msgContent, pushName });     
+            return await identificarModeloPorValor({sender, msgContent, pushName});
+        case "identificar_modelo_por_nome_pos_demonstração_por_valor":
+            return await identificarModeloPorNomePosDemonstraçãoPorValor({sender, msgContent, pushName});
+            
+            
+        //Rotina de Demonstração Por Nome
+        case "rotina_de_demonstracao_de_celular_por_nome":
+            return await rotinaDeDemonstracaoDeCelularPorNome({ sender, msgContent, pushName  });
+        case "identificar_modelo_por_nome":
+            return await identificarModeloPorNome({ sender, msgContent, pushName });  
+        case "identificar_modelo_por_nome_pos_demonstração":
+            return await identificarModeloPorNomePosDemonstração({ sender, msgContent, pushName });         
+        case "agente_de_demonstração_por_nome":
+            return await agenteDeDemonstracaoPorNome({ sender, msgContent, pushName });
+        case "aguardando_decisao_pos_demonstração":
+            return await agenteDeDecisaoPosDemonstracao({ sender, msgContent, pushName });
 
-        case "agente_de_demonstração_detalhado":
+
+        //Rotina de Demonstração Detalhada
+        case "agente_de_demonstração_detalhada" :
             return await agenteDeDemonstracaoDetalhada({ sender, msgContent, pushName });
 
-        case "rotina_de_captura_de_intenção":
-            return await rotinaDeCapturaDeIntencaoDeUso({ sender, msgContent, pushName });   
-
-        case "escolher_modelo":
-            return await handlerEscolherModelo({ sender, msgContent, pushName });
-
-        case "agente_de_demonstração_capturar":
-            return await identificarModeloEscolhido({ sender, pushName, msgContent });
-
-        case "aguardando_decisao_pos_demo":
-            return await agenteDeDecisaoPosDemonstracao({ sender, pushName, msgContent });
-
-        case "sondagem_de_acessorios":
-            return await rotinaDeSondagemDeAcessorios({ sender, msgContent, pushName });
-
-        case "hall_de_boleto":
-            return await agenteHallDeBoleto({ sender, msgContent, pushName });    
-
-        case "boleto":
-            return await rotinaDeBoleto({ sender, msgContent, pushName });
-
-        case "boleto_agente":
-            return await openAiServicesBoleto({ sender, msgContent, pushName });
-
-        case "boleto_agente_duvidas":
-            return await openAiServicesBoleto({ sender, msgContent, pushName });
-
-        case "hall_de_boletos_modelos":
-            return await hallDeboletosModelos({ sender, msgContent, pushName });   
-            
-        case " aguardando_decisao_pos_demo":
-                return await agenteDeDemonstracaoBoleto({ sender, msgContent, pushName });      
-
-        case "suporte":
-            return await rotinaDeSuporte({ sender, msgContent, pushName })
-
-        case "compactador_de_suporte":
-            return await compactadorDeSuporte({ sender, msgContent, pushName })
-
-        case "agendamento":
-            return await rotinaDeAgendamento({ sender, msgContent, pushName });
-
-        case "agente_de_fechamento_de_sondagem":
-            const respostas = await getUserResponses(sender, "sondagem");
-            produto = respostas.pergunta_1;
-            finalidadeUso = respostas.pergunta_2;
-            investimento = respostas.pergunta_3;
-            return await agenteDeFechamentoSondagem(sender, msgContent, produto, finalidadeUso, investimento, pushName);
-
-
         
-
-
-       
-
-        case "agente_de_demonstração":
-            const respostasAgenteDemonstracao = await getUserResponses(sender, "sondagem");
-            produto = respostasAgenteDemonstracao.pergunta_1;
-            finalidadeUso = respostasAgenteDemonstracao.pergunta_2;
-            investimento = respostasAgenteDemonstracao.pergunta_3;
-            return await agenteDeDemonstracaoPorNome({ sender, msgContent, produto, modeloMencionado, finalidadeUso, investimento, pushName });
-
-
-
-        case "agente_de_decisao":
-            return await agenteDeDecisao({ sender, msgContent, pushName });
-
-
-
-
-
-        case "agente_de_decisao_hall_de_boletos":
-            return await agenteDeDecisaoParaDemonstracaoOuBoleto({ sender, msgContent, pushName });
-
-        case "fechamento":
-            return await rotinaDeFechamento({ sender, msgContent, produto, finalidadeUso, investimento, pushName })
-
-        case "agente_de_pagamento":
-            return await agenteDePagamento({ sender, msgContent, pushName })
-
-        case "pagamento_pix":
-            return await agentePix({ sender, msgContent, pushName });
-
-        case "pagamento_cartao":
-            return await agenteCartao({ sender, msgContent, pushName });
-
-        case "pagamento_boleto":
-            return await explicacaoBoleto({ sender, msgContent, pushName });
-
-        case "boleto_agente_fluxo":
-            return await AgenteExplicacaoBoleto({ sender, msgContent, pushName });
-
-        case "entrega":
-            return await rotinaDeEntrega({ sender, msgContent, pushName });
-
-        case "agente_de_entrega":
-            return await agenteDeEntrega({ sender, msgContent, pushName });
-
-        case "datas_15_dias":
-            return await listarHorariosDisponiveis(sender);
-
-        case "agendamento_de_tarefas":
-            return await agendarParaContato({ sender, dataTimestamp, texto })
-
-
-
-
+            
+        //Rotina de Demonstração Boleto
+        case "opena_ai_services_boleto_decisao_1" :
+            return await  openaAiServicesBoletoDesicao1({ sender, msgContent, pushName, modeloMencionado: "" });
+        case "rotina_de_boleto" :
+            return await  rotinaDeBoleto({ sender, msgContent, pushName, modeloMencionado: "" });
+        case "open_ai_services_boleto_decisao_2" :
+            return await  openAiServicesBoletoDecisao2({ sender, msgContent, pushName, modeloMencionado: "" });    
+        case "open_ai_services_duvidas_boleto" :
+            return await  openAiServicesDuvidasBoleto({ sender, msgContent, pushName, modeloMencionado: "" }); 
+        case "agente_de_demonstração_por_boleto" :
+            return await  agenteDeDemonstracaoPorBoleto({ sender, msgContent, pushName, modeloMencionado: "" }); 
+        case "agente_de_demonstracao_por_nome_por_boleto" :
+            return await  agenteDeDemonstracaoPorNomePorBoleto({ sender, msgContent, pushName, modeloMencionado: "" });
+        case "agente_de_demonstracao_pos_decisao_por_boleto" :
+            return await  agenteDeDemonstracaoPosDecisaoPorBoleto({ sender, msgContent, pushName, modeloMencionado: "" });
+            agenteDeDemonstracaoPosDecisaoPorBoleto
+ 
+        //Rotina de Agendamento
+        case "rotina_de_agendamento" :
+            return await rotinaDeAgendamento({sender, msgContent, pushName});
+        
 
         default:
             console.log("⚠️ [DEBUG] Nenhum stage válido encontrado.");

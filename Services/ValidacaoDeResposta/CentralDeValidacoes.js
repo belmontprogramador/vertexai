@@ -1,4 +1,3 @@
-const { agenteHallDeBoleto } = require("../GerenciadorDeRotinas/GerenciadordeBoleto/ServicesOpenAiBoleto/agenteHallDeBoleto");
 const {
   getLastInteraction,
   deleteUserResponses,
@@ -6,12 +5,11 @@ const {
   setLastInteraction,
   setUserStage,
   storeUserMessage,
-  setStageHistory,
-  getStageHistory,
-  getUserResponses,
-  storeUserResponse,
+  setStageHistory,  
   redis
 } = require("../redisService");
+
+const {testeDeEnvio} = require("./testeDeEnvio")
 
 /**
  * 📌 Valida mensagem recebida e define novo stage com base na lógica do fluxo
@@ -28,16 +26,20 @@ const validarFluxoInicial = async (sender, msgContent, pushName) => {
   const stageAtual = await getUserStage(sender);
 
   // 👶 Se o usuário nunca teve interação, começa com primeiro atendimento
-  if (!stageAtual && cleanedContent === "boleto") {
-    await setUserStage(sender, "hall_de_boleto");
-    return await agenteHallDeBoleto({ sender, msgContent, pushName });
+  if (!stageAtual && cleanedContent.toLowerCase().includes("quero um aparelho na vertex")) {
+    await setUserStage(sender, "rotina_captura_de_nome_para_trafego");
+    return "rotina_captura_de_nome_para_trafego";
+  
+  } else if (!stageAtual && cleanedContent === "boleto") {
+    await setUserStage(sender, "rotina_captura_de_nome_para_boleto");
+    return "rotina_captura_de_nome_para_boleto";
   
   } else if (!stageAtual) {
-    console.log(`👋 [DEBUG] Nenhum histórico encontrado. Setando como 'primeiro_atendimento'`);
-    await setUserStage(sender, "primeiro_atendimento");
-    return "primeiro_atendimento";
+    console.log(`👋 [DEBUG] Nenhum histórico encontrado. Setando como 'rotina_captura_de_nome'`);
+    await setUserStage(sender, "rotina_captura_de_nome");
+    return "rotina_captura_de_nome";
   }
-
+  
   // 🔄 Tempo expirado
   if (!lastInteraction || currentTime - lastInteraction > CHECK_TIME_LIMIT) {
     await setStageHistory(sender, stageAtual);
@@ -47,16 +49,16 @@ const validarFluxoInicial = async (sender, msgContent, pushName) => {
 
   // ✅ Resposta SIM → vai para sondagem
   if (cleanedContent === "sim") {
-    await deleteUserResponses(sender, "sondagem");
+    await deleteUserResponses(sender);
     await setStageHistory(sender, stageAtual);
-    await setUserStage(sender, "abordagem");
-    return "abordagem";
+    await setUserStage(sender, "primeiro_atendimento");
+    return "primeiro_atendimento";
   }
 
-  if (cleanedContent === "boleto"){
-    await setUserStage(sender, "hall_de_boleto");
-    return await agenteHallDeBoleto({ sender, msgContent, pushName });
-  }
+  // if (cleanedContent === "boleto"){
+  //   await setUserStage(sender, "hall_de_boleto");
+  //   return await rotinaDeBoleto({ sender, msgContent, pushName });
+  // }
 
   const precisaRepetirPergunta = (respostas, perguntaChave) => {
     return !respostas[perguntaChave] || respostas[perguntaChave] === "" || respostas[perguntaChave] === "NÃO INFORMADO";
@@ -72,24 +74,7 @@ if (cleanedContent === "não" || cleanedContent === "nao") {
 
   await setUserStage(sender, previousStage);
   return previousStage;
-}
-
-
-  // // 🔍 Se estiver no agente de fechamento ou rotina de fechamento
-  // if (stageAtual === "agente_de_fechamento_de_sondagem" || stageAtual === "fechamento") {
-  //   const respostas = await getUserResponses(sender, "fechamento");
-
-  //   if (!respostas.pergunta_1 || respostas.pergunta_1 === "NÃO INFORMADO") {
-  //     await storeUserResponse(sender, "fechamento", "pergunta_1", cleanedContent);
-  //   } else if (!respostas.pergunta_2 || respostas.pergunta_2 === "NÃO INFORMADO") {
-  //     await storeUserResponse(sender, "fechamento", "pergunta_2", cleanedContent);
-  //   } else if (!respostas.pergunta_3 || respostas.pergunta_3 === "NÃO INFORMADO") {
-  //     await storeUserResponse(sender, "fechamento", "pergunta_3", cleanedContent);
-  //   }
-
-  //   await setUserStage(sender, "fechamento");
-  //   return "fechamento";
-  // }
+}  
 
   // 🔁 Mantém estágio atual, se for válido
   if (stageAtual === "sequencia_de_atendimento" || stageAtual === "sequencia_de_demonstracao") {

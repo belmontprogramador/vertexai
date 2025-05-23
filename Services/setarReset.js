@@ -1,41 +1,49 @@
-const { 
-  deleteUserChatHistory, 
-  deleteUserStage, 
-  deleteLastInteraction, 
-  deleteUserResponses, 
-  redis,
-  deleteSelectedModel // ✅ importação adicionada
+const {
+  deleteUserChatHistory,
+  deleteUserStage,
+  deleteLastInteraction,
+  deleteUserResponses,
+  deleteSelectedModel,
+  deleteChosenModel,
+  deleteModelosSugeridos,
+  deleteInvestimento,
+  deleteIntencaoDeUso,
+  deleteNomeUsuario,
+  resetConversation,
+  deletePrimeiraInteracao,
+  redis
 } = require("./redisService");
 
-/**
- * 🔄 Limpa completamente os dados do usuário no Redis
- */
-const setarReset = async (userId, msgContent) => {
+const setarReset = async (userId) => {
   try {
-    // 🧹 Apaga histórico de mensagens
     await deleteUserChatHistory(userId);
-
-    // 🧹 Apaga estágio atual e histórico de stages
     await deleteUserStage(userId);
     await redis.del(`previous_stage:${userId}`);
     await redis.del(`previous_stage_2:${userId}`);
-
-    // 🧹 Apaga última interação
     await deleteLastInteraction(userId);
 
-    // 🧹 Apaga respostas de todas as rotinas possíveis
     const rotinas = ["sondagem", "fechamento", "acessorios", "default"];
     for (const rotina of rotinas) {
       await deleteUserResponses(userId, rotina);
     }
 
-    // 🧹 Apaga modelos sugeridos ao usuário
+    await deleteNomeUsuario(userId);
     await deleteSelectedModel(userId);
+    await deleteChosenModel(userId);
+    await deleteModelosSugeridos(userId);
+    await deleteInvestimento(userId);
+    await deleteIntencaoDeUso(userId);
+    await redis.del(`user_model_history:${userId}`);
+    await resetConversation(userId);
 
-    console.log(`✅ Reset concluído para o usuário ${userId}. Mensagem: ${msgContent}`);
+    // ✅ Novo: apagar a data da primeira interação
+    await deletePrimeiraInteracao(userId);
+
+    console.log(`✅ Reset total concluído para o usuário ${userId}`);
   } catch (error) {
-    console.error(`❌ Erro ao resetar dados do usuário ${userId}: ${error.message}`);
+    console.error(`❌ Erro ao resetar completamente o usuário ${userId}: ${error.message}`);
   }
 };
+
 
 module.exports = { setarReset };

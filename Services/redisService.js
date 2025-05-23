@@ -341,6 +341,133 @@ const storeHistoricoDeModelosMencionados = async (userId, modelo) => {
   await redis.ltrim(key, 0, 9); // mantém os últimos 10 registros
 };
 
+// 🔄 Armazena o nome do usuário
+const storeNomeUsuario = async (sender, nome) => {
+  try {
+    const redisKey = `user_nome:${sender}`;
+    await redis.set(redisKey, nome);
+    console.log(`📝 Nome armazenado para ${sender}: ${nome}`);
+  } catch (error) {
+    console.error(`❌ Erro ao armazenar nome do usuário: ${error.message}`);
+  }
+};
+
+// 🔍 Recupera o nome do usuário
+const getNomeUsuario = async (sender) => {
+  try {
+    const redisKey = `user_nome:${sender}`;
+    return await redis.get(redisKey);
+  } catch (error) {
+    console.error(`❌ Erro ao recuperar nome do usuário: ${error.message}`);
+    return null;
+  }
+};
+
+// ❌ Remove o nome do usuário
+const deleteNomeUsuario = async (sender) => {
+  try {
+    const redisKey = `user_nome:${sender}`;
+    await redis.del(redisKey);
+    console.log(`🧹 Nome do usuário ${sender} removido.`);
+  } catch (error) {
+    console.error(`❌ Erro ao deletar nome do usuário: ${error.message}`);
+  }
+};
+
+const appendToConversation = async (sender, fragmento) => {
+  const key = `conversa:${sender}`;
+  const anterior = await redis.get(key);
+
+  let historico = [];
+  if (anterior) {
+    try {
+      historico = JSON.parse(anterior);
+    } catch (e) {
+      console.error("❌ Erro ao fazer parse do histórico:", e);
+      historico = [];
+    }
+  }
+
+  historico.push(fragmento);
+
+  // Salva de volta no Redis
+  await redis.set(key, JSON.stringify(historico));
+
+  console.log("📝 Salvando no histórico (appendToConversation):", sender, "→", fragmento);
+};
+
+
+const getConversation = async (sender) => {
+  const key = `conversa:${sender}`;
+  const data = await redis.get(key);
+  return data ? JSON.parse(data) : [];
+};
+
+ 
+
+
+async function resetConversation(userId) {
+  await redis.del(`conversa:${userId}`);
+
+}
+
+/**
+ * 📅 Armazena a data/hora da primeira interação do usuário (apenas se ainda não existir)
+ */
+const setPrimeiraInteracao = async (userId) => {
+  try {
+    const key = `primeira_interacao:${userId}`;
+    const timestamp = Date.now();
+    await redis.setnx(key, timestamp); // só define se não existir
+  } catch (error) {
+    console.error(`❌ Erro ao definir primeira interação: ${error.message}`);
+  }
+};
+
+/**
+ * 📅 Retorna a data/hora da primeira interação (formato timestamp)
+ */
+const getPrimeiraInteracao = async (userId) => {
+  try {
+    const key = `primeira_interacao:${userId}`;
+    const timestamp = await redis.get(key);
+    return timestamp ? parseInt(timestamp, 10) : null;
+  } catch (error) {
+    console.error(`❌ Erro ao obter primeira interação: ${error.message}`);
+    return null;
+  }
+};
+
+/**
+ * ❌ Remove a primeira interação registrada (para testes ou reset)
+ */
+const deletePrimeiraInteracao = async (userId) => {
+  try {
+    const key = `primeira_interacao:${userId}`;
+    await redis.del(key);
+    console.log(`🧹 Primeira interação do usuário ${userId} removida.`);
+  } catch (error) {
+    console.error(`❌ Erro ao deletar primeira interação: ${error.message}`);
+  }
+};
+
+const pauseBotKey = "bot:pausado_global";
+
+const pausarBotGlobalmente = async () => {
+  await redis.set(pauseBotKey, "true");
+};
+
+const retomarBotGlobalmente = async () => {
+  await redis.del(pauseBotKey);
+};
+
+const isBotPausado = async () => {
+  return (await redis.get(pauseBotKey)) === "true";
+};
+
+
+
+
 module.exports = {
   storeSelectedModel,
   getIntencaoDeUso,
@@ -375,5 +502,17 @@ module.exports = {
   getHistoricoFormatadoParaPrompt, 
   getHistoricoDeModelosMencionados,
   storeHistoricoDeModelosMencionados,
+  storeNomeUsuario,
+  getNomeUsuario,
+  deleteNomeUsuario,
+  appendToConversation,
+  getConversation,
+  resetConversation,
+  setPrimeiraInteracao,
+  getPrimeiraInteracao,
+  deletePrimeiraInteracao,
+  pausarBotGlobalmente,
+  retomarBotGlobalmente,
+  isBotPausado,
   redis
 };

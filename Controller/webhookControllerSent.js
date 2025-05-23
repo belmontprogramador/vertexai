@@ -1,3 +1,9 @@
+const {
+  pausarBotGlobalmente,
+  retomarBotGlobalmente
+} = require("../Services/redisService");
+
+
 // 📤 Controller para mensagens enviadas
 const webhookControllerSent = async (req, res) => {
   try {
@@ -11,7 +17,6 @@ const webhookControllerSent = async (req, res) => {
     const verifiedBizName = sender.verifiedBizName || "Não verificado";
     const recipientId = chat.id;
 
-    // 🔍 Captura o conteúdo da mensagem (somente texto)
     const content =
       msgContent?.extendedTextMessage?.text ||
       msgContent?.conversation ||
@@ -21,7 +26,19 @@ const webhookControllerSent = async (req, res) => {
       return res.status(200).json({ message: "Mensagem sem texto ignorada." });
     }
 
-    // ✅ Log final somente com os dados relevantes
+    const comando = content.toLowerCase().trim();
+
+    // ⚙️ Pausar e retomar o bot com base na mensagem enviada
+    if (comando === "pausarbot") {
+      await pausarBotGlobalmente();
+      console.log("🛑 Bot pausado via mensagem enviada.");
+    }
+
+    if (comando === "retomarbot") {
+      await retomarBotGlobalmente();
+      console.log("✅ Bot retomado via mensagem enviada.");
+    }
+
     console.log(`
 📤 [DEBUG] Mensagem enviada:
 - ID: ${messageId}
@@ -36,5 +53,6 @@ const webhookControllerSent = async (req, res) => {
     res.status(500).json({ error: "Erro ao processar a mensagem enviada" });
   }
 };
+
 
 module.exports = { webhookControllerSent };

@@ -35,3 +35,58 @@ model InstructionEmbedding {
   embedding   Float[]  
   createdAt   DateTime @default(now())  
 }
+
+model Celular{
+  id Int @id @default(autoincrement())
+  nome String
+  subTitulo String
+  descricao String
+  fraseImpacto String 
+  precoParcelado String
+  preco Int
+  imageURL        String?
+  videoURL        String?
+}
+
+model CelularVideos{
+  id Int @id @default(autoincrement())
+  nome String
+  subTitulo String
+  descricao String
+  fraseImpacto String 
+  precoParcelado String
+  preco Int
+  videoURL        String?
+}
+
+model CelularVideosBoleto{
+  id Int @id @default(autoincrement())
+  nome String
+  subTitulo String
+  descricao String
+  fraseImpacto String 
+  precoParcelado String
+  preco Int
+  videoURL        String?
+}
+
+model CelularBoleto{
+  id Int @id @default(autoincrement())
+  nome String
+  subTitulo String
+  descricao String
+  fraseImpacto String 
+  precoParcelado String
+  preco Int
+  imageURL        String
+  videoURL        String?
+}
+
+model UserSistem {
+  id Int @id @default(autoincrement())
+  name String
+  email String @unique
+  senha String
+  createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+}
