@@ -393,7 +393,21 @@ const functions = [
       },
       required: ["modelos"]
     }
-  }
+  },
+  {
+    name: "responderDuvida",
+    description: "Responde a uma dúvida específica do cliente sobre um ou mais modelos sugeridos anteriormente.",
+    parameters: {
+      type: "object",
+      properties: {
+        resposta: {
+          type: "string",
+          description: "Texto da resposta explicando diferenças, vantagens ou informações adicionais."
+        }
+      },
+      required: ["resposta"]
+    }
+  },
 ];
 
 module.exports = { identificarModeloPorNome };
