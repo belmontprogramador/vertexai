@@ -14,6 +14,7 @@ require("dotenv").config();
 const { objeçõesVertex } = require("../../../Services/utils/objecoes");
 const { gatilhosEmocionaisVertex } = require('../../../Services/utils/gatilhosEmocionais');
 const { tomDeVozVertex } = require('../../../Services/utils/tomDeVozVertex');
+const { intencaoDataEntregaDesconto } = require('../../../Services/utils/intencaoDataEntregaDesconto')
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -90,24 +91,44 @@ const agenteDeDemonstracaoDetalhada = async ({ sender, msgContent }) => {
       messages: [
         {
           role: "system",
-          content: `Você é Anna. Seu trabalho é apresentar UM modelo de celular ao cliente com base na lista abaixo. Se identificar o modelo, use mostrarResumoModelo. Se o cliente quiser agendar, use fecharVenda.\n\nHistórico:\n${conversaCompleta}\n\nModelos disponíveis:\n${listaParaPrompt.map(m => `- ${m.nome}`).join("\n")}`
+          content: `
+    Você é Anna, especialista da Vertex Store.
+    
+    Seu papel é: 
+    - Mostrar o resumo e vídeo de UM modelo se o cliente demonstrar interesse direto. 
+    - Tirar dúvidas se ele fizer perguntas específicas (como "a bateria é boa?").
+    - Fechar a venda se ele demonstrar intenção clara de compra.
+    
+    ══════════ CONTEXTO DO CLIENTE ══════════
+    📜 Histórico:
+    ${conversaCompleta}
+    
+    📦 Modelos disponíveis:
+    ${listaParaPrompt.map(m => `- ${m.nome}`).join("\n")}
+    
+    Lembre-se:
+    • Só use funções.
+    • Não repita um resumo se o cliente estiver fazendo uma pergunta.
+    • Sempre prefira tirar dúvida se houver incerteza antes de fechar.
+    `
         },
         { role: "user", content: entradaAtual }
       ],
       functions,
       function_call: "auto"
     });
-
+    
     const toolCall = completion.choices[0]?.message?.function_call;
     if (toolCall) {
       const { name, arguments: argsStr } = toolCall;
       const args = argsStr ? JSON.parse(argsStr) : {};
+      const similaridades = await calcularSimilaridadePorEmbeddings(entradaAtual, listaParaPrompt);
+      const modeloEscolhido = similaridades[0];
       if (handlers[name]) {
-        const similaridades = await calcularSimilaridadePorEmbeddings(entradaAtual, listaParaPrompt);
-        const modeloEscolhido = similaridades[0];
-        return await handlers[name](sender, args, { modeloEscolhido, msgContent });
+        return await handlers[name](sender, args, { modeloEscolhido, msgContent: entradaAtual });
       }
     }
+    
 
     const similaridades = await calcularSimilaridadePorEmbeddings(entradaAtual, listaParaPrompt);
     const modeloEscolhido = similaridades[0];
@@ -129,34 +150,78 @@ const handlers = {
   },
   mostrarResumoModelo: async (sender, args, extras) => {
     let modelo = extras?.modeloEscolhido;
-    const normalize = (str) => str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s]/gi, '').replace(/\s+/g, ' ').trim();
+  
+    const normalize = (str) =>
+      str.toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^\w\s]/gi, "")
+        .replace(/\s+/g, " ")
+        .trim();
+  
     if (!modelo && args?.nomeModelo) {
       const lista = await obterModelosDoBling();
       modelo = lista.find(m => normalize(m.nome) === normalize(args.nomeModelo));
     }
+  
     if (!modelo || !modelo.preco) {
       return await sendBotMessage(sender, "❌ Não consegui identificar esse modelo. Pode tentar novamente?");
     }
+  
+    // Geração do resumo via GPT
+    const prompt = [
+      {
+        role: "system",
+        content: "Você é um vendedor persuasivo e direto. Crie um texto emocional, envolvente e resumido sobre esse celular, destacando seus benefícios reais para o cliente. Use linguagem natural como se estivesse vendendo pelo WhatsApp de forma bem reduzida possivel. **FAÇA O MAIS RESUMIDO POSSIVEL**"
+      },
+      {
+        role: "user",
+        content: `Modelo: ${modelo.nome}\nFrase de impacto: ${modelo.fraseImpacto}\nDescrição curta: ${modelo.descricaoCurta}\nPreço à vista: R$ ${modelo.preco.toFixed(2)}`
+      }
+    ];
+  
+    let resumo = "";
+    try {
+      const resposta = await openai.chat.completions.create({
+        model: "gpt-4",
+        messages: prompt,
+        temperature: 0.99,
+        max_tokens: 150
+      });
+  
+      resumo = resposta.choices?.[0]?.message?.content?.trim() || "";
+    } catch (err) {
+      console.error("Erro ao gerar resumo com GPT:", err);
+      resumo = `📱 *${modelo.nome}*\n${modelo.fraseImpacto}\n💰 R$ ${modelo.preco.toFixed(2)}\n\nEm breve te explico mais!`;
+    }
+  
+    
+  
+    // Envia o vídeo com o mesmo resumo como legenda
     if (modelo.videoURL) {
       await sendBotMessage(sender, {
         videoUrl: modelo.videoURL,
-        caption: `📱 Modelo reconhecido: *${modelo.nome}*`
+        caption: resumo
       });
     }
-    await sendBotMessage(sender, `🔥 *${modelo.nome}* – ${modelo.fraseImpacto}\n\n${modelo.descricaoCurta}\n\n💰 *Preço à vista:* R$ ${modelo.preco.toFixed(2)}\n\n👉 Quer agendar uma visita pra garantir o seu?`);
+  
+    // Chamada para ação final
+    await sendBotMessage(
+      sender,
+      `👉 Quer agendar uma visita pra garantir o seu?`
+    );
+  
+    // Salva no histórico
+    await appendToConversation(sender, `modelo_sugerido_json: ${JSON.stringify(modelo)}`);
   },
   responderDuvida: async (sender, _args, extras) => {
     await setUserStage(sender, "agente_de_demonstração_detalhada");
-
+  
     const historico = await getConversation(sender);
     const conversaCompleta = historico.map(f => f.replace(/^again\s*/i, "").trim()).slice(-10).join(" | ");
-  
-    // Carrega todos os modelos disponíveis do banco (com descrição completa)
     const modelosBanco = await getAllCelulares();
-
     const nome = await getNomeUsuario(sender);
   
-    // Extrai nomes do histórico (modelo_sugerido_json ou modelo_sugerido)
     const nomesHistorico = historico
       .filter(m => m.startsWith("modelo_sugerido_json:") || m.startsWith("modelo_sugerido:"))
       .map(m => {
@@ -172,7 +237,6 @@ const handlers = {
       })
       .filter(Boolean);
   
-    // Filtra os modelos do banco que estão no histórico
     const modelos = modelosBanco.filter(m =>
       nomesHistorico.some(n => n.toLowerCase() === m.nome.toLowerCase())
     );
@@ -180,85 +244,104 @@ const handlers = {
     if (modelos.length === 0) {
       return await sendBotMessage(sender, "⚠️ Ainda não te mostrei nenhum modelo pra comparar. Quer ver algumas opções?");
     }
-    const contexto = `
-    Você é Anna, especialista da Vertex Store.
-    
-    Siga exatamente as diretrizes abaixo para responder qualquer cliente:
-    
-    TOM DE VOZ:
-    ${JSON.stringify(tomDeVozVertex, null, 2)}
-    
-    OBJEÇÕES COMUNS:
-    ${JSON.stringify(objeçõesVertex, null, 2).slice(0, 3000)}
-    
-    GATILHOS EMOCIONAIS:
-    ${JSON.stringify(gatilhosEmocionaisVertex, null, 2)}
-    `;
-    
-    const prompt = `
-   ##  OBJETIVO
-Guiar o cliente até escolher um smartphone da lista apresentada e fechar a venda,
-sempre valorizando experiência, suporte humanizado e diferencial da loja.
-
-##  TOM_DE_VOZ (tomDeVozVertex)
-- Saudação acolhedora porém direta.
-- Use vocativo informal respeitoso (ex.: “Perfeito, Felipe!”).
-- Emojis: 💜 obrigatório + 1 contextual; use 🔥 para descontos.
-- Até 250 caracteres por bloco; quebre linhas por assunto.
-- Pontuação dupla (“!!”, “…” ) permitida.
-
-##  GATILHOS_EMOCIONAIS (gatilhosEmocionaisVertex)
-- Priorize Segurança ➜ Rapidez ➜ Transferência de dados na hora.
-- Explore “Garantia empática”, “Telefone reserva”, “Loja física confiável”.
-- Conecte benefícios à vida diária (produtividade, memórias, status).
-
-##  OBJECÇÕES & COMPARATIVOS (objeçõesVertex)
-- Se cliente comparar preço online → explique valor agregado (lista de diferenciais).
-- Descontos: só R$ 100 à vista, ofereça **após** defender valor.
-- Parcelamento padrão 10×; ofereça 12× **apenas se insistir** muito.
-- Use analogias para comparar serviços (ex.: “comprar só preço é como…”).
-
-##  REGRAS_DE_ESTILO
-- Nunca comece resposta com saudação completa; a conversa já está em andamento.
-- Seja conciso e humanizado; máximo 3 blocos (“emoção”, “benefício”, “call-to-action”).
-- Sempre feche perguntando algo que avance (ex.: “Fecho em 10× pra você?”).
-###############################
-
-    📜 Histórico da conversa:
-    ${conversaCompleta}
-    
-    📨 Última mensagem do cliente:
-    "${extras.msgContent}"
-    
-    📱 Modelos apresentados:
-    ${modelos.map(m => `➡️ *${m.nome}*\n${m.descricao}\n💵 Preço: R$ ${m.preco.toFixed(2)}`).join("\n")}
-    
-    💰 Preços (para cálculo de desconto):
-    ${modelos.map(m => `• ${m.nome}: R$ ${m.preco.toFixed(2)}`).join("\n")}
-
-    Nome do usuario
-    ${nome}
-    `;   
   
+    const contexto = `
+  Você é Anna, especialista da Vertex Store.
+  
+  Siga exatamente as diretrizes abaixo para responder qualquer cliente:
+  
+  TOM DE VOZ:
+  ${JSON.stringify(tomDeVozVertex, null, 2)}
+  
+  OBJEÇÕES COMUNS:
+  ${JSON.stringify(objeçõesVertex, null, 2).slice(0, 3000)}
+  
+  GATILHOS EMOCIONAIS:
+  ${JSON.stringify(gatilhosEmocionaisVertex, null, 2)}
+
+  TOM DE DESCONTOS ENTREGA E LOJA
+  ${JSON.stringify(intencaoDataEntregaDesconto, null, 2)}
+  `;
+  
+    const prompt = `
+  ## OBJETIVO
+  Guiar o cliente até escolher um smartphone da lista apresentada e fechar a venda,
+  sempre valorizando experiência, suporte humanizado e diferencial da loja.
+  
+  ## TOM_DE_VOZ (tomDeVozVertex)
+  - Saudação acolhedora porém direta.
+  - Use vocativo informal respeitoso (ex.: “Perfeito, Felipe!”).
+  - Emojis: 💜 obrigatório + 1 contextual; use 🔥 para descontos.
+  - Até 250 caracteres por bloco; quebre linhas por assunto.
+  - Pontuação dupla (“!!”, “…” ) permitida.
+  
+  ## GATILHOS_EMOCIONAIS (gatilhosEmocionaisVertex)
+  - Priorize Segurança ➜ Rapidez ➜ Transferência de dados na hora.
+  - Explore “Garantia empática”, “Telefone reserva”, “Loja física confiável”.
+  - Conecte benefícios à vida diária (produtividade, memórias, status).
+  
+  ## OBJEÇÕES & COMPARATIVOS (objeçõesVertex)
+  - Se cliente comparar preço online → explique valor agregado.
+  - Descontos: só R$ 100 à vista, ofereça **após** defender valor.
+  - Parcelamento padrão 10×; ofereça 12× **apenas se insistir** muito.
+  - Use analogias para comparar serviços (ex.: “comprar só preço é como…”).
+  
+  ## REGRAS_DE_ESTILO
+  - Nunca comece resposta com saudação completa; a conversa já está em andamento.
+  - Seja conciso e humanizado; máximo 3 blocos (“emoção”, “benefício”, “call-to-action”).
+  - Sempre feche perguntando algo que avance (ex.: “Fecho em 10× pra você?”).
+  ###############################
+  
+  📜 Histórico da conversa:
+  ${conversaCompleta}
+  
+  📨 Última mensagem do cliente:
+  "${extras.msgContent}"
+  
+  📱 Modelos apresentados:
+  ${modelos.map(m => `➡️ *${m.nome}*\n${m.descricao}\n💵 Preço: R$ ${m.preco.toFixed(2)}`).join("\n")}
+  
+  💰 Preços:
+  ${modelos.map(m => `• ${m.nome}: R$ ${m.preco.toFixed(2)}`).join("\n")}
+  
+  Nome do usuário:
+  ${nome}
+  `;
+  
+    // Chamada à IA com function calling
     const respostaIA = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
-        { role: "system", content: contexto },  // ✅ system primeiro
+        { role: "system", content: contexto },
         { role: "user", content: prompt }
       ],
-      temperature: 1.0,
-      max_tokens: 150
+      functions,
+      function_call: "auto",
+      temperature: 1,
+      max_tokens: 300
     });
   
-    const respostaFinal = respostaIA.choices[0]?.message?.content?.trim();
+    const escolha = respostaIA.choices[0]?.message;
   
+    // 🔁 Se a IA decidir por uma function_call
+    if (escolha?.function_call) {
+      const { name, arguments: argsStr } = escolha.function_call;
+      const args = argsStr ? JSON.parse(argsStr) : {};
+      const modeloEscolhido = modelos[0]; // pode ser o último demonstrado também
+  
+      if (handlers[name]) {
+        return await handlers[name](sender, args, { ...extras, modeloEscolhido });
+      }
+    }
+  
+    // 🔄 Caso apenas queira continuar a conversa
+    const respostaFinal = escolha?.content?.trim();
     if (!respostaFinal) {
       return await sendBotMessage(sender, "📌 Estou verificando... Pode repetir a dúvida de forma diferente?");
     }
   
     return await sendBotMessage(sender, respostaFinal);
   }
-
 }
 
 const functions = [

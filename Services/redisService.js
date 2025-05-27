@@ -465,7 +465,29 @@ const isBotPausado = async () => {
   return (await redis.get(pauseBotKey)) === "true";
 };
 
+// Adiciona mensagem temporária para represamento por 60s
+const setMensagemTemporaria = async (senderId, conteudo) => {
+  const chave = `buffer:mensagens:${senderId}`;
+  const mensagensAtuais = await redis.get(chave);
+  const atualizadas = mensagensAtuais ? JSON.parse(mensagensAtuais) : [];
 
+  atualizadas.push(conteudo);
+
+  // 🔁 Regrava com novo TTL (reinicia o timer)
+  await redis.set(chave, JSON.stringify(atualizadas), "EX", 60);
+};
+
+// Recupera as mensagens temporárias represadas
+const getMensagensTemporarias = async (senderId) => {
+  const chave = `buffer:mensagens:${senderId}`;
+  const mensagens = await redis.get(chave);
+  return mensagens ? JSON.parse(mensagens) : [];
+};
+
+// Remove imediatamente o buffer (se quiser processar manualmente antes dos 60s)
+const limparMensagensTemporarias = async (senderId) => {
+  await redis.del(`buffer:mensagens:${senderId}`);
+};
 
 
 module.exports = {
@@ -514,5 +536,8 @@ module.exports = {
   pausarBotGlobalmente,
   retomarBotGlobalmente,
   isBotPausado,
+  setMensagemTemporaria,
+  getMensagensTemporarias,
+  limparMensagensTemporarias,
   redis
 };
