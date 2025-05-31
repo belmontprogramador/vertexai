@@ -5,6 +5,7 @@ const { webhookControllerReceived } = require("../Controller/webhookControllerRe
 const { webhookControllerSent } = require("../Controller/webhookControllerSent");
 const { refreshToken } = require("../Controller/blingTokenController");
 const autenticarToken = require("../Services/GerenciadorDeRotinas/middlewares/authMiddleware");
+const { validarNumerosEmLoteController } = require ("../controller/validarNumerosController")
 
 
 const {
@@ -255,7 +256,7 @@ router.delete("/celularVideosBoleto/:id", autenticarToken, async (req, res) => {
 });
 
 
-
+router.post('/validar-numeros-em-lote', validarNumerosEmLoteController);
 
  
 

@@ -11,9 +11,22 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const rotinaDeAgendamento = async ({ sender, msgContent, pushName }) => {
   await setUserStage(sender, "agendamento");
 
-  // 🔄 1. Resumo via GPT com base no histórico
   const historico = await getConversation(sender);
   const nomeCliente = await getNomeUsuario(sender);
+
+  // 🧠 Extração do modelo sugerido a partir do histórico
+  const trechoComModelo = historico.find(m => m.includes("modelo_sugerido_json:"));
+  let modeloEscolhido = null;
+
+  if (trechoComModelo) {
+    try {
+      const jsonString = trechoComModelo.split("modelo_sugerido_json:")[1].trim();
+      modeloEscolhido = JSON.parse(jsonString);
+    } catch (e) {
+      console.warn("Erro ao parsear modelo_sugerido_json:", e);
+    }
+  }
+
   const conversaFormatada = historico
     .filter(m => !m.startsWith("again "))
     .slice(-15)
@@ -23,11 +36,18 @@ const rotinaDeAgendamento = async ({ sender, msgContent, pushName }) => {
   const prompt = [
     {
       role: "system",
-      content: `Você é um assistente comercial da Vertex Store. Gere um resumo breve do atendimento com foco em:\n- Interesse do cliente\n- Modelo(s) demonstrado(s)\n- Objeções respondidas\n- Dúvidas técnicas\n- Clima da negociação (frio, morno, quente)\n\nUse linguagem humanizada e objetiva.`
+      content: `Você é um assistente comercial da Vertex Store. Gere um resumo breve do atendimento com foco em:
+- Interesse do cliente
+- Modelo(s) demonstrado(s)
+- Objeções respondidas
+- Dúvidas técnicas
+- Clima da negociação (frio, morno, quente)
+
+Use linguagem humanizada e objetiva.`
     },
     {
       role: "user",
-      content: `📜 Histórico da conversa com ${nomeCliente || "cliente"}:\n${conversaFormatada}`
+      content: `📜 Histórico da conversa com ${nomeCliente || "cliente"}:\n${conversaFormatada}\n\n📱 Modelo demonstrado: ${modeloEscolhido?.nome || "Não identificado"}`
     }
   ];
 
@@ -46,11 +66,11 @@ const rotinaDeAgendamento = async ({ sender, msgContent, pushName }) => {
     console.error("Erro ao gerar resumo do atendimento:", error);
   }
 
-  // 🔄 2. Envia o resumo para o número da loja/supervisor
-  await sendBotMessage("21983735922", `📋 *Resumo do atendimento (${sender})*\n\n${resumoFinal}`);
+  // Envia o resumo para o número da loja/supervisor
+  await sendBotMessage("22998668966", `📋 *Resumo do atendimento (${sender})*\n\n${resumoFinal}`);
 
-  // 🔄 3. Continua o fluxo normal com o cliente
-  await sendBotMessage(sender, "Para quando o(a) senhor(a) está planejando sua compra?");
+  // Continua o fluxo normal com o cliente
+  await sendBotMessage(sender, `Então ${nomeCliente} para quando planeja fazer sua compra?`);
 };
 
 module.exports = { rotinaDeAgendamento };

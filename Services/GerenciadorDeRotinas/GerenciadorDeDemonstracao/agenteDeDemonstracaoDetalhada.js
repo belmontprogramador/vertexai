@@ -12,9 +12,9 @@ const { rotinaDeAgendamento } = require("../../GerenciadorDeRotinas/GerenciadorD
 const OpenAI = require("openai");
 require("dotenv").config();
 const { objeçõesVertex } = require("../../../Services/utils/objecoes");
-const { gatilhosEmocionaisVertex } = require('../../../Services/utils/gatilhosEmocionais');
-const { tomDeVozVertex } = require('../../../Services/utils/tomDeVozVertex');
-const { intencaoDataEntregaDesconto } = require('../../../Services/utils/intencaoDataEntregaDesconto')
+const { gatilhosEmocionaisVertex } = require('../../../Services/utils/gatilhosEmocionais'); 
+const { intencaoDataEntregaDesconto } = require('../../../Services/utils/intencaoDataEntregaDesconto');
+const { tomDeVozVertexData } = require("../../utils/tomDeVozVertexData");
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -150,6 +150,7 @@ const handlers = {
   },
   mostrarResumoModelo: async (sender, args, extras) => {
     let modelo = extras?.modeloEscolhido;
+    const nome = await getNomeUsuario(sender);
   
     const normalize = (str) =>
       str.toLowerCase()
@@ -172,7 +173,19 @@ const handlers = {
     const prompt = [
       {
         role: "system",
-        content: "Você é um vendedor persuasivo e direto. Crie um texto emocional, envolvente e resumido sobre esse celular, destacando seus benefícios reais para o cliente. Use linguagem natural como se estivesse vendendo pelo WhatsApp de forma bem reduzida possivel. **FAÇA O MAIS RESUMIDO POSSIVEL**"
+        content: `Você é um vendedor persuasivo e direto. 
+        Seja direto, com no máximo 3 frases curtas. Priorize clareza e impacto, não ultrapasse 250 caracteres no total.
+
+        ***Faça o mais resumido possivel para usar o token e não faltar mensagem***
+        Use uma linguagem formal mas descontraida.
+        pule semre uma linha entre o resumo e a mensagem do tom de voz
+        de preferencia ao preço parcelado
+        Nome do cliente ${nome}
+        Ao final sempre faça perguntas utilizando esse documento como base:
+        TOM DE VOZ:
+        ${JSON.stringify(tomDeVozVertexData, null, 2)}
+        
+        `
       },
       {
         role: "user",
@@ -193,8 +206,7 @@ const handlers = {
     } catch (err) {
       console.error("Erro ao gerar resumo com GPT:", err);
       resumo = `📱 *${modelo.nome}*\n${modelo.fraseImpacto}\n💰 R$ ${modelo.preco.toFixed(2)}\n\nEm breve te explico mais!`;
-    }
-  
+    }  
     
   
     // Envia o vídeo com o mesmo resumo como legenda
@@ -204,12 +216,7 @@ const handlers = {
         caption: resumo
       });
     }
-  
-    // Chamada para ação final
-    await sendBotMessage(
-      sender,
-      `👉 Quer agendar uma visita pra garantir o seu?`
-    );
+    
   
     // Salva no histórico
     await appendToConversation(sender, `modelo_sugerido_json: ${JSON.stringify(modelo)}`);
@@ -251,7 +258,7 @@ const handlers = {
   Siga exatamente as diretrizes abaixo para responder qualquer cliente:
   
   TOM DE VOZ:
-  ${JSON.stringify(tomDeVozVertex, null, 2)}
+  ${JSON.stringify(tomDeVozVertexData, null, 2)}
   
   OBJEÇÕES COMUNS:
   ${JSON.stringify(objeçõesVertex, null, 2).slice(0, 3000)}
@@ -267,6 +274,7 @@ const handlers = {
   ## OBJETIVO
   Guiar o cliente até escolher um smartphone da lista apresentada e fechar a venda,
   sempre valorizando experiência, suporte humanizado e diferencial da loja.
+  utilize um tom de voz formal
   
   ## TOM_DE_VOZ (tomDeVozVertex)
   - Saudação acolhedora porém direta.

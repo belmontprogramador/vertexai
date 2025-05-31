@@ -53,7 +53,7 @@ const sendBotMessage = async (sender, payload) => {
           phone: sender,
           video: payload.videoUrl,
           caption: payload.caption || "",
-          delayMessage: 15,
+          delayMessage: 3,
         },
         {
           headers: {
