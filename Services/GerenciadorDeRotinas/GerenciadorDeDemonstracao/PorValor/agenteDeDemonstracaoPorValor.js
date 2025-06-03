@@ -5,7 +5,8 @@ const {
   getUserResponses,
   appendToConversation,
   getConversation,
-  getNomeUsuario
+  getNomeUsuario,
+  storeUserResponse
 } = require("../../../redisService");
 
 const { getAllCelulares } = require("../../../dbService");
@@ -69,11 +70,19 @@ const agenteDeDemonstracaoPorValor = async ({ sender, pushName, valorBruto }) =>
     const numeroExtraido = extrairNumeroDeTexto(valorTexto);
 
     if (!numeroExtraido || isNaN(numeroExtraido)) {
-      return await sendBotMessage(
-        sender,
-        "❌ Não consegui entender o valor que você deseja investir. Pode me informar novamente? (ex: 'mil reais', '2000', 'até dois mil')"
-      );
+      await setUserStage(sender, "filtro_de_valor"); // 👈 garante que continue no fluxo certo
+      await storeUserResponse(sender, "sondagem", "investimento", valorTexto); // 👈 opcional, para histórico/debug
+      const frases = [
+        "💡 Pra acertar na indicação, me passa uma ideia de quanto quer investir — tipo “mil e quinhentos” ou “até dois mil”? 💜",
+        "📊 Para filtrar os melhores modelos, preciso de um valor-base. Quanto pensa em investir? Ex.: 1000 reais ou até 2 mil. 💜",
+        "💬 Consigo ajudar melhor se souber seu orçamento: pode informar algo como “R$ 2 000” ou “até mil e quinhentos”? 💜"
+      ];
+      
+      const fraseAleatoria = frases[Math.floor(Math.random() * frases.length)];
+      
+      return await sendBotMessage(sender, fraseAleatoria);      
     }
+    
 
     const faixaMin = numeroExtraido - 350;
     const faixaMax = numeroExtraido + 650;

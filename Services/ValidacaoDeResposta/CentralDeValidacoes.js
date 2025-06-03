@@ -15,7 +15,7 @@ const {testeDeEnvio} = require("./testeDeEnvio")
  * 📌 Valida mensagem recebida e define novo stage com base na lógica do fluxo
  */
 const validarFluxoInicial = async (sender, msgContent, pushName) => {
-  const cleanedContent = msgContent.replace(/^again\s*/i, "").trim().toLowerCase();
+  const cleanedContent = msgContent.replace(/^again\s*/i, "").trim() 
   const lastInteraction = await getLastInteraction(sender);
   const currentTime = Date.now();
   const CHECK_TIME_LIMIT = 10 * 60 * 1000;
@@ -26,11 +26,16 @@ const validarFluxoInicial = async (sender, msgContent, pushName) => {
   const stageAtual = await getUserStage(sender);
 
   // 👶 Se o usuário nunca teve interação, começa com primeiro atendimento
-  if (!stageAtual && cleanedContent.toLowerCase().includes("quero um aparelho na vertex")) {
+  if (
+    !stageAtual &&
+    (
+      cleanedContent.includes("Opa! quero um smartphone que combine com meu estilo 📲. podem me ajudar? 😊") ||
+      cleanedContent.includes("Olá, quero ver as ofertas de smartphones da semana. Me mostram? 😃")
+    )
+  ) {
     await setUserStage(sender, "rotina_captura_de_nome_para_trafego");
     return "rotina_captura_de_nome_para_trafego";
-  
-  } else if (!stageAtual && cleanedContent === "boleto") {
+  } else if (!stageAtual && cleanedContent === "Olá! 😊 poderia me explicar como é o parcelamento via boleto? 💸") {
     await setUserStage(sender, "rotina_captura_de_nome_para_boleto");
     return "rotina_captura_de_nome_para_boleto";
   
@@ -39,6 +44,7 @@ const validarFluxoInicial = async (sender, msgContent, pushName) => {
     await setUserStage(sender, "rotina_captura_de_nome");
     return "rotina_captura_de_nome";
   }
+  
   
   // 🔄 Tempo expirado
   if (!lastInteraction || currentTime - lastInteraction > CHECK_TIME_LIMIT) {

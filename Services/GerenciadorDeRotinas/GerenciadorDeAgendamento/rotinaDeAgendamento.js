@@ -42,6 +42,7 @@ const rotinaDeAgendamento = async ({ sender, msgContent, pushName }) => {
 - Objeções respondidas
 - Dúvidas técnicas
 - Clima da negociação (frio, morno, quente)
+- Nome do cliente
 
 Use linguagem humanizada e objetiva.`
     },
@@ -67,7 +68,7 @@ Use linguagem humanizada e objetiva.`
   }
 
   // Envia o resumo para o número da loja/supervisor
-  await sendBotMessage("22998668966", `📋 *Resumo do atendimento (${sender})*\n\n${resumoFinal}`);
+  await sendBotMessage("5522998668966", `📋 *Resumo do atendimento (${sender})*\n\n${resumoFinal}`);
 
   // Continua o fluxo normal com o cliente
   await sendBotMessage(sender, `Então ${nomeCliente} para quando planeja fazer sua compra?`);

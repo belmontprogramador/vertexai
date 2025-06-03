@@ -39,6 +39,7 @@ const { agenteDeDecisaoPosDemonstracao } = require("./GerenciadorDeRotinas/Geren
 
  //Rotina de Demonstração Detalhada
 const { agenteDeDemonstracaoDetalhada } = require("./GerenciadorDeRotinas/GerenciadorDeDemonstracao/agenteDeDemonstracaoDetalhada");
+const { agenteDeDemonstracaoDetalhadaBoleto } = require("./GerenciadorDeRotinas/GerenciadorDeDemonstracao/agenteDeDemonstracaoDetalhadaBoleto");
 
 
 //Rotina de Demonstração Boleto
@@ -134,6 +135,9 @@ const checagemInicial = async (sender, msgContent, pushName) => {
         //Rotina de Demonstração Detalhada
         case "agente_de_demonstração_detalhada" :
             return await agenteDeDemonstracaoDetalhada({ sender, msgContent, pushName });
+            case "agente_de_demonstração_detalhada_boleto" :
+            return await agenteDeDemonstracaoDetalhadaBoleto({ sender, msgContent, pushName });
+            
 
         
             
@@ -152,7 +156,7 @@ const checagemInicial = async (sender, msgContent, pushName) => {
             return await  agenteDeDemonstracaoPorNomePorBoleto({ sender, msgContent, pushName, modeloMencionado: "" });
         case "agente_de_demonstracao_pos_decisao_por_boleto" :
             return await  agenteDeDemonstracaoPosDecisaoPorBoleto({ sender, msgContent, pushName, modeloMencionado: "" });
-            agenteDeDemonstracaoPosDecisaoPorBoleto
+            // agenteDeDemonstracaoPosDecisaoPorBoleto
  
         //Rotina de Agendamento
         case "rotina_de_agendamento" :

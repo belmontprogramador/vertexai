@@ -230,9 +230,6 @@ if (name === "demonstrarCelular" && args?.termosRelacionados && !args?.modeloMen
   }
 };
 
-// (demais funções e exports seguem inalterados)
-
-
 const formatarDescricaoParaCaption = (modelo) => {
   return (
     `🔥 *${modelo.nome}*🔥\n\n${modelo.subTitulo}\n\n${modelo.descricaoCurta}\n\n💰📦 ${modelo.precoParcelado}\n\n${modelo.fraseImpacto}\n\n💵 Preço: R$ ${modelo.preco?.toFixed(2)}`
@@ -295,7 +292,7 @@ const handlers = {
               caption: textoFormatado
             });
     
-            await appendToConversation(sender, `modelo_sugerido_bloco: ${modeloRelacionado.nome}`);
+            await appendToConversation(sender, `modelo_sugerido: ${modelo.nome}`);
           }
         }
       }
@@ -318,7 +315,7 @@ const handlers = {
             caption: textoFormatado
           });
     
-          await appendToConversation(sender, `modelo_sugerido_padrao: ${modelo.nome}`);
+          await appendToConversation(sender, `modelo_sugerido: ${modelo.nome}`);
         }
       }
     }
@@ -370,9 +367,8 @@ const handlers = {
       await appendToConversation(sender, `modelo_sugerido: ${modelo.nome}`);
     }
     const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-    await delay(1000);
-    await sendBotMessage(sender, "Por que na Vertex Store?\nTroca em até 7 dias, aparelho reserva se precisar de garantia, configuração e transferência de dados na hora.");
-    await delay(500);
+    await delay(1000);   
+     
     await sendBotMessage(sender, "➡️ *Desses, qual mais te chamou atenção?*");
 
     await appendToConversation(sender, `sugestao_modelo_investigar: ${Array.from(modelosExibidos).join(", ")}`);

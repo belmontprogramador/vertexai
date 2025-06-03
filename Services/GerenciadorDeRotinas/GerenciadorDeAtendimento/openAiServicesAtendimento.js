@@ -34,8 +34,9 @@ const handlers = {
     });
   },
   consultarParcelamento: async (sender, args, extras) => {
-    const nome = await getNomeUsuario(sender, pushName); 
     const { msgContent, pushName } = extras;
+const nome = await getNomeUsuario(sender, pushName); 
+
     await setUserStage(sender, "opena_ai_services_boleto_decisao_1");
     await sendBotMessage(sender, `${nome} me tira uma duvida voce esta procurando parcelamento no boleto ou no cartão?`);
   },   
@@ -104,7 +105,7 @@ const functions = [
   },
   {
     name: "consultarParcelamento",
-    description: "Quando o usuário fala sobre formas de pagamento como crediário, parcelamento, 'em quantas vezes', 'parcelar no boleto' ou 'tenho nome sujo, consigo comprar?'. ✅ Essa função sempre tem prioridade se o usuário mencionar também um modelo de celular na mesma frase.",
+    description: "Quando o usuário fala sobre formas de pagamento como crediário, parcelamento, 'em quantas vezes', 'parcelar no boleto' ou 'tenho nome sujo, consigo comprar?' ou digita 3. ✅ Essa função sempre tem prioridade se o usuário mencionar também um modelo de celular na mesma frase.",
     parameters: {
       type: "object",
       properties: {

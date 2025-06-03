@@ -72,6 +72,7 @@
     "is-glob": "^4.0.3",
     "is-number": "^7.0.0",
     "jsonwebtoken": "^9.0.2",
+    "luxon": "^3.6.1",
     "math-intrinsics": "^1.1.0",
     "media-typer": "^0.3.0",
     "merge-descriptors": "^1.0.3",

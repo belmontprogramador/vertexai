@@ -8,12 +8,14 @@ const {
 } = require("../../../redisService");
  
 const { agenteDeDemonstracaoPorNomePorBoleto } = require("./agenteDeDemonstracaoPorNomePorBoleto");
-const { objeçõesVertex } = require("../../../utils/objecoes");
+const { informacoesPayjoy } = require("../../../utils/informacoesPayjoy");
 const { gatilhosEmocionaisVertex } = require('../../../utils/gatilhosEmocionais');
 const { tomDeVozVertex } = require('../../../utils/tomDeVozVertex');
+const { objeçõesVertex } = require("../../../utils/objecoes");
 const { rotinaDeAgendamento } = require("../../GerenciadorDeAgendamento/rotinaDeAgendamento");
 
-const { getAllCelulares } = require('../../../dbService')
+
+const {getAllCelulareBoleto } = require('../../../dbService')
 
 const OpenAI = require("openai");
 require("dotenv").config();
@@ -21,6 +23,7 @@ require("dotenv").config();
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const agenteDeDemonstracaoPosDecisaoPorBoleto = async ({ sender, msgContent, pushName }) => {
+   
   try {
     const entrada = typeof msgContent === "string" ? msgContent : msgContent?.termosRelacionados || "";
     await appendToConversation(sender, entrada);
@@ -111,8 +114,8 @@ const agenteDeDemonstracaoPosDecisaoPorBoleto = async ({ sender, msgContent, pus
 };
 
 const handlers = {
-  demonstracaoDetalhada: async (sender, args, extras) => {
-    await setUserStage(sender, "agente_de_demonstração_detalhada");
+  demonstracaoDetalhadaBoleto: async (sender, args, extras) => {
+    await setUserStage(sender, "agente_de_demonstração_detalhada_boleto");
     const novoStage = await getUserStage(sender);
     await sendBotMessage(sender, novoStage);
     return await  rotinaDeAgendamento ({
@@ -129,7 +132,7 @@ const handlers = {
     const conversaCompleta = historico.map(f => f.replace(/^again\s*/i, "").trim()).slice(-10).join(" | ");
   
     // Carrega todos os modelos disponíveis do banco (com descrição completa)
-    const modelosBanco = await getAllCelulares();
+    const modelosBanco = await getAllCelulareBoleto();
 
     const nome = await getNomeUsuario(sender);
   
@@ -165,7 +168,10 @@ const handlers = {
     TOM DE VOZ:
     ${JSON.stringify(tomDeVozVertex, null, 2)}
     
-    OBJEÇÕES COMUNS:
+    OBJEÇÕES SOBRE PAYJOY:
+    ${JSON.stringify(informacoesPayjoy).slice(0, 3500)}
+
+    OBJEÇÕES SOBRE APARELHOS:
     ${JSON.stringify(objeçõesVertex, null, 2).slice(0, 3000)}
     
     GATILHOS EMOCIONAIS:
@@ -176,6 +182,8 @@ const handlers = {
     ##  OBJETIVO
  Guiar o cliente até escolher um smartphone da lista apresentada e fechar a venda,
  sempre valorizando experiência, suporte humanizado e diferencial da loja.
+ Resuma as reposta para caber na quantidade de tokens estabelecido em max_tokens
+ Não sugira um modelo aguarde o cliente escolher
  
  ##  TOM_DE_VOZ (tomDeVozVertex)
  - Saudação acolhedora porém direta.
@@ -189,11 +197,13 @@ const handlers = {
  - Explore “Garantia empática”, “Telefone reserva”, “Loja física confiável”.
  - Conecte benefícios à vida diária (produtividade, memórias, status).
  
- ##  OBJECÇÕES & COMPARATIVOS (objeçõesVertex)
- - Se cliente comparar preço online → explique valor agregado (lista de diferenciais).
- - Descontos: só R$ 100 à vista, ofereça **após** defender valor.
- - Parcelamento padrão 10×; ofereça 12× **apenas se insistir** muito.
+ ##  OBJECÇÕES & COMPARATIVOS ( OBJEÇÕES SOBRE APARELHOS:)
+  - Utilize o documento objeções comum para responder duvidas sobre preços e parcelas
  - Use analogias para comparar serviços (ex.: “comprar só preço é como…”).
+ - Sempre convide o usuario a vir fazer uma visita na loja para analise de credito
+ - Não faça perguntas como "Fecho pra você em 10x? 😉" respeito a regra de parcelamento da documentação
+
+ ## OBJEÇÕES DE DUVIDAS SOBRE BOLETO(OBJEÇÕES SOBRE PAYJOY:)
  
  ##  REGRAS_DE_ESTILO
  - Nunca comece resposta com saudação completa; a conversa já está em andamento.
@@ -246,7 +256,7 @@ const handlers = {
 
 const functions = [
   {
-    name: "demonstracaoDetalhada",
+    name: "demonstracaoDetalhadaBoleto",
     description: "Chama a função para mostrar o modelo que o usuário escolheu.",
     parameters: {
       type: "object",

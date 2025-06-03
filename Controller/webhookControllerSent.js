@@ -29,7 +29,7 @@ const webhookControllerSent = async (req, res) => {
     const comando = content.toLowerCase().trim();
 
     // ⚙️ Pausar e retomar o bot com base na mensagem enviada
-    if (comando === "pausarbot") {
+    if (comando === "Vou chamar outro atendente") {
       await pausarBotGlobalmente();
       console.log("🛑 Bot pausado via mensagem enviada.");
     }

@@ -3,7 +3,8 @@ const {
     getChosenModel,
     storeChosenModel,
     setUserStage,
-    storeModelosSugeridos
+    storeModelosSugeridos,
+    storeUserResponse
   } = require("../../../redisService");
   const { distance } = require("fastest-levenshtein");  
   const { agenteDeDemonstracaoDetalhada } = require("../agenteDeDemonstracaoDetalhada");
@@ -79,10 +80,16 @@ const {
     console.log("📦 [DEBUG] Modelos disponíveis do Bling:", celulares);
   
     if (!celulares.length) {
+      await setUserStage(sender, "filtro_de_valor");
+    
+      // ⚠️ Sobrescreve o valor atual no Redis para não cair no "num sei"
+      await storeUserResponse(sender, "sondagem", "investimento", valorBruto);
+    
       console.log("⚠️ [DEBUG] Nenhum modelo retornado da API do Bling.");
       await sendBotMessage(sender, "❌ Não conseguimos acessar os modelos disponíveis no momento. Tente novamente mais tarde.");
       return null;
     }
+    
   
     const entradaLimpa = limparFrase(entradaOriginal);
   

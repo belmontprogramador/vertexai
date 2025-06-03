@@ -14,12 +14,12 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // 🔹 Funções para lidar com os caminhos da decisão
 const handlers = {
   salvar_nome_usuario: async (sender, args, extras) => {
-    const { msgContent } = extras;
+    const { msgContent, pushName } = extras; // ✅ agora sim!
     const nome = args.nome;
     await storeNomeUsuario(sender, nome);
     await setUserStage(sender, "rotina_de_demonstracao_de_celular_por_valor");
-    return await rotinaDeDemonstracaoDeCelularPorValor({ sender, msgContent, pushName });;
-  },
+    return await rotinaDeDemonstracaoDeCelularPorValor({ sender, msgContent, pushName });
+  },  
 
   pedir_nome_novamente: async (sender) => {
     await setUserStage(sender, "agente_de_identificação_de_nome");
@@ -55,6 +55,7 @@ const functions = [
 
 // 🔹 Agente principal
 const agenteDeIdentificacaoDeNomeParaTrafego = async ({ sender, msgContent, pushName }) => {
+  await setUserStage(sender, "agente_de_identificação_de_nome");
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4-turbo",
@@ -87,7 +88,7 @@ Regras:
       const args = argsStr ? JSON.parse(argsStr) : {};
 
       if (handlers[name]) {
-        return await handlers[name](sender, args, { msgContent });
+        return await handlers[name](sender, args, { msgContent, pushName });
       }
     }
 

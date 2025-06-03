@@ -272,7 +272,7 @@ const functions = [
   },
   {
     name: "identificarModeloPorNome",
-    description: "Cliente mudou de ideia e pediu um novo modelo.",
+    description: "Cliente mudou de ideia e pediu um novo modelo. se ele usar frases como 'outra opção'",
     parameters: {
       type: "object",
       properties: {}

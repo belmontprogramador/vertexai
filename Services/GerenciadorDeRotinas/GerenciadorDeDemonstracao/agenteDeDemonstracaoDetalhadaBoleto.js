@@ -11,10 +11,11 @@ const { getAllCelulares } = require("../../dbService");
 const { rotinaDeAgendamento } = require("../../GerenciadorDeRotinas/GerenciadorDeAgendamento/rotinaDeAgendamento");
 const OpenAI = require("openai");
 require("dotenv").config();
-const { objeçõesVertex } = require("../../../Services/utils/objecoes");
+const { informacoesPayjoy } = require("../../../Services/utils/informacoesPayjoy");
 const { gatilhosEmocionaisVertex } = require('../../../Services/utils/gatilhosEmocionais'); 
 const { intencaoDataEntregaDesconto } = require('../../../Services/utils/intencaoDataEntregaDesconto');
 const { tomDeVozVertexData } = require("../../utils/tomDeVozVertexData");
+const { objeçõesVertex } = require("../../utils/objecoes");
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -77,7 +78,7 @@ const formatarDescricaoParaCaption = (modelo) => (
     .replace(/\u00A0/g, ' ').replace(/\u200B/g, '').replace(/\r/g, '').replace(/[ \t]+\n/g, '\n').replace(/\n[ \t]+/g, '\n').replace(/\n{3,}/g, '\n\n').trim()
 );
 
-const agenteDeDemonstracaoDetalhada = async ({ sender, msgContent }) => {
+const agenteDeDemonstracaoDetalhadaBoleto = async ({ sender, msgContent }) => {
   const nome = await getNomeUsuario(sender);
   try {
     const entradaAtual = typeof msgContent === "string" ? msgContent : msgContent?.termosRelacionados || "";
@@ -184,6 +185,8 @@ const handlers = {
         Ao final sempre faça perguntas utilizando esse documento como base:
         TOM DE VOZ:
         ${JSON.stringify(tomDeVozVertexData, null, 2)}
+        CORREÇÃO DE OBJÇÃO
+        
         
         `
       },
@@ -260,8 +263,11 @@ const handlers = {
   TOM DE VOZ:
   ${JSON.stringify(tomDeVozVertexData, null, 2)}
   
-  OBJEÇÕES COMUNS:
-  ${JSON.stringify(objeçõesVertex, null, 2).slice(0, 3000)}
+   OBJEÇÕES SOBRE PAYJOY:
+    ${JSON.stringify(informacoesPayjoy).slice(0, 3500)}
+
+    OBJEÇÕES COMUNS:
+    ${JSON.stringify(objeçõesVertex, null, 2).slice(0, 3000)}
   
   GATILHOS EMOCIONAIS:
   ${JSON.stringify(gatilhosEmocionaisVertex, null, 2)}
@@ -274,7 +280,8 @@ const handlers = {
   ## OBJETIVO
   Guiar o cliente até escolher um smartphone da lista apresentada e fechar a venda,
   sempre valorizando experiência, suporte humanizado e diferencial da loja.
-  utilize um tom de voz formal
+  utilize um tom de voz .
+  Sempre, eu disse sempre chame a função mostrarResumoModelo do fechamento de qualquer venda
   
   ## TOM_DE_VOZ (tomDeVozVertex)
   - Saudação acolhedora porém direta.
@@ -293,6 +300,8 @@ const handlers = {
   - Descontos: só R$ 100 à vista, ofereça **após** defender valor.
   - Parcelamento padrão 10×; ofereça 12× **apenas se insistir** muito.
   - Use analogias para comparar serviços (ex.: “comprar só preço é como…”).
+
+  ## OBJEÇÕES SOBRE BOLETO(OBJEÇÕES SOBRE PAYJOY:)
   
   ## REGRAS_DE_ESTILO
   - Nunca comece resposta com saudação completa; a conversa já está em andamento.
@@ -393,7 +402,7 @@ const functions = [
 
  
 module.exports = {
-  agenteDeDemonstracaoDetalhada
+  agenteDeDemonstracaoDetalhadaBoleto
   
 };
 

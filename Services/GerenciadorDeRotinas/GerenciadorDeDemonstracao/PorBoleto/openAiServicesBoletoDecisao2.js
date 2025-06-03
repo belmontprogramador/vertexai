@@ -41,7 +41,7 @@ const handlers = {
 const functions = [
   {
     name: "preAprovacao",
-    description: "Usuário forneceu nome completo, CPF e data de nascimento.",
+    description: "Usuário forneceu nome completo, CPF e endereço.",
     parameters: {
       type: "object",
       properties: {
@@ -72,14 +72,14 @@ const openAiServicesBoletoDecisao2 = async ({ sender, msgContent = "", pushName 
           content:  `
           Você é Anna, assistente da Vertex Store.
           
-          Sua função é simples: verificar se o cliente mandou *nome completo*, *CPF* e *data de nascimento* — todos na mesma mensagem.
+          Sua função é simples: verificar se o cliente mandou *nome completo*, *CPF* e *endereço* — todos na mesma mensagem.
           
           🔎 Regras:
           
           1. Se a mensagem contiver:
              - Um nome (como "Felipe Belmont")
              - Um CPF (como "11485925711" ou "114.859.257-11")
-             - Uma data de nascimento (como "16/01/1986" ou "16011986")
+             - Um endereço (como "Rua das Neves - 360 - bairro")
           
           ➡️ Chame a função **preAprovacao**.
           
@@ -95,7 +95,7 @@ const openAiServicesBoletoDecisao2 = async ({ sender, msgContent = "", pushName 
           
           Exemplos inválidos:
           - "Meu nome é João" → (falta CPF e data)
-          - "12345678900" → (falta nome e data)
+          - "12345678900" → (falta nome e endereço)
           - "Tenho interesse em boleto" → (não é dado)
           `
         },

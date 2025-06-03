@@ -65,6 +65,7 @@ const deleteUserChatHistory = async (userId) => {
 const setUserStage = async (userId, stage) => {
   try {
     await redis.set(`user_stage:${userId}`, stage);
+    await redis.set(`user_stage_time:${userId}`, Date.now());
   } catch (error) {
     console.error(`❌ Erro ao definir estágio do usuário: ${error.message}`);
   }
@@ -489,6 +490,49 @@ const limparMensagensTemporarias = async (senderId) => {
   await redis.del(`buffer:mensagens:${senderId}`);
 };
 
+/**
+ * Retorna todos os usuários que estão atualmente em um stage específico
+ * @param {string} stage Procurar usuários nesse estágio
+ * @returns {Promise<string[]>} Lista de senders (usuários)
+ */
+async function getAllUsuariosComStage(stage) {
+  try {
+    const keys = await redis.keys("stage:*");
+
+    const result = [];
+
+    for (const key of keys) {
+      const sender = key.replace("stage:", "");
+      const value = await redis.get(key);
+
+      if (value === stage) {
+        result.push(sender);
+      }
+    }
+
+    return result;
+  } catch (error) {
+    console.error("❌ Erro ao buscar usuários com stage:", error);
+    return [];
+  }
+}
+
+const getTodosUsuariosComStageESemInteracao = async () => {
+  const stageKeys = await redis.keys("user_stage:*");
+  const usuarios = [];
+
+  for (const stageKey of stageKeys) {
+    const sender = stageKey.replace("user_stage:", "");
+    const stage = await redis.get(stageKey);
+    const ultimaInteracao = await redis.get(`user_last_interaction:${sender}`);
+
+    usuarios.push({ sender, stage, ultimaInteracao });
+  }
+
+  return usuarios;
+};
+
+
 
 module.exports = {
   storeSelectedModel,
@@ -539,5 +583,7 @@ module.exports = {
   setMensagemTemporaria,
   getMensagensTemporarias,
   limparMensagensTemporarias,
+  getAllUsuariosComStage,
+  getTodosUsuariosComStageESemInteracao,
   redis
 };
