@@ -15,6 +15,7 @@ const { objeçõesVertex } = require("../../../Services/utils/objecoes");
 const { gatilhosEmocionaisVertex } = require('../../../Services/utils/gatilhosEmocionais'); 
 const { intencaoDataEntregaDesconto } = require('../../../Services/utils/intencaoDataEntregaDesconto');
 const { tomDeVozVertexData } = require("../../utils/tomDeVozVertexData");
+const { extrairTextoDoQuotedMessage } = require("../../utils/extrairTextoDoQuotedMessage");
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -80,7 +81,17 @@ const formatarDescricaoParaCaption = (modelo) => (
 const agenteDeDemonstracaoDetalhada = async ({ sender, msgContent }) => {
   const nome = await getNomeUsuario(sender);
   try {
-    const entradaAtual = typeof msgContent === "string" ? msgContent : msgContent?.termosRelacionados || "";
+    // 🧠 Captura a mensagem citada, se houver
+    const textoQuoted = extrairTextoDoQuotedMessage(msgContent);
+
+    // 🔤 Normaliza a entrada atual
+    let entradaAtual = typeof msgContent === "string" ? msgContent : msgContent?.termosRelacionados || "";
+
+    // 🧩 Substitui por mensagem citada se for vaga ou indicar "esse"
+    if ((!entradaAtual || entradaAtual.toLowerCase().includes("esse")) && textoQuoted) {
+      entradaAtual = textoQuoted;
+    }
+
     await appendToConversation(sender, entradaAtual);
     const conversaArray = await getConversation(sender);
     const conversaCompleta = conversaArray.map(f => f.replace(/^again\s*/i, "").trim()).slice(-10).join(" | ");
@@ -119,15 +130,21 @@ const agenteDeDemonstracaoDetalhada = async ({ sender, msgContent }) => {
     });
     
     const toolCall = completion.choices[0]?.message?.function_call;
-    if (toolCall) {
-      const { name, arguments: argsStr } = toolCall;
-      const args = argsStr ? JSON.parse(argsStr) : {};
-      const similaridades = await calcularSimilaridadePorEmbeddings(entradaAtual, listaParaPrompt);
-      const modeloEscolhido = similaridades[0];
-      if (handlers[name]) {
-        return await handlers[name](sender, args, { modeloEscolhido, msgContent: entradaAtual });
-      }
-    }
+   if (toolCall) {
+  const { name, arguments: argsStr } = toolCall;
+  const args = argsStr ? JSON.parse(argsStr) : {};
+  const similaridades = await calcularSimilaridadePorEmbeddings(entradaAtual, listaParaPrompt);
+  const modeloEscolhido = similaridades[0];
+
+  if (handlers[name]) {
+    return await handlers[name](sender, args, {
+      modeloEscolhido,
+      msgContent,
+      pushName: nome // ou undefined se pushName não for passado aqui
+    });
+  }
+}
+
     
 
     const similaridades = await calcularSimilaridadePorEmbeddings(entradaAtual, listaParaPrompt);
@@ -145,7 +162,6 @@ const agenteDeDemonstracaoDetalhada = async ({ sender, msgContent }) => {
 const handlers = {
   fecharVenda: async (sender, args, extras) => {
     const { modeloEscolhido, pushName, msgContent } = extras;
-    await sendBotMessage(sender, `🎯 Perfeito! Vamos agendar agora sua visita para garantir seu ${modeloEscolhido.nome}.`);
     return await rotinaDeAgendamento({ sender, msgContent, pushName });
   },
   mostrarResumoModelo: async (sender, args, extras) => {

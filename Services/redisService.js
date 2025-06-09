@@ -532,6 +532,19 @@ const getTodosUsuariosComStageESemInteracao = async () => {
   return usuarios;
 };
 
+const salvarMensagemCitada = async ({ instanceId, messageId, dados }) => {
+  const chave = `mensagem:enviada:${instanceId}:${messageId}`;
+  await redis.hset(chave, dados);
+  await redis.expire(chave, 60 * 60 * 72); // TTL de 24h
+};
+
+const recuperarMensagemCitada = async ({ instanceId, quotedMsgId }) => {
+  const chave = `mensagem:enviada:${instanceId}:${quotedMsgId}`;
+  const dados = await redis.hgetall(chave);
+  return Object.keys(dados).length > 0 ? dados : null;
+};
+
+
 
 
 module.exports = {
@@ -585,5 +598,7 @@ module.exports = {
   limparMensagensTemporarias,
   getAllUsuariosComStage,
   getTodosUsuariosComStageESemInteracao,
+  salvarMensagemCitada,
+  recuperarMensagemCitada,
   redis
 };

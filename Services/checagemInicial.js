@@ -27,7 +27,7 @@ const { rotinaDeDemonstracaoDeCelularPorValor } = require("./GerenciadorDeRotina
 const { filtroDeValor } = require("./GerenciadorDeRotinas/GerenciadorDeDemonstracao/PorValor/filtroDeValor");
 const { agenteDeDemonstracaoPorValor } = require("./GerenciadorDeRotinas/GerenciadorDeDemonstracao/PorValor/agenteDeDemonstracaoPorValor");
 const { identificarModeloPorValor } = require("./GerenciadorDeRotinas/GerenciadorDeDemonstracao/PorValor/identificarModeloPorValor");
-const { identificarModeloPorNomePosDemonstraçãoPorValor } = require("./GerenciadorDeRotinas/GerenciadorDeDemonstracao/PorValor/identificarModeloPorNomePosDemonstraçãoPorBoleto");
+const { identificarModeloPorNomePosDemonstraçãoPorValor } = require("./GerenciadorDeRotinas/GerenciadorDeDemonstracao/PorValor/identificarModeloPorNomePosDemonstraçãoPorValor");
 
 
 //Rotina de Demonstração por Nome
@@ -54,14 +54,8 @@ const { agenteDeDemonstracaoPosDecisaoPorBoleto } = require("./GerenciadorDeRoti
 const { rotinaDeAgendamento } = require("./GerenciadorDeRotinas/GerenciadorDeAgendamento/rotinaDeAgendamento");
 
 
-
-
-
- 
-
-
-const checagemInicial = async (sender, msgContent, pushName) => {
-    const cleanedContent = msgContent.replace(/^again\s*/i, "").trim().toLowerCase();
+const checagemInicial = async (sender, msgContent, pushName, messageId,quotedMessage) => {
+    const cleanedContent = msgContent.replace(/^again\s*/i, "").trim() 
 
     let novoStage;
 
@@ -70,10 +64,17 @@ const checagemInicial = async (sender, msgContent, pushName) => {
         novoStage = "primeiro_atendimento"
         console.log(`🎯 [DEBUG] Executando switch para stage: ${novoStage}`);
         return;
-    } else {
+    
+    }  else {
         novoStage = await validarFluxoInicial(sender, msgContent, pushName);
+    
+        if (novoStage === "ignorar") {
+            console.log("🛡️ [DEBUG] Mensagem descartada silenciosamente por bloqueio temporário.");
+            return; // <-- ignora completamente a mensagem
+        }
+    
         console.log(`🎯 [DEBUG] Executando switch para stage: ${novoStage}`);
-    }   
+    } 
 
     switch (novoStage) {
 
@@ -110,13 +111,13 @@ const checagemInicial = async (sender, msgContent, pushName) => {
         case "rotina_de_demonstracao_de_celular_por_valor":
             return await rotinaDeDemonstracaoDeCelularPorValor({sender, msgContent, pushName});
         case "filtro_de_valor":
-            return await filtroDeValor({sender, msgContent, pushName});            
+            return await filtroDeValor({sender, msgContent, pushName, messageId });            
         case "agente_de_demonstraçao_por_valor":
             return await agenteDeDemonstracaoPorValor({sender, msgContent, pushName});             
         case "identificar_modelo_por_valor":
             return await identificarModeloPorValor({sender, msgContent, pushName});
         case "identificar_modelo_por_nome_pos_demonstração_por_valor":
-            return await identificarModeloPorNomePosDemonstraçãoPorValor({sender, msgContent, pushName});
+            return await identificarModeloPorNomePosDemonstraçãoPorValor({sender, msgContent, pushName, quotedMessage });
             
             
         //Rotina de Demonstração Por Nome
@@ -125,7 +126,7 @@ const checagemInicial = async (sender, msgContent, pushName) => {
         case "identificar_modelo_por_nome":
             return await identificarModeloPorNome({ sender, msgContent, pushName });  
         case "identificar_modelo_por_nome_pos_demonstração":
-            return await identificarModeloPorNomePosDemonstração({ sender, msgContent, pushName });         
+            return await identificarModeloPorNomePosDemonstração({ sender, msgContent, pushName, quotedMessage });         
         case "agente_de_demonstração_por_nome":
             return await agenteDeDemonstracaoPorNome({ sender, msgContent, pushName });
         case "aguardando_decisao_pos_demonstração":
@@ -155,7 +156,7 @@ const checagemInicial = async (sender, msgContent, pushName) => {
         case "agente_de_demonstracao_por_nome_por_boleto" :
             return await  agenteDeDemonstracaoPorNomePorBoleto({ sender, msgContent, pushName, modeloMencionado: "" });
         case "agente_de_demonstracao_pos_decisao_por_boleto" :
-            return await  agenteDeDemonstracaoPosDecisaoPorBoleto({ sender, msgContent, pushName, modeloMencionado: "" });
+            return await  agenteDeDemonstracaoPosDecisaoPorBoleto({ sender, msgContent, pushName, modeloMencionado: "",quotedMessage });
             // agenteDeDemonstracaoPosDecisaoPorBoleto
  
         //Rotina de Agendamento

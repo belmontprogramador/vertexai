@@ -105,7 +105,7 @@ const functions = [
   },
   {
     name: "consultarParcelamento",
-    description: "Quando o usuário fala sobre formas de pagamento como crediário, parcelamento, 'em quantas vezes', 'parcelar no boleto' ou 'tenho nome sujo, consigo comprar?' ou digita 3. ✅ Essa função sempre tem prioridade se o usuário mencionar também um modelo de celular na mesma frase.",
+    description: "Quando o usuário fala sobre formas de pagamento como crediário, parcelamento, 'em quantas vezes', 'parcelar no boleto' ou 'tenho nome sujo, consigo comprar?' ou digita 2. ✅ Essa função sempre tem prioridade se o usuário mencionar também um modelo de celular na mesma frase.",
     parameters: {
       type: "object",
       properties: {

@@ -68,10 +68,10 @@ Use linguagem humanizada e objetiva.`
   }
 
   // Envia o resumo para o número da loja/supervisor
-  await sendBotMessage("5522998668966", `📋 *Resumo do atendimento (${sender})*\n\n${resumoFinal}`);
+  await sendBotMessage("5521983735922", `📋 *Resumo do atendimento (${sender})*\n\n${resumoFinal}`);
 
   // Continua o fluxo normal com o cliente
-  await sendBotMessage(sender, `Então ${nomeCliente} para quando planeja fazer sua compra?`);
+  await sendBotMessage(sender, `Perfeito vou te encaminhar parao setor de agendamento`);
 };
 
 module.exports = { rotinaDeAgendamento };

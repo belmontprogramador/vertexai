@@ -11,6 +11,9 @@ const {
 
 const { getAllCelulares } = require("../../../dbService");
 const extrairNumeroDeTexto = require("./extratoNumeroDeTexto");
+const { extrairTextoDoQuotedMessage } = require("../../../utils/extrairTextoDoQuotedMessage");
+
+ 
 
 const obterModelosDoBling = async () => {
   try {
@@ -63,7 +66,21 @@ const obterModelosDoBling = async () => {
   }
 };
 
-const agenteDeDemonstracaoPorValor = async ({ sender, pushName, valorBruto }) => {
+const agenteDeDemonstracaoPorValor = async ({ sender, pushName, valorBruto, msgContent}) => {
+  const quotedTexto = extrairTextoDoQuotedMessage(msgContent);
+
+let textoDeReferencia =
+  msgContent?.conversation ||
+  msgContent?.extendedTextMessage?.text ||
+  "";
+
+if ((!textoDeReferencia || textoDeReferencia.toLowerCase().includes("esse")) && quotedTexto) {
+  console.log("📎 Substituindo texto do cliente pela legenda da mensagem citada:");
+  console.log("🔁 Antes:", textoDeReferencia);
+  console.log("✅ Depois:", quotedTexto);
+  textoDeReferencia = quotedTexto;
+}
+
   try {
     const respostas = await getUserResponses(sender, "sondagem");
     const valorTexto = valorBruto || respostas?.investimento || "";

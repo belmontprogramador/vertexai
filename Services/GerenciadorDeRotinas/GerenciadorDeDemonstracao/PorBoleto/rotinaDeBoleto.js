@@ -14,13 +14,15 @@ const rotinaDeBoleto = async ({ sender, msgContent, pushName }) => {
       phone: `+${sender}`
     });
 
-    // Envia mensagem com template literal para suportar várias linhas
-    await sendBotMessage(
-      sender,
-      `Sim ${nome} fazemos opção de crediário! Temos um *ÍNDICE ALTÍSSIMO DE APROVAÇÃO*. Não precisa de renda comprovada, é uma forma muito bacana de comprar um telefone sem ter cartão de crédito. 
+    await sendBotMessage(sender, {
+      imageUrl: "https://imagensvertex.felipebelmont.com/wp-content/uploads/2025/06/Imagem-do-WhatsApp-de-2025-06-05-as-18.10.01_9a71d5d5.jpg", // coloque sua URL real aqui
+      caption:`Sim ${nome} fazemos opção de crediário! Temos um *ÍNDICE ALTÍSSIMO DE APROVAÇÃO*. Não precisa de renda comprovada, é uma forma muito bacana de comprar um telefone sem ter cartão de crédito. 
 
 Só precisamos de uma pequena entrada, um Chip e documento de identificação na hora da compra.`
-    );   
+    });
+    
+    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      await delay(1000);       
 
     await sendBotMessage(
       sender,

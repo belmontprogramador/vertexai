@@ -5,6 +5,7 @@ const {
 } = require("../../../redisService");
 const { pipelineConhecendoALoja } = require("../../../ServicesKommo/pipelineConecendoALoja");
 const { agenteDeDemonstracaoPorValor } = require("./agenteDeDemonstracaoPorValor");
+const { registrarOuAtualizarMensagem } = require("../../../GerenciadorDeRotinas/messages/mensagemEnviadaService");
 
 // 🔤 Remove o prefixo "again" da mensagem, se existir
 function limparPrefixoAgain(texto) {
@@ -14,21 +15,24 @@ function limparPrefixoAgain(texto) {
   return texto;
 }
 
-const filtroDeValor = async ({ sender, msgContent, pushName }) => {
+const filtroDeValor = async ({ sender, msgContent, pushName,  messageId}) => {
   try {
-    // Define o stage atual do usuário
     await setUserStage(sender, "agente_de_demonstraçao_por_valor");
 
-    // 🔤 Limpa o conteúdo antes de salvar e utilizar
     const respostaLimpa = limparPrefixoAgain(msgContent);
 
-    // Armazena o valor informado pelo usuário dentro da rotina de sondagem
     await storeUserResponse(sender, "sondagem", "investimento", respostaLimpa);
-
-    // Atualiza o lead para o estágio "Conhecendo a loja"
     await pipelineConhecendoALoja(`+${sender}`);
 
-    // Chama o agente que mostra os modelos por faixa de valor
+    // 🧠 Grava ou atualiza no banco a mensagem do usuário
+    await registrarOuAtualizarMensagem({
+      telefone: sender,                      // sender já é o número
+      conteudo: msgContent,                  // msgContent é o texto do usuário
+      tipo: "TEXTO",
+      mensagemExternaId: messageId,
+    });   
+    
+
     return await agenteDeDemonstracaoPorValor({ sender, pushName, valorBruto: respostaLimpa });
   } catch (error) {
     console.error("❌ Erro na rotinaDeDemonstracaoPorValor:", error);

@@ -4,25 +4,24 @@ const {
   appendToConversation,
   getConversation,
   getNomeUsuario,
-  getUserStage
+  getUserStage,
+  salvarMensagemCitada,
+  recuperarMensagemCitada
 } = require("../../../redisService");
- 
-const { agenteDeDemonstracaoPorNomePorBoleto } = require("./agenteDeDemonstracaoPorNomePorBoleto");
-const { informacoesPayjoy } = require("../../../utils/informacoesPayjoy");
+
+const { agenteDeDemonstracaoDetalhada } = require("../agenteDeDemonstracaoDetalhada"); 
+const { objeçõesVertex } = require("../../../utils/objecoes");
 const { gatilhosEmocionaisVertex } = require('../../../utils/gatilhosEmocionais');
 const { tomDeVozVertex } = require('../../../utils/tomDeVozVertex');
-const { objeçõesVertex } = require("../../../utils/objecoes");
-const { rotinaDeAgendamento } = require("../../GerenciadorDeAgendamento/rotinaDeAgendamento");
-
-
-const {getAllCelulareBoleto } = require('../../../dbService')
+// const { rotinaDeAgendamento } = require("../../../GerenciadorDeRotinas/GerenciadorDeAgendamento/rotinaDeAgendamento");
+const { getAllCelulares } = require('../../../dbService')
 
 const OpenAI = require("openai");
 require("dotenv").config();
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const agenteDeDemonstracaoPosDecisaoPorBoleto = async ({ sender, msgContent, pushName, quotedMessage }) => {
+const identificarModeloPorNomePosDemonstraçãoPorValor = async ({ sender, msgContent, pushName, quotedMessage }) => {
   try {
     await setUserStage(sender, "identificar_modelo_por_nome_pos_demonstração_por_valor");
     
@@ -108,12 +107,13 @@ Histórico: ${conversaCompleta}`
   }
 };
 
+
 const handlers = {
-  demonstracaoDetalhadaBoleto: async (sender, args, extras) => {
-    await setUserStage(sender, "agente_de_demonstração_detalhada_boleto");
+  demonstracaoDetalhada: async (sender, args, extras) => {
+    await setUserStage(sender, "agente_de_demonstração_detalhada");
     const novoStage = await getUserStage(sender);
     await sendBotMessage(sender, novoStage);
-    return await  rotinaDeAgendamento ({
+    return await  agenteDeDemonstracaoDetalhada ({
       sender,
       msgContent: extras.msgContent,
       pushName: extras.pushName,
@@ -121,7 +121,7 @@ const handlers = {
     });
   },
   responderDuvida: async (sender, _args, extras) => {
-    await setUserStage(sender, "agente_de_demonstracao_pos_decisao_por_boleto");
+    await setUserStage(sender, "identificar_modelo_por_nome_pos_demonstração_por_valor");
 
     const { msgContent, quotedMessage } = extras;
     console.log("📩 Conteúdo recebido:", { msgContent, quotedMessage });
@@ -153,22 +153,19 @@ const handlers = {
       .slice(-10)
       .join(" | ");
 
-    const modelosBanco = await getAllCelulareBoleto();
+    const modelosBanco = await getAllCelulares();
     const nome = await getNomeUsuario(sender);
 
     const modelosRecentes = historico
-  .filter(m => m.startsWith("modelo_sugerido_json:") || m.startsWith("modelo_sugerido:"))
-  .map(m => {
-    try {
-      return m.startsWith("modelo_sugerido_json:")
-        ? JSON.parse(m.replace("modelo_sugerido_json: ", ""))
-        : { nome: m.replace("modelo_sugerido: ", ""), descricaoCurta: "(descrição não disponível)", preco: 0 };
-    } catch {
-      return null;
-    }
-  })
-  .filter(Boolean);
-
+      .filter(m => m.startsWith("modelo_sugerido_json:"))
+      .map(m => {
+        try {
+          return JSON.parse(m.replace("modelo_sugerido_json: ", ""));
+        } catch (err) {
+          return null;
+        }
+      })
+      .filter(Boolean);
 
     const mapaUnico = new Map();
     for (const modelo of modelosRecentes.reverse()) {
@@ -195,9 +192,6 @@ const handlers = {
     
     OBJEÇÕES COMUNS:
     ${JSON.stringify(objeçõesVertex, null, 2).slice(0, 3000)}
-
-       OBJEÇÕES SOBRE PAYJOY:
-    ${JSON.stringify(informacoesPayjoy).slice(0, 3500)}
     
     GATILHOS EMOCIONAIS:
     ${JSON.stringify(gatilhosEmocionaisVertex, null, 2)}
@@ -226,8 +220,6 @@ const handlers = {
   - Descontos: só R$ 100 à vista, ofereça **após** defender valor.
   - Parcelamento padrão 10×; ofereça 12× **apenas se insistir** muito.
   - Use analogias para comparar serviços (ex.: “comprar só preço é como…”).
-
-   ## OBJEÇÕES DE DUVIDAS SOBRE BOLETO(OBJEÇÕES SOBRE PAYJOY:)
 
   ## REGRAS_DE_ESTILO
   - Nunca comece com saudação completa; a conversa já está em andamento.
@@ -263,18 +255,14 @@ const handlers = {
     }
 
     return await sendBotMessage(sender, respostaFinal);
-  },
-  identificarModeloPorNome: async (sender, _args, { msgContent, pushName }) => {
-    await setUserStage(sender, "agente_de_demonstracao_por_nome_por_boleto");
-    const novoStage = await getUserStage(sender);
-    await sendBotMessage(sender, novoStage);
-    return await agenteDeDemonstracaoPorNomePorBoleto({ sender, msgContent, pushName });
   }
+
+   
 };
 
 const functions = [
   {
-    name: "demonstracaoDetalhadaBoleto",
+    name: "demonstracaoDetalhada",
     description: "Chama a função para mostrar o modelo que o usuário escolheu.",
     parameters: {
       type: "object",
@@ -298,14 +286,7 @@ const functions = [
       required: ["resposta"]
     }
   },
-  {
-    name: "identificarModeloPorNome",
-    description: "Cliente mudou de ideia e pediu um novo modelo.",
-    parameters: {
-      type: "object",
-      properties: {}
-    }
-  }
+  
 ];
 
-module.exports = { agenteDeDemonstracaoPosDecisaoPorBoleto };
+module.exports = { identificarModeloPorNomePosDemonstraçãoPorValor };

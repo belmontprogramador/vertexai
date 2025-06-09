@@ -5,6 +5,9 @@ const OpenAI = require("openai");
 require("dotenv").config();
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+const { estaBloqueado, setBloqueio } = require("../../../utils/bloqueioTemporario");
+
+
 // 🔹 Handlers
 const handlers = {
   preAprovacao: async (sender, args) => {
@@ -13,9 +16,12 @@ const handlers = {
     await setUserStage(sender, "open_ai_services_duvidas_boleto");
     const nome = await getNomeUsuario(sender);
     await sendBotMessage (sender, `${nome} aguarda um minutinho que eu vou verificar e ja volto aqui`)
+
+    setBloqueio(sender);
+
   
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-    await delay(20000); // ⏳ Espera 20 segundos
+    await delay(40000); // ⏳ Espera 20 segundos
   
     const frases = [`🔥 Corre na loja, ${nome}! 🚀 Sua análise bateu aprovação altíssima. ⏰ Que horário você consegue chegar?💜`,
                     `🚀 Corre na loja, ${nome}! 🤩 Chegou agora: grau de aprovação lá em cima. 🕒 Quando pode vir?💜`,
@@ -61,11 +67,18 @@ const functions = [
 
 // 🔹 Agente principal
 const openAiServicesBoletoDecisao2 = async ({ sender, msgContent = "", pushName = "" }) => {
+  if (estaBloqueado(sender)) {
+    console.log(`⏳ Ignorando mensagem de ${sender} ainda em período de bloqueio.`);
+    return;
+  }
+  
+  // Dentro de preAprovacao:
+  setBloqueio(sender); // ativa bloqueio
   try {
     await setUserStage(sender, "open_ai_services_boleto_decisao_2");
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4-turbo",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",

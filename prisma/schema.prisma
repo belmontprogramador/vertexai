@@ -90,3 +90,27 @@ model UserSistem {
   createdAt DateTime @default(now())
 updatedAt DateTime @updatedAt
 }
+
+///////////////////////////////
+
+model Usuario {
+  id        String             @id @default(uuid())
+  telefone  String             @unique
+  criadoEm  DateTime           @default(now())
+
+  mensagens MensagemEnviada[]  @relation("UsuarioMensagens")
+}
+
+model MensagemEnviada {
+  id                String   @id @default(uuid())
+  conteudo          String
+  tipo              String
+  mensagemExternaId String? @unique // opcional e único (pra evitar duplicata)
+  criadoEm          DateTime @default(now())
+
+  usuarioId String
+  usuario   Usuario  @relation("UsuarioMensagens", fields: [usuarioId], references: [id])
+}
+
+
+

@@ -9,7 +9,7 @@ const {
   redis
 } = require("../redisService");
 
-const {testeDeEnvio} = require("./testeDeEnvio")
+const { estaBloqueado, setBloqueio } = require("../utils/bloqueioTemporario");
 
 /**
  * 📌 Valida mensagem recebida e define novo stage com base na lógica do fluxo
@@ -44,14 +44,24 @@ const validarFluxoInicial = async (sender, msgContent, pushName) => {
     await setUserStage(sender, "rotina_captura_de_nome");
     return "rotina_captura_de_nome";
   }
+
+  // 🛡️ Ignora mensagens se ainda estiver dentro da "espera do boleto"
+  if (stageAtual === "open_ai_services_duvidas_boleto") {
+    if (estaBloqueado(sender)) {
+      console.log("⏳ Ignorando porque está bloqueado no fluxo de boleto.");
+      return "ignorar";
+    }
+     
+  }
+
   
   
   // 🔄 Tempo expirado
-  if (!lastInteraction || currentTime - lastInteraction > CHECK_TIME_LIMIT) {
-    await setStageHistory(sender, stageAtual);
-    await setUserStage(sender, "reinicio_de_atendimento");
-    return "reinicio_de_atendimento";
-  }
+  // if (!lastInteraction || currentTime - lastInteraction > CHECK_TIME_LIMIT) {
+  //   await setStageHistory(sender, stageAtual);
+  //   await setUserStage(sender, "reinicio_de_atendimento");
+  //   return "reinicio_de_atendimento";
+  // }
 
   // ✅ Resposta SIM → vai para sondagem
   if (cleanedContent === "sim") {

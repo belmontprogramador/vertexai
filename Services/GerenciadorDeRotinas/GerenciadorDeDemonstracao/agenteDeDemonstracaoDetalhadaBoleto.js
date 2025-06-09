@@ -7,20 +7,20 @@ const {
   getNomeUsuario,
   getUserStage,
 } = require("../../redisService");
-const { getAllCelulares } = require("../../dbService");
+const {getAllCelulareBoleto } = require("../../dbService");
 const { rotinaDeAgendamento } = require("../../GerenciadorDeRotinas/GerenciadorDeAgendamento/rotinaDeAgendamento");
 const OpenAI = require("openai");
 require("dotenv").config();
-const { informacoesPayjoy } = require("../../../Services/utils/informacoesPayjoy");
+const { objeçõesVertex } = require("../../../Services/utils/objecoes");
 const { gatilhosEmocionaisVertex } = require('../../../Services/utils/gatilhosEmocionais'); 
 const { intencaoDataEntregaDesconto } = require('../../../Services/utils/intencaoDataEntregaDesconto');
 const { tomDeVozVertexData } = require("../../utils/tomDeVozVertexData");
-const { objeçõesVertex } = require("../../utils/objecoes");
+const { extrairTextoDoQuotedMessage } = require("../../utils/extrairTextoDoQuotedMessage");
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const obterModelosDoBling = async () => {
-  const celulares = await getAllCelulares();
+  const celulares = await getAllCelulareBoleto();
 
   const termosIgnorados = [
     "BLACK", "WHITE", "BLUE", "GREEN", "GOLD", "PURPLE", "SILVER", "CORAL",
@@ -81,7 +81,17 @@ const formatarDescricaoParaCaption = (modelo) => (
 const agenteDeDemonstracaoDetalhadaBoleto = async ({ sender, msgContent }) => {
   const nome = await getNomeUsuario(sender);
   try {
-    const entradaAtual = typeof msgContent === "string" ? msgContent : msgContent?.termosRelacionados || "";
+    // 🧠 Captura a mensagem citada, se houver
+    const textoQuoted = extrairTextoDoQuotedMessage(msgContent);
+
+    // 🔤 Normaliza a entrada atual
+    let entradaAtual = typeof msgContent === "string" ? msgContent : msgContent?.termosRelacionados || "";
+
+    // 🧩 Substitui por mensagem citada se for vaga ou indicar "esse"
+    if ((!entradaAtual || entradaAtual.toLowerCase().includes("esse")) && textoQuoted) {
+      entradaAtual = textoQuoted;
+    }
+
     await appendToConversation(sender, entradaAtual);
     const conversaArray = await getConversation(sender);
     const conversaCompleta = conversaArray.map(f => f.replace(/^again\s*/i, "").trim()).slice(-10).join(" | ");
@@ -120,15 +130,21 @@ const agenteDeDemonstracaoDetalhadaBoleto = async ({ sender, msgContent }) => {
     });
     
     const toolCall = completion.choices[0]?.message?.function_call;
-    if (toolCall) {
-      const { name, arguments: argsStr } = toolCall;
-      const args = argsStr ? JSON.parse(argsStr) : {};
-      const similaridades = await calcularSimilaridadePorEmbeddings(entradaAtual, listaParaPrompt);
-      const modeloEscolhido = similaridades[0];
-      if (handlers[name]) {
-        return await handlers[name](sender, args, { modeloEscolhido, msgContent: entradaAtual });
-      }
-    }
+   if (toolCall) {
+  const { name, arguments: argsStr } = toolCall;
+  const args = argsStr ? JSON.parse(argsStr) : {};
+  const similaridades = await calcularSimilaridadePorEmbeddings(entradaAtual, listaParaPrompt);
+  const modeloEscolhido = similaridades[0];
+
+  if (handlers[name]) {
+    return await handlers[name](sender, args, {
+      modeloEscolhido,
+      msgContent,
+      pushName: nome // ou undefined se pushName não for passado aqui
+    });
+  }
+}
+
     
 
     const similaridades = await calcularSimilaridadePorEmbeddings(entradaAtual, listaParaPrompt);
@@ -146,7 +162,6 @@ const agenteDeDemonstracaoDetalhadaBoleto = async ({ sender, msgContent }) => {
 const handlers = {
   fecharVenda: async (sender, args, extras) => {
     const { modeloEscolhido, pushName, msgContent } = extras;
-    await sendBotMessage(sender, `🎯 Perfeito! Vamos agendar agora sua visita para garantir seu ${modeloEscolhido.nome}.`);
     return await rotinaDeAgendamento({ sender, msgContent, pushName });
   },
   mostrarResumoModelo: async (sender, args, extras) => {
@@ -185,8 +200,6 @@ const handlers = {
         Ao final sempre faça perguntas utilizando esse documento como base:
         TOM DE VOZ:
         ${JSON.stringify(tomDeVozVertexData, null, 2)}
-        CORREÇÃO DE OBJÇÃO
-        
         
         `
       },
@@ -225,11 +238,11 @@ const handlers = {
     await appendToConversation(sender, `modelo_sugerido_json: ${JSON.stringify(modelo)}`);
   },
   responderDuvida: async (sender, _args, extras) => {
-    await setUserStage(sender, "agente_de_demonstração_detalhada");
+    await setUserStage(sender, "agente_de_demonstração_detalhada_boleto");
   
     const historico = await getConversation(sender);
     const conversaCompleta = historico.map(f => f.replace(/^again\s*/i, "").trim()).slice(-10).join(" | ");
-    const modelosBanco = await getAllCelulares();
+    const modelosBanco = await getAllCelulareBoleto();
     const nome = await getNomeUsuario(sender);
   
     const nomesHistorico = historico
@@ -263,11 +276,8 @@ const handlers = {
   TOM DE VOZ:
   ${JSON.stringify(tomDeVozVertexData, null, 2)}
   
-   OBJEÇÕES SOBRE PAYJOY:
-    ${JSON.stringify(informacoesPayjoy).slice(0, 3500)}
-
-    OBJEÇÕES COMUNS:
-    ${JSON.stringify(objeçõesVertex, null, 2).slice(0, 3000)}
+  OBJEÇÕES COMUNS:
+  ${JSON.stringify(objeçõesVertex, null, 2).slice(0, 3000)}
   
   GATILHOS EMOCIONAIS:
   ${JSON.stringify(gatilhosEmocionaisVertex, null, 2)}
@@ -280,8 +290,7 @@ const handlers = {
   ## OBJETIVO
   Guiar o cliente até escolher um smartphone da lista apresentada e fechar a venda,
   sempre valorizando experiência, suporte humanizado e diferencial da loja.
-  utilize um tom de voz .
-  Sempre, eu disse sempre chame a função mostrarResumoModelo do fechamento de qualquer venda
+  utilize um tom de voz formal
   
   ## TOM_DE_VOZ (tomDeVozVertex)
   - Saudação acolhedora porém direta.
@@ -300,8 +309,6 @@ const handlers = {
   - Descontos: só R$ 100 à vista, ofereça **após** defender valor.
   - Parcelamento padrão 10×; ofereça 12× **apenas se insistir** muito.
   - Use analogias para comparar serviços (ex.: “comprar só preço é como…”).
-
-  ## OBJEÇÕES SOBRE BOLETO(OBJEÇÕES SOBRE PAYJOY:)
   
   ## REGRAS_DE_ESTILO
   - Nunca comece resposta com saudação completa; a conversa já está em andamento.

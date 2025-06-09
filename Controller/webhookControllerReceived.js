@@ -6,9 +6,13 @@ const { checagemInicial } = require("../Services/checagemInicial");
 const { agenteDeTranscricao } = require("../Services/agenteDeTranscricao");
 const { isBotPausado, setPrimeiraInteracao, getPrimeiraInteracao } = require("../Services/redisService");
 const { DateTime } = require("luxon");
+const {sendBotMessage} = require('../Services/messageSender')
+const { extrairTextoDoQuotedMessage } = require("../Services/utils/extrairTextoDoQuotedMessage"); 
 
 const webhookControllerReceived = async (req, res) => {
   try {
+    console.log("📥 Webhook recebido:");
+// console.dir(req.body, { depth: null });
     const { messageId, sender, msgContent, mediaUrl } = req.body;
     const pushName = sender?.pushName;
     const senderId = sender?.id;
@@ -27,40 +31,18 @@ const webhookControllerReceived = async (req, res) => {
       msgContent?.conversation?.trim() ||
       msgContent?.extendedTextMessage?.text?.trim();
 
-    const isAudio = msgContent?.audioMessage;
+    // const isAudio = msgContent?.audioMessage;
+    
 
-    if (mediaUrl && isAudio) {
-      console.log("🎧 Áudio recebido! Iniciando download e transcrição...");
-
-      try {
-        const tempDir = path.join(__dirname, "..", "temp");
-        if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
-
-        const audioPath = path.join(tempDir, `${messageId}.oga`);
-        const writer = fs.createWriteStream(audioPath);
-
-        const response = await axios.get(mediaUrl, { responseType: "stream" });
-        await new Promise((resolve, reject) => {
-          response.data.pipe(writer);
-          writer.on("finish", resolve);
-          writer.on("error", reject);
-        });
-
-        const stats = fs.statSync(audioPath);
-        if (stats.size === 0) {
-          fs.unlinkSync(audioPath);
-          throw new Error("Arquivo de áudio vazio.");
-        }
-
-        content = await agenteDeTranscricao(audioPath);
-        console.log("📝 Transcrição feita:", content);
-
-        fs.unlinkSync(audioPath);
-      } catch (err) {
-        console.error("❌ Erro ao processar áudio:", err.message);
-        return res.status(500).json({ error: "Erro ao processar o áudio." });
-      }
-    }
+    //   if (isAudio) {
+    //     console.log("🎧 Áudio recebido! Ignorando e pedindo texto...");
+      
+    //     await sendBotMessage(senderId, "No momento não estamos ouvindo áudio, pode digitar por favor?");
+    //     return res.status(200).json({
+    //       message: "No momento não estamos ouvindo áudio, pode digitar por favor?",
+    //     });
+    //   }
+      
 
     // 🧾 Garante que a primeira interação seja registrada SEMPRE
     await setPrimeiraInteracao(senderId);
@@ -71,7 +53,7 @@ const webhookControllerReceived = async (req, res) => {
 
     console.log(`📅 Primeira interação registrada de ${senderId} em: ${dataFormatada}`);
 
-    const DATA_LIMITE = DateTime.fromISO("2025-06-03T11:20:00", {
+    const DATA_LIMITE = DateTime.fromISO("2025-06-04T09:52:00", {
       zone: "America/Sao_Paulo",
     }).toMillis();
 
@@ -86,8 +68,17 @@ const webhookControllerReceived = async (req, res) => {
       return res.status(200).json({ message: "Mensagem ignorada (sem 'again')." });
     }
 
+     
+
+    const quotedMessage = extrairTextoDoQuotedMessage(msgContent);
+    if (quotedMessage) {
+      console.log("📎 Mensagem citada capturada dentro do controller:", quotedMessage);
+    }
+    
+
+
     console.log("🧠 Conteúdo pronto para checagem:", content);
-    await checagemInicial(senderId, content, pushName);
+    await checagemInicial(senderId, content, pushName, messageId, quotedMessage);
 
     return res.json({ message: "Mensagem processada com sucesso!" });
 

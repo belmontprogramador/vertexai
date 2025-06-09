@@ -26,10 +26,16 @@ const webhookControllerSent = async (req, res) => {
       return res.status(200).json({ message: "Mensagem sem texto ignorada." });
     }
 
-    const comando = content.toLowerCase().trim();
+    const comando = content
+  .toLowerCase()
+  .normalize("NFD") // remove acentos
+  .replace(/[\u0300-\u036f]/g, "")
+  .replace(/[^\w\s]/gi, "") // remove pontuação
+  .trim();
+
 
     // ⚙️ Pausar e retomar o bot com base na mensagem enviada
-    if (comando === "Vou chamar outro atendente") {
+    if (comando === "vou chamar outro atendente") {
       await pausarBotGlobalmente();
       console.log("🛑 Bot pausado via mensagem enviada.");
     }
