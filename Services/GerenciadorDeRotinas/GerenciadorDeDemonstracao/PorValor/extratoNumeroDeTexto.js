@@ -53,24 +53,40 @@ function extrairNumeroDeTexto(textoOriginal) {
     .replace(/\s+/g, " ")
     .trim();
 
-  // 1. Caso especial: "1,5 mil", "2.3 mil", etc
+  // Caso especial: "1,5 mil", "2.3 mil", etc
   const matchMilhar = texto.match(/(\d+(?:[.,]\d+)?)\s*mil\b/);
   if (matchMilhar) {
     const numero = parseFloat(matchMilhar[1].replace(",", "."));
     if (!isNaN(numero)) return Math.round(numero * 1000);
   }
 
-  // 2. Extrai número direto: "1.500,00", "2500", "3.299"
+  // Caso especial: número colado com mil (ex: "1700mil")
+  const matchComMil = texto.match(/(\d+(?:[.,]\d+)?)mil\b/);
+  if (matchComMil) {
+    const numero = parseFloat(matchComMil[1].replace(",", "."));
+    if (!isNaN(numero)) return Math.round(numero * 1000);
+  }
+
+  // Extrai número direto: "1.500,00", "2500", "1,700", "3.299"
   const matchNumerico = texto.match(/[\d.,]+/g);
   if (matchNumerico) {
-    const limpo = matchNumerico[0]
-      .replace(/\.(?=\d{3})/g, "") // remove pontos de milhar
-      .replace(",", "."); // trata vírgula como decimal
-    const numero = parseFloat(limpo);
+    let valor = matchNumerico[0];
+
+    // Trata caso "1,700" → "1700"
+    if (/^\d{1,3},\d{3}$/.test(valor)) {
+      valor = valor.replace(",", "");
+    }
+
+    // Remove ponto se for milhar, transforma vírgula em ponto se for decimal
+    valor = valor
+      .replace(/\.(?=\d{3})/g, "") // remove ponto de milhar
+      .replace(",", "."); // transforma vírgula em decimal
+
+    const numero = parseFloat(valor);
     if (!isNaN(numero)) return Math.round(numero);
   }
 
-  // 3. Tenta ler por extenso: "mil e quinhentos"
+  // Tenta ler por extenso
   const palavras = texto.split(/\s+/);
   let total = 0;
   let atual = 0;

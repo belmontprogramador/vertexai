@@ -11,6 +11,7 @@ const {
 
 const { estaBloqueado, setBloqueio } = require("../utils/bloqueioTemporario");
 
+
 /**
  * 📌 Valida mensagem recebida e define novo stage com base na lógica do fluxo
  */
@@ -64,12 +65,12 @@ const validarFluxoInicial = async (sender, msgContent, pushName) => {
   // }
 
   // ✅ Resposta SIM → vai para sondagem
-  if (cleanedContent === "sim") {
-    await deleteUserResponses(sender);
-    await setStageHistory(sender, stageAtual);
-    await setUserStage(sender, "primeiro_atendimento");
-    return "primeiro_atendimento";
-  }
+  // if (cleanedContent === "sim") {
+  //   await deleteUserResponses(sender);
+  //   await setStageHistory(sender, stageAtual);
+  //   await setUserStage(sender, "primeiro_atendimento");
+  //   return "primeiro_atendimento";
+  // }
 
   // if (cleanedContent === "boleto"){
   //   await setUserStage(sender, "hall_de_boleto");

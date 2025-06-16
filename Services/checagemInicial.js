@@ -55,7 +55,7 @@ const { rotinaDeAgendamento } = require("./GerenciadorDeRotinas/GerenciadorDeAge
 
 
 const checagemInicial = async (sender, msgContent, pushName, messageId,quotedMessage) => {
-    const cleanedContent = msgContent.replace(/^again\s*/i, "").trim() 
+    const cleanedContent = msgContent.replace(/^again\s*/i, "").trim()   
 
     let novoStage;
 

@@ -547,6 +547,8 @@ const recuperarMensagemCitada = async ({ instanceId, quotedMsgId }) => {
 
 
 
+
+
 module.exports = {
   storeSelectedModel,
   getIntencaoDeUso,

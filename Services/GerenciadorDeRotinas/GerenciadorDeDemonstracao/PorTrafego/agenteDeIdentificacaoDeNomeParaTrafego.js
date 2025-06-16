@@ -35,13 +35,13 @@ const fraseEscolhida = frases[Math.floor(Math.random() * frases.length)];
 const functions = [
   {
     name: "salvar_nome_usuario",
-    description: "Armazena o nome informado pelo usuário.",
+    description: "Identificar o nome do usuario por exemplo 'felipe', 'julia', 'fernado', 'amanda'.Armazena o nome informado pelo usuário.",
     parameters: {
       type: "object",
       properties: {
         nome: {
           type: "string",
-          description: "Nome do usuário informado."
+          description: "O usuario vai informar o nome dele."
         }
       },
       required: ["nome"]

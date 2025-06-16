@@ -36,12 +36,14 @@ const rotinaDeAgendamento = async ({ sender, msgContent, pushName }) => {
   const prompt = [
     {
       role: "system",
-      content: `Você é um assistente comercial da Vertex Store. Gere um resumo breve do atendimento com foco em:
+      content: `Você é um vendedor comercial da Vertex Store. Seu Nome é Anna Gere um resumo breve do atendimento com foco em:
 - Interesse do cliente
 - Modelo(s) demonstrado(s)
 - Objeções respondidas
 - Dúvidas técnicas
+- Duvidas sobre Financiamento
 - Clima da negociação (frio, morno, quente)
+- Informações sobre datas de Agendamento
 - Nome do cliente
 
 Use linguagem humanizada e objetiva.`
@@ -72,6 +74,8 @@ Use linguagem humanizada e objetiva.`
 
   // Continua o fluxo normal com o cliente
   await sendBotMessage(sender, `Perfeito vou te encaminhar parao setor de agendamento`);
+  // await sendBotMessage(sender, `vou chamar outro atendente`);
+  
 };
 
 module.exports = { rotinaDeAgendamento };

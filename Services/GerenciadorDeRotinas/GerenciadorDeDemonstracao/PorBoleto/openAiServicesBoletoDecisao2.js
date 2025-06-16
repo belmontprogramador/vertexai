@@ -23,9 +23,9 @@ const handlers = {
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
     await delay(40000); // ⏳ Espera 20 segundos
   
-    const frases = [`🔥 Corre na loja, ${nome}! 🚀 Sua análise bateu aprovação altíssima. ⏰ Que horário você consegue chegar?💜`,
-                    `🚀 Corre na loja, ${nome}! 🤩 Chegou agora: grau de aprovação lá em cima. 🕒 Quando pode vir?💜`,
-                  `🔥Corre na loja, ${nome}! 🔥 Cadastro liberado com alta aprovação. 🗓 Qual horário fica melhor pra você hoje💜`
+    const frases = [`🔥 Corre na loja, ${nome}! 🚀 Sua análise bateu aprovação altíssima. ⏰ Que horário você consegue chegar? Ou voce gostaria de tirar duvidas sobre modelos ou financiamento?💜`,
+                    `🚀 Corre na loja, ${nome}! 🤩 Chegou agora: grau de aprovação lá em cima. 🕒 Quando pode vir?Ou voce gostaria de tirar duvidas sobre modelos ou financiamento?💜`,
+                  `🔥Corre na loja, ${nome}! 🔥 Cadastro liberado com alta aprovação. 🗓 Qual horário fica melhor pra você hoje? Ou voce gostaria de tirar duvidas sobre modelos ou financiamento?💜`
     ]
     const fraseEscolhida = frases[Math.floor(Math.random() * frases.length)];
     return await sendBotMessage(sender,fraseEscolhida);
@@ -33,9 +33,9 @@ const handlers = {
   naoDeuDados: async (sender) => {
     await setUserStage(sender, "open_ai_services_boleto_decisao_2");
     const nome = await getNomeUsuario(sender);   
-    const frases = [`${nome} para avançar já com valores e condições, preciso fazer uma pré‑análise: nome completo, CPF e data de nascimento. Com isso, libero sua aprovação rapidinho. 💜`,
-                     `Claro ${nome}! Para liberar a simulação e tirar todas as suas dúvidas, preciso rodar a pré-análise: nome completo, CPF e data de nascimento. Com esses dados já verifico sua aprovação. 💜`,
-                     `${nome} só falta a pré-análise! Envie nome completo, CPF e data de nascimento e destravo sua aprovação rapidinho, aí seguimos com todos os detalhes. 💜`
+    const frases = [`${nome} para avançar já com valores e condições, preciso fazer uma pré‑análise: nome completo, CPF e endereço. Com isso, libero sua aprovação rapidinho. 💜`,
+                     `Claro ${nome}! Para liberar a simulação e tirar todas as suas dúvidas, preciso rodar a pré-análise: nome completo, CPF e endereço. Com esses dados já verifico sua aprovação. 💜`,
+                     `${nome} só falta a pré-análise! Envie nome completo, CPF e endereço e destravo sua aprovação rapidinho, aí seguimos com todos os detalhes. 💜`
     ]
     const fraseEscolhida = frases[Math.floor(Math.random() * frases.length)];
     return await sendBotMessage(
@@ -47,13 +47,13 @@ const handlers = {
 const functions = [
   {
     name: "preAprovacao",
-    description: "Usuário forneceu nome completo, CPF e endereço.",
+    description: "Usuário forneceu nome completo, CPF e/ou /data de nascimento. Nome e cpf precisam conter. Data de nascimento e endereço pode conter um ou outro.",
     parameters: {
       type: "object",
       properties: {
         pushName: {
           type: "string",
-          description: "Nome exibido do usuário no WhatsApp"
+          description: "Se conter nome e CPF esta autorizado a chamar a função"
         }
       },
       required: ["pushName"]

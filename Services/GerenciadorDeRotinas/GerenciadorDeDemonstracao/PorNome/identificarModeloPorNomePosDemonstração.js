@@ -13,6 +13,7 @@ const { objeçõesVertex } = require("../../../../Services/utils/objecoes");
 const { gatilhosEmocionaisVertex } = require('../../../../Services/utils/gatilhosEmocionais');
 const { tomDeVozVertex } = require('../../../../Services/utils/tomDeVozVertex');
 // const { rotinaDeAgendamento } = require("../../../GerenciadorDeRotinas/GerenciadorDeAgendamento/rotinaDeAgendamento");
+const { handlers: handlersDemonstracaoDetalhada } = require("../../../GerenciadorDeRotinas/GerenciadorDeDemonstracao/agenteDeDemonstracaoDetalhada");
 
 const { getAllCelulares } = require('../../../dbService')
 
@@ -110,14 +111,36 @@ Histórico: ${conversaCompleta}`
 
 const handlers = {
   demonstracaoDetalhada: async (sender, args, extras) => {
-    await setUserStage(sender, "agente_de_demonstração_detalhada");    
-    return await  agenteDeDemonstracaoDetalhada ({
+    await setUserStage(sender, "agente_de_demonstração_detalhada");
+  
+    const historico = await getConversation(sender);
+  
+    const modeloJaMostrado = historico.some((m) =>
+      m.includes("modelo_sugerido_json") && m.includes(args.modeloMencionado)
+    );
+  
+    if (!modeloJaMostrado && args?.modeloMencionado) {
+      const modelos = await getAllCelulares();
+      const modeloEscolhido = modelos.find(m =>
+        m.nome.toLowerCase() === args.modeloMencionado.toLowerCase()
+      );
+  
+      if (modeloEscolhido) {
+        // ⚠️ Aqui você chama o outro handle
+        await handlers.mostrarResumoModelo(sender, { nomeModelo: modeloEscolhido.nome }, { modeloEscolhido });
+      }
+    }
+  
+    // Continua com a demonstração detalhada
+    return await agenteDeDemonstracaoDetalhada({
       sender,
       msgContent: extras.msgContent,
       pushName: extras.pushName,
       modeloMencionado: args.modeloMencionado
     });
   },
+  mostrarResumoModelo: handlersDemonstracaoDetalhada.mostrarResumoModelo,
+
   responderDuvida: async (sender, _args, extras) => {
      await setUserStage(sender, "identificar_modelo_por_nome_pos_demonstração");
  
@@ -268,7 +291,7 @@ const handlers = {
 const functions = [
   {
     name: "demonstracaoDetalhada",
-    description: "Chama a função para mostrar o modelo que o usuário escolheu.",
+    description: "Chama a função para mostrar o modelo que o usuário escolheu.O usuario pode digitar o nome do modelo escolhido ou simplesmente responder 'Sim' ou 'quero esse'  ou 'vamos fechar' mediante a pergunta do bot de confirmação de modelo escolhido",
     parameters: {
       type: "object",
       properties: {

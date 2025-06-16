@@ -7,17 +7,18 @@ const {
   getUserStage
 } = require("../../../redisService");
  
-const { agenteDeDemonstracaoPorNomePorBoleto } = require("./agenteDeDemonstracaoPorNomePorBoleto");
+ 
 const { informacoesPayjoy } = require("../../../utils/informacoesPayjoy");
 const { gatilhosEmocionaisVertex } = require('../../../utils/gatilhosEmocionais');
 const { tomDeVozVertex } = require('../../../utils/tomDeVozVertex');
-const { objeçõesVertex } = require("../../../utils/objecoes");
+const { objeçõesVertexBoleto } = require("../../../utils/objecoesBoleto");
 const { rotinaDeAgendamento } = require("../../GerenciadorDeAgendamento/rotinaDeAgendamento");
-
+const { handlers: handlersDemonstracaoDetalhadaBoleto, agenteDeDemonstracaoDetalhadaBoleto } = require("../../../GerenciadorDeRotinas/GerenciadorDeDemonstracao/agenteDeDemonstracaoDetalhadaBoleto");
 
 const {getAllCelulareBoleto } = require('../../../dbService')
 
 const OpenAI = require("openai");
+ 
 require("dotenv").config();
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -111,15 +112,35 @@ Histórico: ${conversaCompleta}`
 const handlers = {
   demonstracaoDetalhadaBoleto: async (sender, args, extras) => {
     await setUserStage(sender, "agente_de_demonstração_detalhada_boleto");
-    const novoStage = await getUserStage(sender);
-    await sendBotMessage(sender, novoStage);
-    return await  rotinaDeAgendamento ({
+  
+    const historico = await getConversation(sender);
+  
+    const modeloJaMostrado = historico.some((m) =>
+      m.includes("modelo_sugerido_json") && m.includes(args.modeloMencionado)
+    );
+  
+    if (!modeloJaMostrado && args?.modeloMencionado) {
+      const modelos = await getAllCelulareBoleto();
+      const modeloEscolhido = modelos.find(m =>
+        m.nome.toLowerCase() === args.modeloMencionado.toLowerCase()
+      );
+  
+      if (modeloEscolhido) {
+        // ⚠️ Aqui você chama o outro handle
+        await handlers.mostrarResumoModeloBoleto(sender, { nomeModelo: modeloEscolhido.nome }, { modeloEscolhido });
+
+      }
+    }
+  
+    // Continua com a demonstração detalhada
+    return await agenteDeDemonstracaoDetalhadaBoleto({
       sender,
       msgContent: extras.msgContent,
       pushName: extras.pushName,
       modeloMencionado: args.modeloMencionado
     });
   },
+  mostrarResumoModeloBoleto: handlersDemonstracaoDetalhadaBoleto.mostrarResumoModeloBoleto,
   responderDuvida: async (sender, _args, extras) => {
     await setUserStage(sender, "agente_de_demonstracao_pos_decisao_por_boleto");
 
@@ -194,7 +215,7 @@ const handlers = {
     ${JSON.stringify(tomDeVozVertex, null, 2)}
     
     OBJEÇÕES COMUNS:
-    ${JSON.stringify(objeçõesVertex, null, 2).slice(0, 3000)}
+    ${JSON.stringify(objeçõesVertexBoleto, null, 2).slice(0, 3000)}
 
        OBJEÇÕES SOBRE PAYJOY:
     ${JSON.stringify(informacoesPayjoy).slice(0, 3500)}
@@ -208,7 +229,8 @@ const handlers = {
   ## OBJETIVO
   Guiar o cliente até escolher um smartphone da lista apresentada e fechar a venda,
   sempre valorizando experiência, suporte humanizado e diferencial da loja.
-
+  esteja sempre preparado para responder duvidas de objeções que não necessariamente ligados ao modelo em si, utlize a documentação para respoder essa objeções e seja criativo
+  *** SEMPRE AO FALAR DE PREÇOS DEIXE BEM CLARO QUE ESSE VALORES SÃO ESTIMATIVAS E QUE PODEM FLUTUAR DE ACORDO COM A DISPONIBILIDADE DA PAY JOY ***
   ## TOM_DE_VOZ
   - Saudação acolhedora porém direta.
   - Use vocativo informal respeitoso (ex.: “Perfeito, ${nome}!”).
@@ -223,8 +245,8 @@ const handlers = {
 
   ## OBJEÇÕES & COMPARATIVOS
   - Se cliente comparar preço online → explique valor agregado (lista de diferenciais).
-  - Descontos: só R$ 100 à vista, ofereça **após** defender valor.
-  - Parcelamento padrão 10×; ofereça 12× **apenas se insistir** muito.
+  - Descontos: no boleto não descontos
+  - Parcelamento padrão apenas em 18×; .
   - Use analogias para comparar serviços (ex.: “comprar só preço é como…”).
 
    ## OBJEÇÕES DE DUVIDAS SOBRE BOLETO(OBJEÇÕES SOBRE PAYJOY:)
@@ -286,7 +308,7 @@ const functions = [
   },
   {
     name: "responderDuvida",
-    description: "Responde a uma dúvida específica do cliente sobre um ou mais modelos sugeridos anteriormente.",
+    description: "Responde a uma dúvida específica do cliente sobre um ou mais modelos sugeridos anteriormente. Tire duvidas gerais sobre indecisao do cliente que não estao necessariamente ligadas ao modelo",
     parameters: {
       type: "object",
       properties: {

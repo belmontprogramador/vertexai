@@ -167,8 +167,11 @@ if ((!textoDeReferencia || textoDeReferencia.toLowerCase().includes("esse")) && 
     const stage = await getUserStage(sender);
     console.log(`📶 [DEBUG] Stage atualizado para: ${stage}`);
     const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-      await delay(1000);
-      await sendBotMessage(sender, "*Quais desses modelos te chamou mais atenção*")
+    await delay(2000);
+    await sendBotMessage(sender, "Por que na Vertex Store?\n*Troca em até 7 dias*, *aparelho reserva* se precisar de garantia, *configuração e transferência* de dados na hora.");
+    await delay(1000);
+    await sendBotMessage(sender, "➡️ *Desses, qual mais te chamou atenção?*");
+     
   } catch (error) {
     console.error("❌ Erro no agenteDeDemonstracaoPorValor:", error);
     await sendBotMessage(

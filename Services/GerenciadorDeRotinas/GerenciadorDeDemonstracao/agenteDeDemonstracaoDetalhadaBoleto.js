@@ -7,14 +7,15 @@ const {
   getNomeUsuario,
   getUserStage,
 } = require("../../redisService");
-const {getAllCelulareBoleto } = require("../../dbService");
+const { getAllCelulareBoleto } = require("../../dbService");
 const { rotinaDeAgendamento } = require("../../GerenciadorDeRotinas/GerenciadorDeAgendamento/rotinaDeAgendamento");
 const OpenAI = require("openai");
 require("dotenv").config();
-const { objeçõesVertex } = require("../../../Services/utils/objecoes");
+const { objeçõesVertexBoleto } = require("../../../Services/utils/objecoesBoleto");
+const { informacoesPayjoy } = require("../../../Services/utils/informacoesPayjoy");
 const { gatilhosEmocionaisVertex } = require('../../../Services/utils/gatilhosEmocionais'); 
 const { intencaoDataEntregaDesconto } = require('../../../Services/utils/intencaoDataEntregaDesconto');
-const { tomDeVozVertexData } = require("../../utils/tomDeVozVertexData");
+const { tomDeVozVertexData } = require("../../../Services/utils/tomDeVozVertexData");
 const { extrairTextoDoQuotedMessage } = require("../../utils/extrairTextoDoQuotedMessage");
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -79,6 +80,7 @@ const formatarDescricaoParaCaption = (modelo) => (
 );
 
 const agenteDeDemonstracaoDetalhadaBoleto = async ({ sender, msgContent }) => {
+  
   const nome = await getNomeUsuario(sender);
   try {
     // 🧠 Captura a mensagem citada, se houver
@@ -160,85 +162,85 @@ const agenteDeDemonstracaoDetalhadaBoleto = async ({ sender, msgContent }) => {
 };
 
 const handlers = {
-  fecharVenda: async (sender, args, extras) => {
+  fecharVenda: async (sender, _args, extras) => {
     const { modeloEscolhido, pushName, msgContent } = extras;
     return await rotinaDeAgendamento({ sender, msgContent, pushName });
   },
-  mostrarResumoModelo: async (sender, args, extras) => {
-    let modelo = extras?.modeloEscolhido;
-    const nome = await getNomeUsuario(sender);
-  
-    const normalize = (str) =>
-      str.toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^\w\s]/gi, "")
-        .replace(/\s+/g, " ")
-        .trim();
-  
-    if (!modelo && args?.nomeModelo) {
-      const lista = await obterModelosDoBling();
-      modelo = lista.find(m => normalize(m.nome) === normalize(args.nomeModelo));
-    }
-  
-    if (!modelo || !modelo.preco) {
-      return await sendBotMessage(sender, "❌ Não consegui identificar esse modelo. Pode tentar novamente?");
-    }
-  
-    // Geração do resumo via GPT
-    const prompt = [
-      {
-        role: "system",
-        content: `Você é um vendedor persuasivo e direto. 
-        Seja direto, com no máximo 3 frases curtas. Priorize clareza e impacto, não ultrapasse 250 caracteres no total.
-
-        ***Faça o mais resumido possivel para usar o token e não faltar mensagem***
-        Use uma linguagem formal mas descontraida.
-        pule semre uma linha entre o resumo e a mensagem do tom de voz
-        de preferencia ao preço parcelado
-        Nome do cliente ${nome}
-        Ao final sempre faça perguntas utilizando esse documento como base:
-        TOM DE VOZ:
-        ${JSON.stringify(tomDeVozVertexData, null, 2)}
-        
-        `
-      },
-      {
-        role: "user",
-        content: `Modelo: ${modelo.nome}\nFrase de impacto: ${modelo.fraseImpacto}\nDescrição curta: ${modelo.descricaoCurta}\nPreço à vista: R$ ${modelo.preco.toFixed(2)}`
+  mostrarResumoModeloBoleto: async (sender, args, extras) => {
+      let modelo = extras?.modeloEscolhido;
+      const nome = await getNomeUsuario(sender);
+    
+      const normalize = (str) =>
+        str.toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^\w\s]/gi, "")
+          .replace(/\s+/g, " ")
+          .trim();
+    
+      if (!modelo && args?.nomeModelo) {
+        const lista = await obterModelosDoBling();
+        modelo = lista.find(m => normalize(m.nome) === normalize(args.nomeModelo));
       }
-    ];
-  
-    let resumo = "";
-    try {
-      const resposta = await openai.chat.completions.create({
-        model: "gpt-4",
-        messages: prompt,
-        temperature: 0.99,
-        max_tokens: 150
-      });
-  
-      resumo = resposta.choices?.[0]?.message?.content?.trim() || "";
-    } catch (err) {
-      console.error("Erro ao gerar resumo com GPT:", err);
-      resumo = `📱 *${modelo.nome}*\n${modelo.fraseImpacto}\n💰 R$ ${modelo.preco.toFixed(2)}\n\nEm breve te explico mais!`;
-    }  
     
-  
-    // Envia o vídeo com o mesmo resumo como legenda
-    if (modelo.videoURL) {
-      await sendBotMessage(sender, {
-        videoUrl: modelo.videoURL,
-        caption: resumo
-      });
-    }
+      if (!modelo || !modelo.preco) {
+        return await sendBotMessage(sender, "❌ Não consegui identificar esse modelo. Pode tentar novamente?");
+      }
     
+      // Geração do resumo via GPT
+      const prompt = [
+        {
+          role: "system",
+          content: `Você é um vendedor persuasivo e direto. 
+          Seja direto, com no máximo 3 frases curtas. Priorize clareza e impacto, não ultrapasse 250 caracteres no total.
   
-    // Salva no histórico
-    await appendToConversation(sender, `modelo_sugerido_json: ${JSON.stringify(modelo)}`);
-  },
+          ***Faça o mais resumido possivel para usar o token e não faltar mensagem***
+          Use uma linguagem formal mas descontraida.
+          pule semre uma linha entre o resumo e a mensagem do tom de voz
+          de preferencia ao preço parcelado
+          Nome do cliente ${nome}
+          Ao final sempre faça perguntas utilizando esse documento como base:
+          TOM DE VOZ:
+          ${JSON.stringify(tomDeVozVertexData, null, 2)}
+          
+          `
+        },
+        {
+          role: "user",
+          content: `Modelo: ${modelo.nome}\nFrase de impacto: ${modelo.fraseImpacto}\nDescrição curta: ${modelo.descricaoCurta}\nPreço à vista: R$ ${modelo.preco.toFixed(2)}`
+        }
+      ];
+    
+      let resumo = "";
+      try {
+        const resposta = await openai.chat.completions.create({
+          model: "gpt-4",
+          messages: prompt,
+          temperature: 0.99,
+          max_tokens: 150
+        });
+    
+        resumo = resposta.choices?.[0]?.message?.content?.trim() || "";
+      } catch (err) {
+        console.error("Erro ao gerar resumo com GPT:", err);
+        resumo = `📱 *${modelo.nome}*\n${modelo.fraseImpacto}\n💰 R$ ${modelo.preco.toFixed(2)}\n\nEm breve te explico mais!`;
+      }  
+      
+   // Salva no histórico
+   await appendToConversation(sender, `modelo_sugerido_json: ${JSON.stringify(modelo)}`);
+  
+      // Envia o vídeo com o mesmo resumo como legenda
+      if (modelo.videoURL) {
+        await sendBotMessage(sender, {
+          videoUrl: modelo.videoURL,
+          caption: resumo
+        });
+      }
+     
+    },
   responderDuvida: async (sender, _args, extras) => {
     await setUserStage(sender, "agente_de_demonstração_detalhada_boleto");
+    await sendBotMessage(sender,"reposnder duvida")
   
     const historico = await getConversation(sender);
     const conversaCompleta = historico.map(f => f.replace(/^again\s*/i, "").trim()).slice(-10).join(" | ");
@@ -250,7 +252,7 @@ const handlers = {
       .map(m => {
         if (m.startsWith("modelo_sugerido_json:")) {
           try {
-            const obj = JSON.parse(m.replace("modelo_sugerido_json: ", ""));
+            const obj = JSON.parse(m.replace("modelo_sugerido_json:", ""));
             return obj.nome;
           } catch {
             return null;
@@ -277,10 +279,13 @@ const handlers = {
   ${JSON.stringify(tomDeVozVertexData, null, 2)}
   
   OBJEÇÕES COMUNS:
-  ${JSON.stringify(objeçõesVertex, null, 2).slice(0, 3000)}
+  ${JSON.stringify(objeçõesVertexBoleto, null, 2).slice(0, 3000)}
   
   GATILHOS EMOCIONAIS:
   ${JSON.stringify(gatilhosEmocionaisVertex, null, 2)}
+
+     OBJEÇÕES SOBRE PAYJOY:
+    ${JSON.stringify(informacoesPayjoy).slice(0, 3500)}
 
   TOM DE DESCONTOS ENTREGA E LOJA
   ${JSON.stringify(intencaoDataEntregaDesconto, null, 2)}
@@ -291,6 +296,7 @@ const handlers = {
   Guiar o cliente até escolher um smartphone da lista apresentada e fechar a venda,
   sempre valorizando experiência, suporte humanizado e diferencial da loja.
   utilize um tom de voz formal
+  Sua missão é extrair do cliente uma data para fazer uma visita a loja
   
   ## TOM_DE_VOZ (tomDeVozVertex)
   - Saudação acolhedora porém direta.
@@ -306,14 +312,14 @@ const handlers = {
   
   ## OBJEÇÕES & COMPARATIVOS (objeçõesVertex)
   - Se cliente comparar preço online → explique valor agregado.
-  - Descontos: só R$ 100 à vista, ofereça **após** defender valor.
-  - Parcelamento padrão 10×; ofereça 12× **apenas se insistir** muito.
+  - Descontos: não oferecemos desconto no boleto.
+  - Parcelamento padrão 18×.
   - Use analogias para comparar serviços (ex.: “comprar só preço é como…”).
   
   ## REGRAS_DE_ESTILO
   - Nunca comece resposta com saudação completa; a conversa já está em andamento.
   - Seja conciso e humanizado; máximo 3 blocos (“emoção”, “benefício”, “call-to-action”).
-  - Sempre feche perguntando algo que avance (ex.: “Fecho em 10× pra você?”).
+  - Sempre feche perguntando algo que avance (ex.: “vamos agendar sua visita”, "quando voce pode vir a loja").
   ###############################
   
   📜 Histórico da conversa:
@@ -409,7 +415,8 @@ const functions = [
 
  
 module.exports = {
-  agenteDeDemonstracaoDetalhadaBoleto
+  agenteDeDemonstracaoDetalhadaBoleto,
+  handlers
   
 };
 

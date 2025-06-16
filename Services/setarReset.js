@@ -35,6 +35,7 @@ const setarReset = async (userId) => {
     await deleteIntencaoDeUso(userId);
     await redis.del(`user_model_history:${userId}`);
     await resetConversation(userId);
+     
 
     // ✅ Novo: apagar a data da primeira interação
     await deletePrimeiraInteracao(userId);

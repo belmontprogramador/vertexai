@@ -22,7 +22,7 @@ Só precisamos de uma pequena entrada, um Chip e documento de identificação na
     });
     
     const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-      await delay(1000);       
+      await delay(2000);       
 
     await sendBotMessage(
       sender,

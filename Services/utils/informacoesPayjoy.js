@@ -31,7 +31,8 @@ const informacoesPayjoy = {
     },
     "politicaAtrasoEBloqueio": {
       "diaSeguinte": "Bloqueio total do aparelho. Liberação imediata após pagamento.",
-      "multaOuJuros": "Não há, mas só mencionar se o cliente perguntar.",
+      "multaOuJurosdeAtraso": "Não juros sobre o atraso das parcelas",
+      "multaOuJurosdeParcelas": "Todo mercado de credito temj juros, assim como parcelamento de imoveis ou ate mesmo cartão de credito.",
       "prazoCobrancaExterna": "Não informado."
     },
     "objeçõesFrequentes": {

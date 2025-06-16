@@ -161,6 +161,15 @@ const agenteDeDemonstracaoDetalhada = async ({ sender, msgContent }) => {
 
 const handlers = {
   fecharVenda: async (sender, args, extras) => {
+    const historico = await getConversation(sender);
+    const jaMostrouResumo = historico.some(h => h.startsWith("modelo_sugerido_json:"));
+  
+    // Se ainda não foi mostrado, mostre primeiro
+    if (!jaMostrouResumo && extras.modeloEscolhido) {
+      return await handlers.mostrarResumoModelo(sender, { nomeModelo: extras.modeloEscolhido.nome }, extras);
+    }
+  
+    // Agora sim pode seguir para agendamento
     const { modeloEscolhido, pushName, msgContent } = extras;
     return await rotinaDeAgendamento({ sender, msgContent, pushName });
   },
@@ -224,7 +233,9 @@ const handlers = {
       resumo = `📱 *${modelo.nome}*\n${modelo.fraseImpacto}\n💰 R$ ${modelo.preco.toFixed(2)}\n\nEm breve te explico mais!`;
     }  
     
-  
+ // Salva no histórico
+ await appendToConversation(sender, `modelo_sugerido_json: ${JSON.stringify(modelo)}`);
+
     // Envia o vídeo com o mesmo resumo como legenda
     if (modelo.videoURL) {
       await sendBotMessage(sender, {
@@ -232,13 +243,11 @@ const handlers = {
         caption: resumo
       });
     }
-    
-  
-    // Salva no histórico
-    await appendToConversation(sender, `modelo_sugerido_json: ${JSON.stringify(modelo)}`);
+   
   },
   responderDuvida: async (sender, _args, extras) => {
     await setUserStage(sender, "agente_de_demonstração_detalhada");
+     
   
     const historico = await getConversation(sender);
     const conversaCompleta = historico.map(f => f.replace(/^again\s*/i, "").trim()).slice(-10).join(" | ");
@@ -250,7 +259,7 @@ const handlers = {
       .map(m => {
         if (m.startsWith("modelo_sugerido_json:")) {
           try {
-            const obj = JSON.parse(m.replace("modelo_sugerido_json: ", ""));
+            const obj = JSON.parse(m.replace("modelo_sugerido_json:", ""));
             return obj.nome;
           } catch {
             return null;
@@ -291,6 +300,7 @@ const handlers = {
   Guiar o cliente até escolher um smartphone da lista apresentada e fechar a venda,
   sempre valorizando experiência, suporte humanizado e diferencial da loja.
   utilize um tom de voz formal
+  Sua missão é extrair do cliente uma data para fazer uma visita a loja
   
   ## TOM_DE_VOZ (tomDeVozVertex)
   - Saudação acolhedora porém direta.
@@ -409,7 +419,7 @@ const functions = [
 
  
 module.exports = {
-  agenteDeDemonstracaoDetalhada
-  
+  agenteDeDemonstracaoDetalhada,
+  handlers
 };
 

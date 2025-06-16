@@ -9,6 +9,7 @@ const {
 const { rotinaDeAgendamento } = require("../../GerenciadorDeAgendamento/rotinaDeAgendamento");
 const { agenteDeDemonstracaoPorBoleto } = require("./agenteDeDemonstracaoPorBoleto");
 const { informacoesPayjoy } = require("../../../utils/informacoesPayjoy");
+const { tomDeVozVertexData } = require("../../../utils/tomDeVozVertexData");
 const OpenAI = require("openai");
 require("dotenv").config();
 
@@ -17,7 +18,8 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const handlers = {
   agendarVisita: async ({ sender, msgContent, pushName }) => {
     await setUserStage(sender, "rotina_de_agendamento");
-    await sendBotMessage(sender, `📅 Perfeito, ${pushName}! Vamos agendar sua visita à loja.`);
+    const nome = await getNomeUsuario(sender);
+    await sendBotMessage(sender, `📅 Perfeito, ${nome}! Vamos agendar sua visita à loja.`);
     return await rotinaDeAgendamento({ sender, msgContent, pushName });
   },
 
@@ -35,11 +37,11 @@ const handlers = {
 const functions = [
   {
     name: "agendarVisita",
-    description: "Inicia o agendamento após o usuário tirar dúvidas ou demonstrar interesse."
+    description: "Inicia o agendamento após o usuário definir uma data de visita, 'amanha', 'hoje', 'semana que vem', 'daqui a pouco', 'duas horas', ou seja, manifestou uma dia, data ou horario de visita."
   },
   {
     name: "identificarModeloPorBoleto",
-    description: "Usuário mencionou interesse em um modelo de celular ou perguntou sobre valores dos aparelhos. Deve salvar a informação e iniciar processo de identificação.",
+    description: "Usuário mencionou interesse em um modelo de celular ou perguntou sobre valores dos aparelhos. Ou duvidas exatamente sobre VALORES das parcelas, ou extamente sobre VALORES da entrada. Deve salvar a informação e iniciar processo de identificação.",
     parameters: {
       type: "object",
       properties: {
@@ -57,6 +59,7 @@ const openAiServicesDuvidasBoleto = async ({ sender, msgContent = "", pushName =
 
   try {
     const userMessage = msgContent?.trim() || "Tenho dúvidas sobre o PayJoy.";
+    const nome = await getNomeUsuario(sender);
 
     // 🧠 Salva a mensagem no histórico
     await appendToConversation(sender, userMessage);
@@ -72,10 +75,20 @@ const openAiServicesDuvidasBoleto = async ({ sender, msgContent = "", pushName =
 Você é um especialista da VertexStore no financiamento via PayJoy.
 
 Regras obrigatórias:
-- Pergunte de forma sucinta se o cliente quer agendar uma visita.
+- Pergunte de forma sucinta se o cliente quer agendar uma visita e sempre alterne entre as frases, nunca repita a mesma frase de convite de agendamento.
+- Demonstre sempre para o cliente que ele consegue tirar melhor suas duvidas na loja, e que a chance de aprovação final é muito grande.
 - Responda dúvidas com clareza, simpatia e objetividade utlizando (DOCUMENTAÇÃO COMPLETA:)
 - Se o cliente mencionar que quer ver celulares, modelos, aparelhos ou perguntar por *valores*, *preços*, *promoções* ou *ofertas*, chame a função identificarModeloPorBoleto com a última mensagem como argumento.
 - Se o cliente estiver pronto para comprar, chame direto a função agendarVisita, sem perguntar de novo.
+- Se o cliente responde com uma data 'hoje', 'essa semana', 'mes que vem', 'na quarta feira'chame direto a função agendarVisita sem perguntar de novo.
+- Inicia o agendamento após o usuário  manifestar interesse em alguma data data tipo, 'hoje','terça feira', 'semana que vem', 'esse mes'
+ - De vez em quando chame o cliente pelo nome para gerar conexão emocional.
+
+NOME DO CLIENTE
+${nome}
+
+TOM DE VOZ:
+  ${JSON.stringify(tomDeVozVertexData, null, 2)}
 
 🧾 DOCUMENTAÇÃO COMPLETA:
 ${JSON.stringify(informacoesPayjoy).slice(0, 3500)}

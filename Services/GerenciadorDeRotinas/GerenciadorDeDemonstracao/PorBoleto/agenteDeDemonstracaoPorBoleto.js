@@ -232,7 +232,7 @@ if (name === "demonstrarCelular" && args?.termosRelacionados && !args?.modeloMen
 
 const formatarDescricaoParaCaption = (modelo) => {
   return (
-    `🔥 *${modelo.nome}*🔥\n\n${modelo.subTitulo}\n\n${modelo.descricaoCurta}\n\n💰📦 ${modelo.precoParcelado}\n\n${modelo.fraseImpacto}\n\n💵 Preço: R$ ${modelo.preco?.toFixed(2)}`
+    `🔥 *${modelo.nome}*🔥\n\n${modelo.subTitulo}\n\n${modelo.descricaoCurta}\n\n💰📦 ${modelo.precoParcelado}\n\n${modelo.fraseImpacto}\n\n💵`
       .replace(/\u00A0/g, ' ')
       .replace(/\u200B/g, '')
       .replace(/\r/g, '')
@@ -245,9 +245,7 @@ const formatarDescricaoParaCaption = (modelo) => {
 
 const handlers = {
   demonstrarCelular: async (sender, args, extras) => {
-    await setUserStage(sender, "agente_de_demonstracao_por_nome_por_boleto");
-    const novoStage = await getUserStage(sender);
-    await sendBotMessage(sender, novoStage);
+    await setUserStage(sender, "agente_de_demonstracao_por_nome_por_boleto");   
     return await agenteDeDemonstracaoPorNomePorBoleto({
       sender,
       msgContent: extras.msgContent,
@@ -255,9 +253,7 @@ const handlers = {
     });
   },
   investigarMais: async (sender, args) => {
-    await setUserStage(sender, "agente_de_demonstracao_pos_decisao_por_boleto");
-    const novoStage = await getUserStage(sender);
-    await sendBotMessage(sender, novoStage);
+    await setUserStage(sender, "agente_de_demonstracao_pos_decisao_por_boleto");   
 
     const listaCompleta = await obterModelosDoBling();
     const modelosExibidos = new Set();
@@ -367,7 +363,7 @@ const handlers = {
       await appendToConversation(sender, `modelo_sugerido: ${modelo.nome}`);
     }
     const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-    await delay(1000);   
+    await delay(2000);   
      
     await sendBotMessage(sender, "➡️ *Desses, qual mais te chamou atenção?*");
 

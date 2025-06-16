@@ -17,6 +17,8 @@ const rotinaDePrimeiroAtendimento = async ({ sender, msgContent, pushName }) => 
  `
   
   await sendBotMessage(sender, fraseEscolhida);  
+  const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  await delay(2000); 
   await sendBotMessage(sender, menu);
   await setUserStage(sender, "opean_Ai_Services_Atendimento");
 };

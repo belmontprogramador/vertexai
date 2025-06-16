@@ -245,9 +245,7 @@ const formatarDescricaoParaCaption = (modelo) => {
 
 const handlers = {
   demonstrarCelular: async (sender, args, extras) => {
-    await setUserStage(sender, "agente_de_demonstração_por_nome");
-    const novoStage = await getUserStage(sender);
-    await sendBotMessage(sender, novoStage);
+    await setUserStage(sender, "agente_de_demonstração_por_nome");     
     return await agenteDeDemonstracaoPorNome({
       sender,
       msgContent: extras.msgContent,
@@ -255,9 +253,7 @@ const handlers = {
     });
   },
   investigarMais: async (sender, args) => {
-    await setUserStage(sender, "identificar_modelo_por_nome_pos_demonstração");
-    const novoStage = await getUserStage(sender);
-    await sendBotMessage(sender, novoStage);
+    await setUserStage(sender, "identificar_modelo_por_nome_pos_demonstração");    
 
     const listaCompleta = await obterModelosDoBling();
     const modelosExibidos = new Set();
@@ -347,9 +343,9 @@ if (modeloRelacionado.length > 0) {
       await appendToConversation(sender, `modelo_sugerido: ${modelo.nome}`);
     }
     const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    await delay(2000);
+    await sendBotMessage(sender, "Por que na Vertex Store?\n*Troca em até 7 dias*, *aparelho reserva* se precisar de garantia, *configuração e transferência* de dados na hora.");
     await delay(1000);
-    await sendBotMessage(sender, "Por que na Vertex Store?\nTroca em até 7 dias, aparelho reserva se precisar de garantia, configuração e transferência de dados na hora.");
-    await delay(500);
     await sendBotMessage(sender, "➡️ *Desses, qual mais te chamou atenção?*");
 
     await appendToConversation(sender, `sugestao_modelo_investigar: ${Array.from(modelosExibidos).join(", ")}`);
