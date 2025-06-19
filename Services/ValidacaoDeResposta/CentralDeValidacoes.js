@@ -1,11 +1,8 @@
 const {
-  getLastInteraction,
-  deleteUserResponses,
+  getLastInteraction,  
   getUserStage,
   setLastInteraction,
-  setUserStage,
-  storeUserMessage,
-  setStageHistory,  
+  setUserStage,    
   redis
 } = require("../redisService");
 
@@ -22,7 +19,7 @@ const validarFluxoInicial = async (sender, msgContent, pushName) => {
   const CHECK_TIME_LIMIT = 10 * 60 * 1000;
 
   await setLastInteraction(sender, currentTime);
-  await storeUserMessage(sender, cleanedContent);
+   
 
   const stageAtual = await getUserStage(sender);
 
@@ -53,45 +50,8 @@ const validarFluxoInicial = async (sender, msgContent, pushName) => {
       return "ignorar";
     }
      
-  }
-
+  }  
   
-  
-  // 🔄 Tempo expirado
-  // if (!lastInteraction || currentTime - lastInteraction > CHECK_TIME_LIMIT) {
-  //   await setStageHistory(sender, stageAtual);
-  //   await setUserStage(sender, "reinicio_de_atendimento");
-  //   return "reinicio_de_atendimento";
-  // }
-
-  // ✅ Resposta SIM → vai para sondagem
-  // if (cleanedContent === "sim") {
-  //   await deleteUserResponses(sender);
-  //   await setStageHistory(sender, stageAtual);
-  //   await setUserStage(sender, "primeiro_atendimento");
-  //   return "primeiro_atendimento";
-  // }
-
-  // if (cleanedContent === "boleto"){
-  //   await setUserStage(sender, "hall_de_boleto");
-  //   return await rotinaDeBoleto({ sender, msgContent, pushName });
-  // }
-
-  const precisaRepetirPergunta = (respostas, perguntaChave) => {
-    return !respostas[perguntaChave] || respostas[perguntaChave] === "" || respostas[perguntaChave] === "NÃO INFORMADO";
-  };
-  
-
-  
- // ❌ Resposta NÃO → volta um estágio anterior ao atual
-if (cleanedContent === "não" || cleanedContent === "nao") {
-  const previousStage = await redis.get(`previous_stage:${sender}`);
-
-  console.log(`↩️ [DEBUG] Stage anterior recuperado: ${previousStage}`);
-
-  await setUserStage(sender, previousStage);
-  return previousStage;
-}  
 
   // 🔁 Mantém estágio atual, se for válido
   if (stageAtual === "sequencia_de_atendimento" || stageAtual === "sequencia_de_demonstracao") {

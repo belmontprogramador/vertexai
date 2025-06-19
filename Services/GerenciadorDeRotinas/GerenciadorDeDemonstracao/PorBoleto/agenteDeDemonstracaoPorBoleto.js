@@ -7,7 +7,7 @@ const {
   getUserStage
 } = require("../../../redisService");
 const {  getAllCelulareBoleto } = require('../../../dbService')
-
+const { appendToConversation, getConversation } = require("../../../conversationManager");
 const { agenteDeDemonstracaoPorNomePorBoleto } = require("./agenteDeDemonstracaoPorNomePorBoleto");
 const axios = require("axios");
 const fs = require("fs");

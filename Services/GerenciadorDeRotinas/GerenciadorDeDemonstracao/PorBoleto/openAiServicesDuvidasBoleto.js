@@ -1,7 +1,6 @@
 const { sendBotMessage } = require("../../../messageSender");
 const {
-  setUserStage,
-  storeChosenModel,
+  setUserStage,  
   getNomeUsuario,
   appendToConversation,
   getConversation
@@ -16,8 +15,10 @@ require("dotenv").config();
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const handlers = {
-  agendarVisita: async ({ sender, msgContent, pushName }) => {
+  agendarVisita: async (sender, args) => {
+    const { msgContent, pushName } = args;
     await setUserStage(sender, "rotina_de_agendamento");
+    await appendToConversation(sender, msgContent);
     const nome = await getNomeUsuario(sender);
     await sendBotMessage(sender, `📅 Perfeito, ${nome}! Vamos agendar sua visita à loja.`);
     return await rotinaDeAgendamento({ sender, msgContent, pushName });
@@ -26,7 +27,7 @@ const handlers = {
   identificarModeloPorBoleto: async (sender, args) => {
     const nome = await getNomeUsuario(sender);
     const { content, pushName } = args;
-    await storeChosenModel(sender, content);
+    
     await setUserStage(sender, "agente_de_demonstração_por_boleto");
     await sendBotMessage(sender, `📱 Entendi, ${nome}! No momento disponível no boleto temos esses modelos e preços.`);
     await sendBotMessage(sender, `📱 Lembrando que todas as definições de preço devem ser feitas após análise de crédito feita em loja.`);
@@ -37,8 +38,22 @@ const handlers = {
 const functions = [
   {
     name: "agendarVisita",
-    description: "Inicia o agendamento após o usuário definir uma data de visita, 'amanha', 'hoje', 'semana que vem', 'daqui a pouco', 'duas horas', ou seja, manifestou uma dia, data ou horario de visita."
-  },
+    description: "Inicia o agendamento após o usuário definir uma data de visita, 'amanha', 'hoje', 'semana que vem', 'daqui a pouco', 'duas horas', ou seja, manifestou uma dia, data ou horario de visita.",
+    parameters: {
+      type: "object",
+      properties: {
+        content: {
+          type: "string",
+          description: "Mensagem original do usuário com a data ou horário da visita"
+        },
+        pushName: {
+          type: "string",
+          description: "Nome do usuário no WhatsApp"
+        }
+      },
+      required: ["msgContent"]
+    }
+  },  
   {
     name: "identificarModeloPorBoleto",
     description: "Usuário mencionou interesse em um modelo de celular ou perguntou sobre valores dos aparelhos. Ou duvidas exatamente sobre VALORES das parcelas, ou extamente sobre VALORES da entrada. Deve salvar a informação e iniciar processo de identificação.",
@@ -55,18 +70,17 @@ const functions = [
   }
 ];
 
-const openAiServicesDuvidasBoleto = async ({ sender, msgContent = "", pushName = "" }) => {  
+const openAiServicesDuvidasBoleto = async ({ sender, msgContent, pushName = "" }) => {  
 
   try {
-    const userMessage = msgContent?.trim() || "Tenho dúvidas sobre o PayJoy.";
+    const userMessage = msgContent;
     const nome = await getNomeUsuario(sender);
 
     // 🧠 Salva a mensagem no histórico
     await appendToConversation(sender, userMessage);
 
-    // 🧠 Recupera histórico completo (últimas 10 interações)
-    const historico = await getConversation(sender);
-    const historicoCompleto = historico.slice(-10).join(" | ");
+    // 🧠 Recupera histórico completo (últimas 10 interações)     
+    const historicoCompleto = await getConversation(sender);
 
     const messages = [
       {

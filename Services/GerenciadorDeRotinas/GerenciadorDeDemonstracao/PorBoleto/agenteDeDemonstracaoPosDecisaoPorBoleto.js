@@ -18,6 +18,7 @@ const { handlers: handlersDemonstracaoDetalhadaBoleto, agenteDeDemonstracaoDetal
 const {getAllCelulareBoleto } = require('../../../dbService')
 
 const OpenAI = require("openai");
+const { agenteDeDemonstracaoPorNomePorBoleto } = require("./agenteDeDemonstracaoPorNomePorBoleto");
  
 require("dotenv").config();
 
@@ -26,7 +27,6 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const agenteDeDemonstracaoPosDecisaoPorBoleto = async ({ sender, msgContent, pushName, quotedMessage }) => {
   try {
     await setUserStage(sender, "identificar_modelo_por_nome_pos_demonstração_por_valor");
-    
 
     let entrada = typeof msgContent === "string" ? msgContent : msgContent?.termosRelacionados || "";
     if (quotedMessage) entrada = `${entrada} || Mensagem citada: ${quotedMessage}`;
@@ -34,7 +34,6 @@ const agenteDeDemonstracaoPosDecisaoPorBoleto = async ({ sender, msgContent, pus
 
     await appendToConversation(sender, entrada);
 
-     
     const conversa = await getConversation(sender);
     const conversaCompleta = conversa.slice(-10).join(" | ");
     const modelosRecentes = conversa
@@ -50,38 +49,67 @@ const agenteDeDemonstracaoPosDecisaoPorBoleto = async ({ sender, msgContent, pus
       })
       .filter(Boolean);
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: `🤖 Você é Anna, assistente virtual da Vertex Store.
-O cliente já viu modelos de celular. Agora ele pode:
+    const deliberarPossibilidades = async () => {
+      const prompt = `
+Cliente enviou: "${entrada}"
+MODELOS MOSTRADOS:
+${modelosRecentes.map(m => `- ${m.nome}`).join("\n") || "(nenhum modelo mostrado ainda)"}
 
-1. Escolher um modelo final → demonstracaoDetalhada
-2. Fazer pergunta sobre os modelos sugeridos → responderDuvida
-3. Mencionar novo modelo ou mudar de ideia → identificarModeloPorNome
+💡 Quais são as 3 possibilidades mais prováveis que o cliente quer com essa mensagem?
+1. Se — e SOMENTE SE — o cliente disser explicitamente frases como "fechou", "quero esse", "vamos fechar", "é esse mesmo", "bora", "fechado", ou mencionar uma data exata de fechamento como "vou hoje", "passo aí amanhã", "mês que vem", então ele está confirmando um dos modelos sugeridos. Escolha mostrarResumoModeloBoleto.
 
-══════════ MODELOS JÁ APRESENTADOS ══════════
-${modelosRecentes.map(m => `- ${m.nome}`).join("\n") || "(nenhum modelo encontrado)"}
+2. Se o cliente fizer QUALQUER pergunta mesmo sem usar ponto de ? — mesmo curta — como "é bom?", "e esse?", "a câmera é boa?", "qual o preço?", ou mostrar dúvida sobre qualquer aspecto, isso deve ser interpretado como que ele ainda está indeciso e precisa de mais informações. Escolha "responderDuvida".
 
-══════════ DECISÃO IMPORTANTE ══════════
-⚠️ Se o cliente mencionar QUALQUER outro modelo que não está na lista acima, chame identificarModeloPorNome.
-⚠️ Só chame responderDuvida se estiver claramente falando dos modelos sugeridos.
+3. Se ele mencionar um novo modelo, diferente dos listados, é "identificarModeloPorNome".
 
-╔═ CONTEXTO ═╗
-Histórico: ${conversaCompleta}`
-        },
-        { role: "user", content: entrada }
-      ],
-      functions,
-      function_call: "auto"
-    });
 
-    const { function_call } = completion.choices[0]?.message || {};
+Retorne em formato JSON:
+{
+  possibilidades: [
+    { acao: "", motivo: "" },     
+  ]
+}`;
 
-    if (!function_call) {
-      return await handlers["responderDuvida"](sender, {}, {
+      const resp = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.9
+      });
+
+      try {
+        const raw = resp.choices?.[0]?.message?.content || "";
+        const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    
+        if (!jsonMatch) {
+          console.error("❌ Nenhum JSON válido encontrado na resposta:", raw);
+          return null;
+        }
+    
+        return JSON.parse(jsonMatch[0]);
+      } catch (e) {
+        console.error("❌ Erro ao fazer parse do TOA:", e, resp?.choices?.[0]?.message?.content);
+        return null;
+      }
+    };
+
+    const avaliarMelhorCaminho = (possibilidades, extras) => {
+      const { msgContent = "", quotedMessage = "" } = extras || {};
+      const texto = `${msgContent} ${quotedMessage}`.toLowerCase();
+      if (!possibilidades?.possibilidades || possibilidades.possibilidades.length === 0) {
+        return "responderDuvida";      }
+    
+      // ⚠️ Aqui respeita a ordem da IA, ela decide a prioridade
+      return possibilidades.possibilidades[0].acao
+    };
+    
+
+    const resultadoTOA = await deliberarPossibilidades();
+    const acaoEscolhida = avaliarMelhorCaminho(resultadoTOA, { msgContent, quotedMessage });
+    console.log("🎯 Resultado TOA:", JSON.stringify(resultadoTOA, null, 2));
+
+
+    if (handlers[acaoEscolhida]) {
+      return await handlers[acaoEscolhida](sender, {}, {
         msgContent: entrada,
         quotedMessage,
         pushName,
@@ -89,22 +117,9 @@ Histórico: ${conversaCompleta}`
       });
     }
 
-    const { name, arguments: argsStr } = function_call;
-    const args = argsStr ? JSON.parse(argsStr) : {};
-
-    if (handlers[name]) {
-      return await handlers[name](sender, args, {
-        msgContent: entrada,
-        quotedMessage,
-        pushName,
-        conversaCompleta
-      });
-    }
-
-    console.warn(`⚠️ Função não reconhecida: ${name}`);
     return await sendBotMessage(sender, "⚠️ Não entendi sua escolha. Pode repetir?");
   } catch (error) {
-    console.error("❌ Erro no identificarModeloPorNomePosDemonstração:", error);
+    console.error("❌ Erro no agente TOA:", error);
     return await sendBotMessage(sender, "⚠️ Ocorreu um erro. Pode tentar de novo?");
   }
 };
@@ -145,7 +160,7 @@ const handlers = {
     await setUserStage(sender, "agente_de_demonstracao_pos_decisao_por_boleto");
 
     const { msgContent, quotedMessage } = extras;
-    console.log("📩 Conteúdo recebido:", { msgContent, quotedMessage });
+ 
 
     let entrada = typeof msgContent === "string" ? msgContent : msgContent?.termosRelacionados || "";
 
@@ -294,40 +309,6 @@ const handlers = {
   }
 };
 
-const functions = [
-  {
-    name: "demonstracaoDetalhadaBoleto",
-    description: "Chama a função para mostrar o modelo que o usuário escolheu.",
-    parameters: {
-      type: "object",
-      properties: {
-        modeloMencionado: { type: "string", description: "Nome exato do modelo escolhido." }
-      },
-      required: ["modeloMencionado"]
-    }
-  },
-  {
-    name: "responderDuvida",
-    description: "Responde a uma dúvida específica do cliente sobre um ou mais modelos sugeridos anteriormente. Tire duvidas gerais sobre indecisao do cliente que não estao necessariamente ligadas ao modelo",
-    parameters: {
-      type: "object",
-      properties: {
-        resposta: {
-          type: "string",
-          description: "Texto da resposta explicando diferenças, vantagens ou informações adicionais."
-        }
-      },
-      required: ["resposta"]
-    }
-  },
-  {
-    name: "identificarModeloPorNome",
-    description: "Cliente mudou de ideia e pediu um novo modelo.",
-    parameters: {
-      type: "object",
-      properties: {}
-    }
-  }
-];
+ 
 
 module.exports = { agenteDeDemonstracaoPosDecisaoPorBoleto };

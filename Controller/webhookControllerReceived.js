@@ -42,11 +42,11 @@ const webhookControllerReceived = async (req, res) => {
       msgContent?.extendedTextMessage?.text?.trim();
 
     // Ignora áudios (desativado, pode reativar se quiser)
-    const isAudio = msgContent?.audioMessage;
-    if (isAudio) {
-      await sendBotMessage(senderId, "No momento não estamos ouvindo áudio, pode digitar por favor?");
-      return res.status(200).json({ message: "Áudio ignorado." });
-    }
+    // const isAudio = msgContent?.audioMessage;
+    // if (isAudio) {
+    //   await sendBotMessage(senderId, "No momento não estamos ouvindo áudio, pode digitar por favor?");
+    //   return res.status(200).json({ message: "Áudio ignorado." });
+    // }
 
     await setPrimeiraInteracao(senderId);
     const timestamp = await getPrimeiraInteracao(senderId);

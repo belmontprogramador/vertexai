@@ -26,7 +26,6 @@ const { agenteDeIdentificacaoDeNomeParaTrafego } = require("./GerenciadorDeRotin
 const { rotinaDeDemonstracaoDeCelularPorValor } = require("./GerenciadorDeRotinas/GerenciadorDeDemonstracao/PorValor/rotinaDeDemonstracaoDeCelularPorValor");
 const { filtroDeValor } = require("./GerenciadorDeRotinas/GerenciadorDeDemonstracao/PorValor/filtroDeValor");
 const { agenteDeDemonstracaoPorValor } = require("./GerenciadorDeRotinas/GerenciadorDeDemonstracao/PorValor/agenteDeDemonstracaoPorValor");
-const { identificarModeloPorValor } = require("./GerenciadorDeRotinas/GerenciadorDeDemonstracao/PorValor/identificarModeloPorValor");
 const { identificarModeloPorNomePosDemonstraçãoPorValor } = require("./GerenciadorDeRotinas/GerenciadorDeDemonstracao/PorValor/identificarModeloPorNomePosDemonstraçãoPorValor");
 
 
@@ -113,9 +112,7 @@ const checagemInicial = async (sender, msgContent, pushName, messageId,quotedMes
         case "filtro_de_valor":
             return await filtroDeValor({sender, msgContent, pushName, messageId });            
         case "agente_de_demonstraçao_por_valor":
-            return await agenteDeDemonstracaoPorValor({sender, msgContent, pushName});             
-        case "identificar_modelo_por_valor":
-            return await identificarModeloPorValor({sender, msgContent, pushName});
+            return await agenteDeDemonstracaoPorValor({sender, msgContent, pushName});            
         case "identificar_modelo_por_nome_pos_demonstração_por_valor":
             return await identificarModeloPorNomePosDemonstraçãoPorValor({sender, msgContent, pushName, quotedMessage });
             
@@ -150,7 +147,7 @@ const checagemInicial = async (sender, msgContent, pushName, messageId,quotedMes
         case "open_ai_services_boleto_decisao_2" :
             return await  openAiServicesBoletoDecisao2({ sender, msgContent, pushName, modeloMencionado: "" });    
         case "open_ai_services_duvidas_boleto" :
-            return await  openAiServicesDuvidasBoleto({ sender, msgContent, pushName, modeloMencionado: "" }); 
+            return await  openAiServicesDuvidasBoleto({ sender, msgContent, pushName}); 
         case "agente_de_demonstração_por_boleto" :
             return await  agenteDeDemonstracaoPorBoleto({ sender, msgContent, pushName, modeloMencionado: "" }); 
         case "agente_de_demonstracao_por_nome_por_boleto" :

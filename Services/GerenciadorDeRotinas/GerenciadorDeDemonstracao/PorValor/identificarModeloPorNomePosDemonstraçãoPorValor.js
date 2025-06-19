@@ -61,7 +61,7 @@ O cliente já viu modelos de celular. Agora ele pode:
 1. Escolher um modelo final → demonstracaoDetalhada
 2. Fazer pergunta sobre os modelos sugeridos → responderDuvida
 3. Mencionar novo modelo ou mudar de ideia → identificarModeloPorNome
-
+4- JSHFJHDJSAHDAJKHD
 ══════════ MODELOS JÁ APRESENTADOS ══════════
 ${modelosRecentes.map(m => `- ${m.nome}`).join("\n") || "(nenhum modelo encontrado)"}
 
@@ -276,15 +276,17 @@ const handlers = {
     }
 
     return await sendBotMessage(sender, respostaFinal);
-  }
+  },
+  
+  
 
    
 };
 
 const functions = [
   {
-    name: "demonstracaoDetalhada",
-    description: "Chama a função para mostrar o modelo que o usuário escolheu.O usuario pode digitar o nome do modelo escolhido ou simplesmente responder 'Sim' ou 'quero esse'  ou 'vamos fechar' mediante a pergunta do bot de confirmação de modelo escolhido",
+    name: " mostrarResumoModelo",
+    description: "Chama a função para mostrar o modelo que o usuário escolheu.O usuario pode digitar o nome do modelo escolhido ou simplesmente responder 'Sim' ou 'quero esse'  ou 'vamos fechar' ou uma intenção de data 'amanha', 'vou hoje', 'essa semana' mediante a pergunta do bot de confirmação de modelo escolhido",
     parameters: {
       type: "object",
       properties: {

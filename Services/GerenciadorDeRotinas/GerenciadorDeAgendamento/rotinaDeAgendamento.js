@@ -15,7 +15,10 @@ const rotinaDeAgendamento = async ({ sender, msgContent, pushName }) => {
   const nomeCliente = await getNomeUsuario(sender);
 
   // 🧠 Extração do modelo sugerido a partir do histórico
-  const trechoComModelo = historico.find(m => m.includes("modelo_sugerido_json:"));
+  const trechoComModelo = historico.find(
+    (m) => typeof m === "string" && m.includes("modelo_sugerido_json:")
+  );
+  
   let modeloEscolhido = null;
 
   if (trechoComModelo) {
@@ -27,30 +30,34 @@ const rotinaDeAgendamento = async ({ sender, msgContent, pushName }) => {
     }
   }
 
-  const conversaFormatada = historico
-    .filter(m => !m.startsWith("again "))
-    .slice(-15)
-    .join(" | ");
-
+  const conversaFormatada = historico.join("\n");
+  console.log(`este log esta vindo de agendamento de ${conversaFormatada}`)
   // Prompt para o GPT gerar o resumo
   const prompt = [
     {
       role: "system",
-      content: `Você é um vendedor comercial da Vertex Store. Seu Nome é Anna Gere um resumo breve do atendimento com foco em:
-- Interesse do cliente
-- Modelo(s) demonstrado(s)
-- Objeções respondidas
-- Dúvidas técnicas
-- Duvidas sobre Financiamento
-- Clima da negociação (frio, morno, quente)
-- Informações sobre datas de Agendamento
-- Nome do cliente
+      content: `
+  Você é a Anna, uma vendedora especialista da Vertex Store. Gere um *resumo breve* do atendimento com foco em:
+  
+  - Nome do cliente: ${nomeCliente || "não informado"}
+  - Modelo demonstrado: ${modeloEscolhido?.nome || "não houve modelos demonstrados"}
+  - Histórico da conversa:
+  ${conversaFormatada}
 
-Use linguagem humanizada e objetiva.`
-    },
-    {
-      role: "user",
-      content: `📜 Histórico da conversa com ${nomeCliente || "cliente"}:\n${conversaFormatada}\n\n📱 Modelo demonstrado: ${modeloEscolhido?.nome || "Não identificado"}`
+  - Sempre entregue o resumo no formato abaixo
+  - Em relação a datas de agendamento pode ser um dia da semana, assim como uma referencia numerica de datas, ou qulquer intenção de dia data ou horario
+  
+  Analise as informações acima e gere um resumo claro e humano, abordando:
+  • Interesse do cliente
+  • Modelo(s) demonstrado(s)
+  • Objeções respondidas
+  • Dúvidas técnicas
+  • Dúvidas sobre financiamento
+  • Clima da negociação (frio, morno, quente)
+  • Informações sobre datas de agendamento
+  
+  Responda no estilo de um vendedor humano e direto ao ponto, sem linguagem de IA.
+      `.trim()
     }
   ];
 

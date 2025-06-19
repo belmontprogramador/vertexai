@@ -24,20 +24,17 @@ function contemValorMonetario(texto) {
 }
 
 // 🔍 Verifica se o texto menciona um modelo
-const contemNomeDeModelo = async (texto) => {
+const buscarModeloPorNome = async (texto) => {
   const modelos = await getAllCelulares();
-  const textoNormalizado = texto.toLowerCase().replace(/[^\w\s]/g, ""); // limpa pontuação
+  const textoNormalizado = texto.toLowerCase().replace(/[^\w\s]/g, "");
 
-  return modelos.some(m => {
+  return modelos.find(m => {
     const nomeModelo = m.nome.toLowerCase().replace(/[^\w\s]/g, "");
-    const tokensModelo = nomeModelo.split(/\s+/); // divide modelo em palavras
-  
-    return tokensModelo.some(token => {
-      return token.length >= 3 && textoNormalizado.includes(token);
-    });
-  });
-  
+    const tokensModelo = nomeModelo.split(/\s+/);
+    return tokensModelo.some(token => token.length >= 3 && textoNormalizado.includes(token));
+  }) || null;
 };
+
 
 // 🎯 Agente principal de decisão
 const filtroDeValor = async ({ sender, msgContent, pushName, messageId }) => {
@@ -60,16 +57,21 @@ const filtroDeValor = async ({ sender, msgContent, pushName, messageId }) => {
       return await agenteDeDemonstracaoPorValor({ sender, pushName, valorBruto: respostaLimpa });
     }
 
-    if (await contemNomeDeModelo(respostaLimpa)) {
-      // 📱 Fluxo por nome de modelo
+    const modeloDetectado = await buscarModeloPorNome(respostaLimpa);
+    if (modeloDetectado) {
       return await identificarModeloPorNome({
         sender,
         msgContent: respostaLimpa,
         pushName
       });
+    } else {
+      await setUserStage(sender, "filtro_de_valor");
+      return await sendBotMessage(sender, `📦 No momento, não temos o modelo que você mencionou. Trabalhamos com Linha Realme, Redmi e Poco. Pode escolher outro ou digitar um valor que você pretende investir?`);
     }
+    
 
     // ❓ Se não for nem valor nem modelo, responde com fallback
+    await setUserStage(sender, "filtro_de_valor");
     await sendBotMessage(sender, "Não entendi se você quer buscar por valor ou por modelo. Pode me dar mais detalhes?");
   } catch (error) {
     console.error("❌ Erro na rotinaDeDemonstracaoPorValor:", error);

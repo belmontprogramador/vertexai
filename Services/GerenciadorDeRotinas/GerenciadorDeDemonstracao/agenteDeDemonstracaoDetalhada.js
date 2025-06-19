@@ -191,7 +191,8 @@ const handlers = {
     }
   
     if (!modelo || !modelo.preco) {
-      return await sendBotMessage(sender, "❌ Não consegui identificar esse modelo. Pode tentar novamente?");
+      await sendBotMessage(sender, `Opa ${nome} acho que a gente conversou sobre mais de um modelo e fiquei na duvida qual você escolheu`)
+      return await sendBotMessage(sender, "Pode me dizer qual o modelo exato que você escolheu?" );
     }
   
     // Geração do resumo via GPT
