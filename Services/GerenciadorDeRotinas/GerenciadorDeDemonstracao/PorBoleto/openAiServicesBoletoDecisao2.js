@@ -21,7 +21,7 @@ const handlers = {
 
   
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-    await delay(40000); // ⏳ Espera 20 segundos
+    await delay(100); // ⏳ Espera 20 segundos
   
     const frases = [`🔥 Corre na loja, ${nome}! 🚀 Sua análise bateu aprovação altíssima. ⏰ Que horário você consegue chegar? Ou voce gostaria de tirar duvidas sobre modelos ou financiamento?💜`,
                     `🚀 Corre na loja, ${nome}! 🤩 Chegou agora: grau de aprovação lá em cima. 🕒 Quando pode vir?Ou voce gostaria de tirar duvidas sobre modelos ou financiamento?💜`,

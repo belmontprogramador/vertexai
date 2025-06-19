@@ -1,39 +1,40 @@
 const { sendBotMessage } = require("../../../messageSender");
 const {
   setUserStage,
-  appendToConversation,
-  getConversation,
   getNomeUsuario
 } = require("../../../redisService");
-const { getAllCelulares } = require('../../../dbService')
+const { getAllCelulareBoleto } = require("../../../dbService");
+const { appendToConversation, getConversation } = require("../../../HistoricoDeConversas/conversationManager");
+
 
 const fs = require("fs");
 const axios = require("axios");
 require("dotenv").config();
 
 const { OpenAI } = require("openai");
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY }); 
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+const termosIgnorados = [
+  "BLACK", "WHITE", "BLUE", "GREEN", "GOLD", "PURPLE", "SILVER", "CORAL",
+  "MIDNIGHT", "OCEAN", "TEAL", "AZUL", "VERDE", "LAVENDER", "VOYAGE",
+  "MARBLE", "STORM", "LIGHTNING", "SPARKLE", "DARK", "LIME", "STAR", "STARRY",
+  "OCÉANO", "ROM", "RAM"
+];
+
+const normalizeNome = (nome) => nome
+  .replace(/^smartphone\s*/i, "")
+  .replace(/[^\w\s]/gi, '')
+  .trim()
+  .split(/\s+/)
+  .filter(p => !termosIgnorados.includes(p.toUpperCase()))
+  .join(" ")
+  .toLowerCase()
+  .trim();
 
 const obterModelosDoBling = async () => {
   try {
-    const celulares = await getAllCelulares(); 
-
-    const termosIgnorados = [
-      "BLACK", "WHITE", "BLUE", "GREEN", "GOLD", "PURPLE", "SILVER", "CORAL",
-      "MIDNIGHT", "OCEAN", "TEAL", "AZUL", "VERDE", "LAVENDER", "VOYAGE",
-      "MARBLE", "STORM", "LIGHTNING", "SPARKLE", "DARK", "LIME", "STAR", "STARRY",
-      "OCÉANO", "ROM", "RAM"
-    ];
-
-    const normalizeNome = (nome) => nome
-    .replace(/^smartphone\s*/i, "")
-    .replace(/[^\w\s]/gi, '') // remove símbolos como * ou 🔥
-    .trim()
-    .split(/\s+/)
-    .filter(p => !termosIgnorados.includes(p.toUpperCase()))
-    .join(" ")
-    .toLowerCase()
-    .trim();
+    const celulares = await getAllCelulareBoleto();
+   
 
     const mapaUnico = new Map();
 
@@ -51,7 +52,6 @@ const obterModelosDoBling = async () => {
         });
       }
     }
-    
 
     const listaParaPrompt = Array.from(mapaUnico.values());
 
@@ -66,15 +66,27 @@ const obterModelosDoBling = async () => {
 };
 
 const agenteDeDemonstracaoPorNomePorBoleto = async ({ sender, msgContent, modeloMencionado }) => {
-  await appendToConversation(sender, msgContent);
+  await appendToConversation(sender, {
+    tipo: "entrada_usuario",
+    conteudo: msgContent,
+    timestamp: new Date().toISOString()
+  });
+
   const historico = await getConversation(sender);
-  const conversaCompleta = historico.map(f => f.replace(/^again\s*/i, "").trim()).slice(-10).join(" | ");
+  const conversaCompleta = historico
+    .filter(f => f.tipo === "entrada_usuario")
+    .map(f => f.conteudo.replace(/^again\s*/i, "").trim())
+    .slice(-10)
+    .join(" | ");
 
   const listaModelos = await obterModelosDoBling();
-  const modelo = listaModelos.find(m => m.nome.toLowerCase() === modeloMencionado.toLowerCase());
+
+  const modelo = listaModelos.find(m =>
+    normalizeNome(m.nome) === normalizeNome(modeloMencionado)
+  );  
 
   if (!modelo) {
-    await setUserStage(sender, "agente_de_demonstração_por_boleto")
+    await setUserStage(sender, "agente_de_demonstração_por_boleto");
     return await sendBotMessage(sender, `❌ Esse modelo não está disponível. Pode confirmar ou escolher outro da lista?`);
   }
 
@@ -95,14 +107,18 @@ ${modelo.fraseImpacto ? `\n\n${modelo.fraseImpacto}` : ""}
     caption: textoFormatado
   });
 
-  await appendToConversation(sender, `modelo_sugerido_json: ${JSON.stringify(modelo)}`);
+  await appendToConversation(sender, {
+    tipo: "modelo_sugerido_json",
+    conteudo: modelo,
+    timestamp: new Date().toISOString()
+  });
+
   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   await delay(1000);
 
-   const nome  = await getNomeUsuario(sender)
+  const nome = await getNomeUsuario(sender);
   await sendBotMessage(sender, `📣 ${nome} temos esse modelo a pronta entrega. Vou te passar todas a informações sobre ele?`);
   await setUserStage(sender, "agente_de_demonstracao_pos_decisao_por_boleto");
 };
-
 
 module.exports = { agenteDeDemonstracaoPorNomePorBoleto };

@@ -1,13 +1,10 @@
 const { sendBotMessage } = require("../../../messageSender");
 const {
-  setUserStage, 
-  appendToConversation,
-  getConversation,
-  getNomeUsuario,
-  getUserStage
+  setUserStage,  
+  getNomeUsuario,  
 } = require("../../../redisService");
 const {  getAllCelulareBoleto } = require('../../../dbService')
-const { appendToConversation, getConversation } = require("../../../conversationManager");
+const { appendToConversation, getConversation } = require("../../../HistoricoDeConversas/conversationManager");
 const { agenteDeDemonstracaoPorNomePorBoleto } = require("./agenteDeDemonstracaoPorNomePorBoleto");
 const axios = require("axios");
 const fs = require("fs");
@@ -108,127 +105,108 @@ const mencionaAlgumaMarcaDaLoja = (entrada) => {
 
 const agenteDeDemonstracaoPorBoleto = async ({ sender, msgContent, pushName }) => {
   const nome = await getNomeUsuario(sender);
-  try {
-    const entradaAtual = typeof msgContent === "string" ? msgContent : msgContent?.termosRelacionados || "";
-    await appendToConversation(sender, entradaAtual);
+  const entradaAtual = typeof msgContent === "string" ? msgContent : msgContent?.termosRelacionados || "";
 
-    const conversaArray = await getConversation(sender);
-    const conversaCompleta = conversaArray.map(f => f.replace(/^again\s*/i, "").trim()).slice(-10).join(" | ");
+  await appendToConversation(sender, {
+    tipo: "entrada_usuario",
+    conteudo: entradaAtual,
+    timestamp: new Date().toISOString()
+  });
 
-    const listaParaPrompt = await obterModelosDoBling();
+  const conversaArray = await getConversation(sender);
+  const conversaCompleta = conversaArray
+    .map(msg => {
+      try {
+        const json = typeof msg === "string" ? JSON.parse(msg) : msg;
+        return json.conteudo || "";
+      } catch {
+        return typeof msg === "string" ? msg : "";
+      }
+    })
+    .filter(Boolean)
+    .slice(-10)
+    .join(" | ");
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: `🤖 Você é Anna, assistente virtual da Vertex Store.
+  const listaModelos = await obterModelosDoBling();
 
-Seu objetivo é identificar e apresentar ao cliente UM modelo exato de smartphone com base apenas na lista de modelos disponíveis abaixo. Use o histórico completo da conversa e a intenção do cliente para tomar decisões.
+  // 🎯 Tenta detectar similaridade de entrada com algum modelo
+  const similares = await calcularSimilaridadePorEmbeddings(entradaAtual, listaModelos);
+  const maisProvavel = similares?.[0];
 
-══════════ FUNÇÕES DISPONÍVEIS ══════════
-• demonstrarCelular({ "modeloMencionado": "NOME_EXATO" })
-• investigarMais({ "pergunta": "TEXTO" })
+  if (maisProvavel?.score > 0.90) {
+    console.log("✅ Entrada casa fortemente com modelo:", maisProvavel.modelo);
+    await appendToConversation(sender, {
+      tipo: "deliberacao_toa",
+      conteudo: {
+        acao: "demonstrarCelular",
+        motivo: `Cliente mencionou ${maisProvavel.modelo} com alta similaridade`,
+        argumento: { modeloMencionado: maisProvavel.modelo }
+      },
+      timestamp: new Date().toISOString()
+    });
 
-══════════ COMO DECIDIR ══════════
+    return await handlers.demonstrarCelular(sender, {
+      modeloMencionado: maisProvavel.modelo
+    }, { msgContent: entradaAtual });
+  }
 
-1. MATCH FINAL
-• Leia o histórico completo da conversa do cliente (mesmo que ele tenha escrito com erros, abreviações ou em etapas).
-• Se houver UM modelo exato que combina claramente com o que o cliente quer,
-→ chame demonstrarCelular com o nome exato do modelo da lista.
+  // 🧠 Caso não tenha match forte, deixa TOA decidir
+  const promptTOA = `
+🤖 Você é Anna, assistente virtual da Vertex Store.
 
-2. MÚLTIPLOS CANDIDATOS DE MESMA LINHA
-• Se o cliente mencionar apenas o nome-base de um celular (ex: "REALME C61", "POCO X7", "NOTE 14"),
-→ verifique se há múltiplas versões desse modelo (ex: variações de RAM, armazenamento ou conectividade como 4G/5G).
+Seu objetivo é identificar a ação ideal com base na intenção do cliente.
 
-→ Mostre TODAS as versões desse modelo base ao cliente, mesmo que os nomes sejam parecidos.
-→ Use a função investigarMais com esses modelos organizados individualmente, cada um com nome, preço, imagem e descrição.
+📌 Entrada:
+"${entradaAtual}"
 
-⚠️ Exemplo prático:
-Cliente escreveu: "tô vendo um realme c61"
-→ Modelos disponíveis:
-- REALME C61 256GB 6GB RAM
-- REALME C61 256GB 8GB RAM
-
-→ Resposta correta:
-investigarMais com os dois modelos listados individualmente.
-
-3. SEM MATCH
-• Se não houver nenhum modelo que combine com o histórico da conversa,
-→ chame investigarMais pedindo mais detalhes, ex: “Pode repetir o nome do modelo?”
-
-══════════ REGRAS IMPORTANTES ══════════
-• Nunca invente nomes de celulares que não estejam na lista.
-• Use apenas os modelos reais da lista fornecida.
-• Nunca escreva mensagens fora das chamadas de função.
-
-══════════ CONTEXTO DO CLIENTE ══════════
-Histórico da conversa:
+📜 Histórico da conversa:
 ${conversaCompleta}
 
 📦 Modelos disponíveis:
-${listaParaPrompt.map(m => `- ${m.nome} (R$ ${m.preco})`).join("\n")}
-`
-        },
-        { role: "user", content: entradaAtual }
-      ],
-      functions,
-      function_call: "auto"
-    });
+${listaModelos.map(m => `- ${m.nome}`).join("\n")}
 
-    const toolCall = completion.choices[0]?.message?.function_call;
+🎯 Ações disponíveis:
+1. "demonstrarCelular" ➜ Quando a entrada indicar um modelo específico da lista. Ao capturar o modelo do usuario popule ⚠️ o campo "argumento: { modeloMencionado: "NOME DO MODELO" }" para informar o modelo identificado.
+2. "investigarMais" ➜ Quando houver dúvida, modelo genérico ou múltiplas variações.
+3. "modeloInvalido" ➜ Quando o modelo não pertence às marcas Realme, Redmi ou Poco.
 
-    if (toolCall) {
-      const { name, arguments: argsStr } = toolCall;
-      const args = argsStr ? JSON.parse(argsStr) : {};
+Retorne apenas isso:
+{
+  "acao": "NOME_DA_ACAO",
+  "motivo": "Texto explicando por que esta ação foi escolhida",
+  "argumento": {}
+}
+`;
 
-      const normalizeString = (str) => str.toLowerCase().replace(/\s+/g, ' ').replace(/[^\w\s]/gi, '').trim();
+  const deliberacao = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [{ role: "user", content: promptTOA }],
+    temperature: 0.8
+  });
 
-      // Corrigir chamadas incorretas da IA (termosRelacionados ao invés de modeloMencionado)
-if (name === "demonstrarCelular" && args?.termosRelacionados && !args?.modeloMencionado) {
-  args.modeloMencionado = args.termosRelacionados;
-  delete args.termosRelacionados;
-}     
-
-      if (handlers[name]) {
-        return await handlers[name](sender, args, { msgContent });
-      }
-    }
-
-    // 🚫 Aqui entra a verificação ANTES dos embeddings
-    if (!mencionaAlgumaMarcaDaLoja(entradaAtual)) {
-      return await sendBotMessage(sender, "Esse modelo não está disponível no nosso catálogo. Hoje trabalhamos apenas com *Redmi*, *Realme* e *Poco* 💜.");
-    }
-
-    const similaridades = await calcularSimilaridadePorEmbeddings(entradaAtual, listaParaPrompt);
-    const [top1, top2, top3, top4] = similaridades;
-
-    if (top1?.score > 0.95) {
-      return await handlers.demonstrarCelular(sender, { modeloMencionado: top1.modelo }, { msgContent });
-    } else if (top1 && top2 && top3 && top4) {
-      const modelosEstruturados = [top1, top2, top3].map(m => ({
-        nome: m.modelo,
-        preco: m.preco,
-        descricaoCurta: m.descricaoCurta,
-        imagemURL: m.imagemURL,
-        subTitulo: m.subTitulo,
-        fraseImpacto: m.fraseImpacto,
-        precoParcelado: m.precoParcelado
-      }));
-
-      return await handlers.investigarMais(sender, {
-        modelos: modelosEstruturados
-      });
-    } else {
-      return await handlers.investigarMais(sender, {
-        pergunta: `Então ${nome}, infelizmente não estamos trabalhando com esse modelo no momento, mas temos Redmi, Realme, Poco. Qual desses você tem interesse?`
-      });
-    }
-  } catch (error) {
-    console.error("Erro em identificarModeloPorNome:", error);
-    return await sendBotMessage(sender, "⚠️ Erro ao identificar o modelo. Pode tentar de novo?");
+  const jsonMatch = deliberacao.choices?.[0]?.message?.content?.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    console.error("❌ TOA não retornou JSON válido.");
+    return await sendBotMessage(sender, "⚠️ Não consegui entender sua escolha. Pode repetir?");
   }
+
+  const { acao, motivo, argumento } = JSON.parse(jsonMatch[0]);
+
+  console.log("🧠 TOA escolheu:", acao, "→", motivo);
+
+  await appendToConversation(sender, {
+    tipo: "deliberacao_toa",
+    conteudo: { acao, motivo, argumento },
+    timestamp: new Date().toISOString()
+  });
+
+  if (!handlers[acao]) {
+    return await sendBotMessage(sender, "⚠️ Não entendi sua intenção. Pode repetir?");
+  }
+
+  return await handlers[acao](sender, argumento, { msgContent: entradaAtual });
 };
+
 
 const formatarDescricaoParaCaption = (modelo) => {
   return (
@@ -245,170 +223,116 @@ const formatarDescricaoParaCaption = (modelo) => {
 
 const handlers = {
   demonstrarCelular: async (sender, args, extras) => {
-    await setUserStage(sender, "agente_de_demonstracao_por_nome_por_boleto");   
+    await setUserStage(sender, "agente_de_demonstracao_por_nome_por_boleto");
+  
+    await appendToConversation(sender, {
+      tipo: "modelo_confirmado",
+      conteudo: args.modeloMencionado,
+      timestamp: new Date().toISOString()
+    });
+  
     return await agenteDeDemonstracaoPorNomePorBoleto({
       sender,
       msgContent: extras.msgContent,
-      modeloMencionado: args.modeloMencionado,
+      modeloMencionado: args.modeloMencionado
     });
   },
   investigarMais: async (sender, args) => {
-    await setUserStage(sender, "agente_de_demonstracao_pos_decisao_por_boleto");   
-
+    await setUserStage(sender, "agente_de_demonstracao_pos_decisao_por_boleto");
+  
     const listaCompleta = await obterModelosDoBling();
     const modelosExibidos = new Set();
-
-    if (!Array.isArray(args.modelos)) {
-      console.warn("⚠️ IA não enviou modelos estruturados. Convertendo string para blocos individuais.");
-      const blocos = (args.pergunta || "").split("🔥").map(m => m.trim()).filter(Boolean);
-    
-      let encontrouModeloRelacionado = false;
-    
-      for (const bloco of blocos) {
-        const nomeBlocoNormalizado = bloco.toLowerCase().replace(/[^a-z0-9]/gi, ' ').trim();
-    
-        const modelosRelacionados = listaCompleta.filter(m => {
-          const nomeModeloNormalizado = m.nome.toLowerCase().replace(/[^a-z0-9]/gi, ' ').trim();
-          return nomeModeloNormalizado.includes(nomeBlocoNormalizado);
-        });
-    
-        if (modelosRelacionados.length > 0) {
-          encontrouModeloRelacionado = true;
-    
-          for (const modeloRelacionado of modelosRelacionados) {
-            const nomeModeloKey = modeloRelacionado.nome.toLowerCase().replace(/[^a-z0-9]/gi, ' ').trim();
-            if (modelosExibidos.has(nomeModeloKey)) continue;
-    
-            modelosExibidos.add(nomeModeloKey);
-    
-            const textoFormatado = formatarDescricaoParaCaption(modeloRelacionado);
-    
-            await sendBotMessage(sender, {
-              imageUrl: modeloRelacionado.imagemURL,
-              caption: textoFormatado
-            });
-    
-            await appendToConversation(sender, `modelo_sugerido: ${modelo.nome}`);
-          }
-        }
-      }
-    
-      // Se não encontrou nenhum modelo relacionado em nenhum bloco → mostra todos os modelos da lista
-      if (!encontrouModeloRelacionado) {
-        console.log("⚠️ Nenhum modelo reconhecido. Mostrando todos os modelos disponíveis.");
-        const todosModelos = listaCompleta.slice(0, 6); // Limite se necessário
-    
-        for (const modelo of todosModelos) {
-          const nomeModeloKey = modelo.nome.toLowerCase().replace(/[^a-z0-9]/gi, ' ').trim();
-          if (modelosExibidos.has(nomeModeloKey)) continue;
-    
-          modelosExibidos.add(nomeModeloKey);
-    
-          const textoFormatado = formatarDescricaoParaCaption(modelo);
-    
-          await sendBotMessage(sender, {
-            imageUrl: modelo.imagemURL,
-            caption: textoFormatado
-          });
-    
-          await appendToConversation(sender, `modelo_sugerido: ${modelo.nome}`);
-        }
-      }
-    }
-    
-    
-    if (!args.modelos) args.modelos = [];
-
-    let modelosParaExibir;
-    const ehListaDeNomes = args.modelos.every(m => typeof m === "string");
-
-    if (ehListaDeNomes) {
-      modelosParaExibir = args.modelos.map(nomeIA => {
-        return listaCompleta.find(modelo =>
-          modelo.nome.toLowerCase().replace(/\s+/g, ' ').trim() === nomeIA.toLowerCase().replace(/\s+/g, ' ').trim()
-        );
-      }).filter(Boolean);
-    } else {
-      modelosParaExibir = args.modelos.map(objIA => {
-        const nomeNormalizado = objIA.nome?.toLowerCase().replace(/\s+/g, ' ').trim();
-        const modeloCompleto = listaCompleta.find(m =>
-          m.nome.toLowerCase().replace(/\s+/g, ' ').trim() === nomeNormalizado
-        );
-
-        return modeloCompleto ? {
-          ...objIA,
-          imagemURL: modeloCompleto.imagemURL,
-          descricaoCurta: modeloCompleto.descricaoCurta,
-          preco: modeloCompleto.preco,
-          precoParcelado: modeloCompleto.precoParcelado,
-          fraseImpacto: modeloCompleto.fraseImpacto,
-          subTitulo: modeloCompleto.subTitulo
-        } : null;
-        
-      }).filter(Boolean);
-    }
-
-    for (const modelo of modelosParaExibir) {
-      const nomeModeloKey = modelo.nome.toLowerCase().replace(/[^a-z0-9]/gi, ' ').trim();
-      if (modelosExibidos.has(nomeModeloKey)) continue;
+  
+    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  
+    const normalizarNome = (nome) =>
+      nome?.toLowerCase().replace(/[^a-z0-9]/gi, ' ').replace(/\s+/g, ' ').trim();
+  
+    const exibirModelo = async (modelo) => {
+      const nomeModeloKey = normalizarNome(modelo.nome);
+      if (modelosExibidos.has(nomeModeloKey)) return;
       modelosExibidos.add(nomeModeloKey);
-
+  
       const textoFormatado = formatarDescricaoParaCaption(modelo);
-
+  
       await sendBotMessage(sender, {
         imageUrl: modelo.imagemURL,
         caption: textoFormatado
       });
-
-      await appendToConversation(sender, `modelo_sugerido: ${modelo.nome}`);
-    }
-    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-    await delay(2000);   
-     
-    await sendBotMessage(sender, "➡️ *Desses, qual mais te chamou atenção?*");
-
-    await appendToConversation(sender, `sugestao_modelo_investigar: ${Array.from(modelosExibidos).join(", ")}`);
-  }    
-};
-
-const functions = [
-  {
-    name: "demonstrarCelular",
-    description: "Chama a função para mostrar o modelo exato ao usuário.",
-    parameters: {
-      type: "object",
-      properties: {
-        modeloMencionado: { type: "string", description: "Nome exato do modelo encontrado." }
-      },
-      required: ["modeloMencionado"]
-    }
-  },
-  {
-    name: "investigarMais",
-    description: "Sugere uma lista de modelos para o cliente avaliar.",
-    parameters: {
-      type: "object",
-      properties: {
-        modelos: {
-          type: "array",
-          description: "Lista dos modelos que devem ser apresentados para o cliente.",
-          items: {
-            type: "object",
-            properties: {
-              nome: { type: "string" },
-              preco: { type: "number" },
-              memoriaRam: { type: "string" },
-              armazenamento: { type: "string" },
-              descricaoCurta: { type: "string" },
-              imagemURL: { type: "string" }
-            },
-            required: ["nome", "preco"]
+  
+      await appendToConversation(sender, {
+        tipo: "modelo_sugerido",
+        conteudo: modelo.nome,
+        timestamp: new Date().toISOString()
+      });
+    };
+  
+    // 🔍 1. IA NÃO enviou lista de modelos, tentar extrair de blocos com "🔥"
+    if (!Array.isArray(args.modelos)) {
+      console.warn("⚠️ IA não enviou modelos estruturados. Convertendo string para blocos individuais.");
+  
+      const blocos = (args.pergunta || "").split("🔥").map(b => b.trim()).filter(Boolean);
+      let encontrouModeloRelacionado = false;
+  
+      for (const bloco of blocos) {
+        const nomeBlocoNormalizado = normalizarNome(bloco);
+  
+        const relacionados = listaCompleta.filter(m => {
+          const nomeModelo = normalizarNome(m.nome);
+          return nomeModelo.includes(nomeBlocoNormalizado);
+        });
+  
+        if (relacionados.length > 0) {
+          encontrouModeloRelacionado = true;
+          for (const modelo of relacionados) {
+            await exibirModelo(modelo);
           }
         }
-      },
-      required: ["modelos"]
+      }
+  
+      // 🔁 Se nenhum reconhecido, mostrar modelos genéricos
+      if (!encontrouModeloRelacionado) {
+        console.log("⚠️ Nenhum modelo reconhecido. Mostrando todos os modelos disponíveis.");
+        const fallback = listaCompleta.slice(0, 6);
+        for (const modelo of fallback) {
+          await exibirModelo(modelo);
+        }
+      }
+  
+      await delay(2000);
+      await sendBotMessage(sender, "➡️ *Desses, qual mais te chamou atenção?*");
+      return;
     }
-  }
-];
+  
+    // 🔍 2. IA ENVIOU modelos (nomes ou objetos)
+    const ehListaDeNomes = args.modelos.every((m) => typeof m === "string");
+  
+    let modelosParaExibir = [];
+  
+    if (ehListaDeNomes) {
+      modelosParaExibir = args.modelos.map(nomeIA => {
+        const nomeNormalizado = normalizarNome(nomeIA);
+        return listaCompleta.find(modelo => normalizarNome(modelo.nome) === nomeNormalizado);
+      }).filter(Boolean);
+    } else {
+      modelosParaExibir = args.modelos.map(objIA => {
+        const nomeNormalizado = normalizarNome(objIA?.nome);
+        const modelo = listaCompleta.find(m => normalizarNome(m.nome) === nomeNormalizado);
+        return modelo ? { ...modelo } : null;
+      }).filter(Boolean);
+    }
+  
+    for (const modelo of modelosParaExibir) {
+      await exibirModelo(modelo);
+    }
+  
+    await delay(2000);
+    await sendBotMessage(sender, "➡️ *Desses, qual mais te chamou atenção?*");
+  },
+    modeloInvalido: async (sender) => {
+    return await sendBotMessage(sender, "Esse modelo não está disponível no nosso catálogo. Hoje trabalhamos apenas com *Redmi*, *Realme* e *Poco* 💜.");
+  }     
+};
+ 
 
 module.exports = { agenteDeDemonstracaoPorBoleto };

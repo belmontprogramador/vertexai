@@ -1,8 +1,6 @@
 const { sendBotMessage } = require("../../../messageSender");
 const {
-  setUserStage,
-  appendToConversation,
-  getConversation,
+  setUserStage,  
   getNomeUsuario,
   getUserStage
 } = require("../../../redisService");
@@ -11,10 +9,9 @@ const {
 const { informacoesPayjoy } = require("../../../utils/informacoesPayjoy");
 const { gatilhosEmocionaisVertex } = require('../../../utils/gatilhosEmocionais');
 const { tomDeVozVertex } = require('../../../utils/tomDeVozVertex');
-const { objeçõesVertexBoleto } = require("../../../utils/objecoesBoleto");
-const { rotinaDeAgendamento } = require("../../GerenciadorDeAgendamento/rotinaDeAgendamento");
+const { objeçõesVertexBoleto } = require("../../../utils/objecoesBoleto"); ;
 const { handlers: handlersDemonstracaoDetalhadaBoleto, agenteDeDemonstracaoDetalhadaBoleto } = require("../../../GerenciadorDeRotinas/GerenciadorDeDemonstracao/agenteDeDemonstracaoDetalhadaBoleto");
-
+const { appendToConversation, getConversation } = require("../../../HistoricoDeConversas/conversationManager");
 const {getAllCelulareBoleto } = require('../../../dbService')
 
 const OpenAI = require("openai");
@@ -26,29 +23,58 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const agenteDeDemonstracaoPosDecisaoPorBoleto = async ({ sender, msgContent, pushName, quotedMessage }) => {
   try {
-    await setUserStage(sender, "identificar_modelo_por_nome_pos_demonstração_por_valor");
+    await setUserStage(sender, "agente_de_demonstracao_pos_decisao_por_boleto");
 
+    // 🔍 Entrada sanitizada
     let entrada = typeof msgContent === "string" ? msgContent : msgContent?.termosRelacionados || "";
-    if (quotedMessage) entrada = `${entrada} || Mensagem citada: ${quotedMessage}`;
+    if (quotedMessage) entrada += ` || Mensagem citada: ${quotedMessage}`;
     entrada = entrada.trim().replace(/^again\s*/i, "") || "o cliente marcou uma mensagem mas não escreveu nada";
 
-    await appendToConversation(sender, entrada);
+    // 📝 Salva no histórico com JSON estruturado
+    await appendToConversation(sender, JSON.stringify({
+      tipo: "entrada_usuario",
+      conteudo: entrada,
+      timestamp: new Date().toISOString()
+    }));
 
     const conversa = await getConversation(sender);
-    const conversaCompleta = conversa.slice(-10).join(" | ");
+
+    // 🧠 Modelos recentes (JSON e prefixo antigo compatível)
     const modelosRecentes = conversa
-      .filter(m => m.startsWith("modelo_sugerido_json:") || m.startsWith("modelo_sugerido:"))
-      .map(m => {
+    .map(msg => {
+      try {
+        const obj = typeof msg === "string" ? JSON.parse(msg) : msg;
+  
+        if (obj.tipo === "modelo_sugerido_json") return obj.conteudo;
+        if (obj.tipo === "modelo_sugerido") {
+          return typeof obj.conteudo === "string"
+            ? { nome: obj.conteudo }
+            : obj.conteudo;
+        }
+      } catch {
+        if (typeof msg === "string" && msg.startsWith("modelo_sugerido: ")) {
+          return { nome: msg.replace("modelo_sugerido: ", "") };
+        }
+      }
+      return null;
+    })
+    .filter(Boolean);
+  
+
+    // 📜 Formato simples da conversa para prompt
+    const conversaCompleta = conversa
+      .map(msg => {
         try {
-          return m.startsWith("modelo_sugerido_json:")
-            ? JSON.parse(m.replace("modelo_sugerido_json: ", ""))
-            : { nome: m.replace("modelo_sugerido: ", ""), descricaoCurta: "(descrição não disponível)", preco: "preço não informado" };
+          const obj = JSON.parse(msg);
+          return `[${obj.tipo}] ${obj.conteudo}`;
         } catch {
-          return null;
+          return msg;
         }
       })
-      .filter(Boolean);
+      .slice(-10)
+      .join(" | ");
 
+    // 🤖 Deliberação TOA
     const deliberarPossibilidades = async () => {
       const prompt = `
 Cliente enviou: "${entrada}"
@@ -62,11 +88,10 @@ ${modelosRecentes.map(m => `- ${m.nome}`).join("\n") || "(nenhum modelo mostrado
 
 3. Se ele mencionar um novo modelo, diferente dos listados, é "identificarModeloPorNome".
 
-
 Retorne em formato JSON:
 {
-  possibilidades: [
-    { acao: "", motivo: "" },     
+  "possibilidades": [
+    { "acao": "", "motivo": "" }
   ]
 }`;
 
@@ -76,38 +101,25 @@ Retorne em formato JSON:
         temperature: 0.9
       });
 
-      try {
-        const raw = resp.choices?.[0]?.message?.content || "";
-        const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    
-        if (!jsonMatch) {
-          console.error("❌ Nenhum JSON válido encontrado na resposta:", raw);
-          return null;
-        }
-    
-        return JSON.parse(jsonMatch[0]);
-      } catch (e) {
-        console.error("❌ Erro ao fazer parse do TOA:", e, resp?.choices?.[0]?.message?.content);
-        return null;
-      }
+      const raw = resp.choices?.[0]?.message?.content || "";
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return null;
+      return JSON.parse(jsonMatch[0]);
     };
 
-    const avaliarMelhorCaminho = (possibilidades, extras) => {
-      const { msgContent = "", quotedMessage = "" } = extras || {};
-      const texto = `${msgContent} ${quotedMessage}`.toLowerCase();
+    // 🔍 Avaliação baseada nas possibilidades da IA
+    const avaliarMelhorCaminho = (possibilidades) => {
       if (!possibilidades?.possibilidades || possibilidades.possibilidades.length === 0) {
-        return "responderDuvida";      }
-    
-      // ⚠️ Aqui respeita a ordem da IA, ela decide a prioridade
-      return possibilidades.possibilidades[0].acao
+        return "responderDuvida";
+      }
+      return possibilidades.possibilidades[0].acao;
     };
-    
 
     const resultadoTOA = await deliberarPossibilidades();
-    const acaoEscolhida = avaliarMelhorCaminho(resultadoTOA, { msgContent, quotedMessage });
+    const acaoEscolhida = avaliarMelhorCaminho(resultadoTOA);
     console.log("🎯 Resultado TOA:", JSON.stringify(resultadoTOA, null, 2));
 
-
+    // 🎬 Execução da ação
     if (handlers[acaoEscolhida]) {
       return await handlers[acaoEscolhida](sender, {}, {
         msgContent: entrada,
@@ -181,27 +193,48 @@ const handlers = {
     entrada = entrada.trim().replace(/^again\s*/i, "") || "o cliente marcou uma mensagem mas não escreveu nada";
     console.log("✏️ Entrada final:", entrada);
 
-    await appendToConversation(sender, entrada);
+    await appendToConversation(sender, JSON.stringify({
+      tipo: "entrada_usuario",
+      conteudo: entrada,
+      timestamp: new Date().toISOString()
+    }));
+    
 
     const historico = await getConversation(sender);
     const conversaCompleta = historico
-      .map(f => f.replace(/^again\s*/i, "").trim())
-      .slice(-10)
-      .join(" | ");
+  .map(f => {
+    try {
+      const obj = typeof f === "string" ? JSON.parse(f) : f;
+      const texto = obj?.conteudo || "";
+      return texto.replace(/^again\s*/i, "").trim();
+    } catch {
+      return typeof f === "string" ? f.trim() : "";
+    }
+  })
+  .slice(-10)
+  .join(" | ");
+
 
     const modelosBanco = await getAllCelulareBoleto();
     const nome = await getNomeUsuario(sender);
 
     const modelosRecentes = historico
-  .filter(m => m.startsWith("modelo_sugerido_json:") || m.startsWith("modelo_sugerido:"))
-  .map(m => {
+  .map(msg => {
     try {
-      return m.startsWith("modelo_sugerido_json:")
-        ? JSON.parse(m.replace("modelo_sugerido_json: ", ""))
-        : { nome: m.replace("modelo_sugerido: ", ""), descricaoCurta: "(descrição não disponível)", preco: 0 };
+      const obj = typeof msg === "string" ? JSON.parse(msg) : msg;
+
+      if (obj.tipo === "modelo_sugerido_json") return obj.conteudo;
+      if (obj.tipo === "modelo_sugerido") {
+        return typeof obj.conteudo === "string"
+          ? { nome: obj.conteudo }
+          : obj.conteudo;
+      }
     } catch {
-      return null;
+      if (typeof msg === "string" && msg.startsWith("modelo_sugerido: ")) {
+        return { nome: msg.replace("modelo_sugerido: ", "") };
+      }
     }
+    return null;
   })
   .filter(Boolean);
 
