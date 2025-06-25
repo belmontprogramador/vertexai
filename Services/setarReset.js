@@ -1,3 +1,4 @@
+const { resetConversation } = require("./HistoricoDeConversas/conversationManager");
 const {
   
   deleteUserStage,  
@@ -23,6 +24,7 @@ const setarReset = async (userId) => {
 
     await deleteNomeUsuario(userId);  
     await deleteConversation(userId)
+    await resetConversation(userId)
     
  
     await redis.del(`user_model_history:${userId}`);

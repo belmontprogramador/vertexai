@@ -17,7 +17,34 @@ const { tomDeVozVertex } = require('../../../utils/tomDeVozVertex');
 const { getAllCelulares } = require('../../../dbService')
 const { handlers: handlersDemonstracaoDetalhada } = require("../../../GerenciadorDeRotinas/GerenciadorDeDemonstracao/agenteDeDemonstracaoDetalhada");
 
-
+const functions = [
+  {
+    name: "mostrarResumoModelo",
+    description: "Chama a função para mostrar o modelo que o usuário escolheu.O usuario pode digitar o nome do modelo escolhido ou simplesmente responder 'Sim' ou 'quero esse'  ou 'vamos fechar' ou uma intenção de data 'amanha', 'vou hoje', 'essa semana' mediante a pergunta do bot de confirmação de modelo escolhido",
+    parameters: {
+      type: "object",
+      properties: {
+        modeloMencionado: { type: "string", description: "Nome exato do modelo escolhido." }
+      },
+      required: ["modeloMencionado"]
+    }
+  },
+  {
+    name: "responderDuvida",
+    description: "Responde a uma dúvida específica do cliente sobre um ou mais modelos sugeridos anteriormente.",
+    parameters: {
+      type: "object",
+      properties: {
+        resposta: {
+          type: "string",
+          description: "Texto da resposta explicando diferenças, vantagens ou informações adicionais."
+        }
+      },
+      required: ["resposta"]
+    }
+  },
+  
+];
 const OpenAI = require("openai");
 require("dotenv").config();
 
@@ -283,33 +310,6 @@ const handlers = {
    
 };
 
-const functions = [
-  {
-    name: " mostrarResumoModelo",
-    description: "Chama a função para mostrar o modelo que o usuário escolheu.O usuario pode digitar o nome do modelo escolhido ou simplesmente responder 'Sim' ou 'quero esse'  ou 'vamos fechar' ou uma intenção de data 'amanha', 'vou hoje', 'essa semana' mediante a pergunta do bot de confirmação de modelo escolhido",
-    parameters: {
-      type: "object",
-      properties: {
-        modeloMencionado: { type: "string", description: "Nome exato do modelo escolhido." }
-      },
-      required: ["modeloMencionado"]
-    }
-  },
-  {
-    name: "responderDuvida",
-    description: "Responde a uma dúvida específica do cliente sobre um ou mais modelos sugeridos anteriormente.",
-    parameters: {
-      type: "object",
-      properties: {
-        resposta: {
-          type: "string",
-          description: "Texto da resposta explicando diferenças, vantagens ou informações adicionais."
-        }
-      },
-      required: ["resposta"]
-    }
-  },
-  
-];
+
 
 module.exports = { identificarModeloPorNomePosDemonstraçãoPorValor };

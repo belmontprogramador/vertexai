@@ -149,7 +149,7 @@ const checagemInicial = async (sender, msgContent, pushName, messageId,quotedMes
         case "open_ai_services_duvidas_boleto" :
             return await  openAiServicesDuvidasBoleto({ sender, msgContent, pushName}); 
         case "agente_de_demonstração_por_boleto" :
-            return await  agenteDeDemonstracaoPorBoleto({ sender, msgContent, pushName, modeloMencionado: "" }); 
+            return await  agenteDeDemonstracaoPorBoleto({ sender, msgContent, pushName, quotedMessage }); 
         case "agente_de_demonstracao_por_nome_por_boleto" :
             return await  agenteDeDemonstracaoPorNomePorBoleto({ sender, msgContent, pushName, modeloMencionado: "" });
         case "agente_de_demonstracao_pos_decisao_por_boleto" :

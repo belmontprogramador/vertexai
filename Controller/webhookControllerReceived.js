@@ -5,7 +5,7 @@ const { agenteDeTranscricao } = require("../Services/agenteDeTranscricao");
 const { isBotPausado, setPrimeiraInteracao, getPrimeiraInteracao } = require("../Services/redisService");
 const { DateTime } = require("luxon");
 const { sendBotMessage } = require("../Services/messageSender");
-const { extrairTextoDoQuotedMessage } = require("../Services/utils/extrairTextoDoQuotedMessage");
+const { extrairTextoDoQuotedMessage } = require("../Services/utils/utilitariosDeMensagem/extrairTextoDoQuotedMessage");
 const {
   estaBloqueado,
   enfileirarMensagem,

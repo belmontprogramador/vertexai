@@ -9,6 +9,8 @@ const { agenteDeDemonstracaoPorNomePorBoleto } = require("./agenteDeDemonstracao
 const axios = require("axios");
 const fs = require("fs");
 const OpenAI = require("openai");
+const { sanitizarEntradaComQuoted } = require("../../../utils/utilitariosDeMensagem/sanitizarEntradaComQuoted");
+const { prepararContextoDeModelosRecentes } = require("../../../utils/utilitariosDeMensagem/prepararContextoDeModelosRecentes");
 require("dotenv").config();
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -95,45 +97,22 @@ const calcularSimilaridadePorEmbeddings = async (entrada, modelos) => {
   });
 
   return distancias.sort((a, b) => b.score - a.score);
-};
+}; 
 
-const mencionaAlgumaMarcaDaLoja = (entrada) => {
-  const termos = ["redmi", "realme", "poco", "note"];
-  const texto = entrada.toLowerCase();
-  return termos.some(t => texto.includes(t));
-};
+const agenteDeDemonstracaoPorBoleto = async ({ sender, msgContent, pushName, quotedMessage }) => {
+   
+  const entrada = await sanitizarEntradaComQuoted(sender, msgContent, quotedMessage);   
 
-const agenteDeDemonstracaoPorBoleto = async ({ sender, msgContent, pushName }) => {
-  const nome = await getNomeUsuario(sender);
-  const entradaAtual = typeof msgContent === "string" ? msgContent : msgContent?.termosRelacionados || "";
-
-  await appendToConversation(sender, {
-    tipo: "entrada_usuario",
-    conteudo: entradaAtual,
-    timestamp: new Date().toISOString()
-  });
-
-  const conversaArray = await getConversation(sender);
-  const conversaCompleta = conversaArray
-    .map(msg => {
-      try {
-        const json = typeof msg === "string" ? JSON.parse(msg) : msg;
-        return json.conteudo || "";
-      } catch {
-        return typeof msg === "string" ? msg : "";
-      }
-    })
-    .filter(Boolean)
-    .slice(-10)
-    .join(" | ");
-
-  const listaModelos = await obterModelosDoBling();
+  const { modelos, nomeUsuario, conversaCompleta } = await prepararContextoDeModelosRecentes(sender);   
 
   // 🎯 Tenta detectar similaridade de entrada com algum modelo
-  const similares = await calcularSimilaridadePorEmbeddings(entradaAtual, listaModelos);
+  const listaModelos = await obterModelosDoBling();
+  const similares = await calcularSimilaridadePorEmbeddings(entrada, listaModelos);
   const maisProvavel = similares?.[0];
+  console.log(`o mais provavel ${JSON.stringify(maisProvavel, null, 2)}`);
 
-  if (maisProvavel?.score > 0.90) {
+
+  if (maisProvavel?.score > 0.50) {
     console.log("✅ Entrada casa fortemente com modelo:", maisProvavel.modelo);
     await appendToConversation(sender, {
       tipo: "deliberacao_toa",
@@ -147,26 +126,33 @@ const agenteDeDemonstracaoPorBoleto = async ({ sender, msgContent, pushName }) =
 
     return await handlers.demonstrarCelular(sender, {
       modeloMencionado: maisProvavel.modelo
-    }, { msgContent: entradaAtual });
+    }, { msgContent: entrada });
   }
+
+  const sugestaoModelo = maisProvavel?.modelo || null;
 
   // 🧠 Caso não tenha match forte, deixa TOA decidir
   const promptTOA = `
 🤖 Você é Anna, assistente virtual da Vertex Store.
 
 Seu objetivo é identificar a ação ideal com base na intenção do cliente.
-
-📌 Entrada:
-"${entradaAtual}"
-
 📜 Histórico da conversa:
-${conversaCompleta}
+  ${conversaCompleta}
 
-📦 Modelos disponíveis:
-${listaModelos.map(m => `- ${m.nome}`).join("\n")}
+  🧠 Última mensagem do cliente:
+  "${entrada}"
+
+  📱 Modelos apresentados:
+  ${modelos.map(m => `➡️ *${m.nome}*\n💵 Preço: R$ ${m.preco.toFixed(2)}`).join("\n")}
+
+  Nome do cliente: ${nomeUsuario}
+
+  📍 Sugestão de modelo identificado por IA:
+   ${sugestaoModelo ? `*${sugestaoModelo}*` : "nenhuma"}
 
 🎯 Ações disponíveis:
-1. "demonstrarCelular" ➜ Quando a entrada indicar um modelo específico da lista. Ao capturar o modelo do usuario popule ⚠️ o campo "argumento: { modeloMencionado: "NOME DO MODELO" }" para informar o modelo identificado.
+1. "demonstrarCelular" ➜ Quando a entrada indicar um modelo específico da lista.⚠️ Se essa sugestão estiver alinhada com a mensagem do cliente, use a ação "demonstrarCelular" com o campo "argumento: { modeloMencionado: "NOME DO MODELO" }".
+
 2. "investigarMais" ➜ Quando houver dúvida, modelo genérico ou múltiplas variações.
 3. "modeloInvalido" ➜ Quando o modelo não pertence às marcas Realme, Redmi ou Poco.
 
@@ -204,9 +190,8 @@ Retorne apenas isso:
     return await sendBotMessage(sender, "⚠️ Não entendi sua intenção. Pode repetir?");
   }
 
-  return await handlers[acao](sender, argumento, { msgContent: entradaAtual });
+  return await handlers[acao](sender, argumento, { msgContent: entrada });
 };
-
 
 const formatarDescricaoParaCaption = (modelo) => {
   return (

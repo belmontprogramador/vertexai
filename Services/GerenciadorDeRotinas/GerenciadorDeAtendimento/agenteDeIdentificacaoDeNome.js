@@ -10,88 +10,72 @@ require("dotenv").config();
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// 🔹 Funções para lidar com os caminhos da decisão
-const handlers = {
-  salvar_nome_usuario: async (sender, args, extras) => {
-    const { msgContent } = extras;
-    const nome = args.nome;
-    await storeNomeUsuario(sender, nome);
-    await setUserStage(sender, "rotina_de_primeiro_atendimento");
-    return await rotinaDePrimeiroAtendimento({ sender, msgContent, pushName: nome });
-  },
-
-  pedir_nome_novamente: async (sender) => {
-    await setUserStage(sender, "agente_de_identificação_de_nome");
-    const frases = [ `A gente adora atender bem, e seu nome é fundamental pra isso. Como devo te chamar? 💜`,
-      `Compartilha seu nome com a gente? Assim ajustamos tudo pra te atender do seu jeito 💜`
-] 
-const fraseEscolhida = frases[Math.floor(Math.random() * frases.length)];  
-    return await sendBotMessage(sender,fraseEscolhida);
-  }
-};
-
-// 🔹 Definição das funções (tools)
-const functions = [
-  {
-    name: "salvar_nome_usuario",
-    description: "Identificar o nome do usuario por exemplo 'felipe', 'julia', 'fernado', 'amanda'.Armazena o nome informado pelo usuário.",
-    parameters: {
-      type: "object",
-      properties: {
-        nome: {
-          type: "string",
-          description: "O usuario vai informar o nome dele"
-        }
-      },
-      required: ["nome"]
-    }
-  },
-  {
-    name: "pedir_nome_novamente",
-    description: "Usuário ainda não informou o nome, pedir novamente."
-  }
-];
-
-// 🔹 Agente principal
 const agenteDeIdentificacaoDeNome = async ({ sender, msgContent, pushName }) => {
   try {
+    await setUserStage(sender, "agente_de_identificação_de_nome");
+
     const completion = await openai.chat.completions.create({
       model: "gpt-4-turbo",
+      temperature: 0.3,
       messages: [
         {
           role: "system",
           content: `
-          Você é Anna, assistente da Vertex Store. Seu único objetivo agora é identificar o **primeiro nome** do cliente.
-          
-          📌 Regras essenciais:
-          - Sempre que o cliente disser algo como "me chamo Ana", "sou o Lucas", "aqui é o João", ou até "meu nome é João da Silva", chame a função salvar_nome_usuario com **apenas o primeiro nome** (ex: "João").
-          - Aceite frases naturais, informais ou abreviadas, como "Ana aqui", "É o João", "Lucas falando", "eu Ana", etc.
-          - Ignore sobrenomes, emojis, números ou saudações.
-          - Caso o texto **não contenha nenhum nome**, ou pareça genérico demais ("oi", "bom dia", "quero celular", "me ajuda"), chame a função pedir_nome_novamente.
-          
-          ⚠️ Nunca invente nomes. Se não encontrar um nome claro, prefira chamar pedir_nome_novamente.
-          `
-          
+Você é Anna, assistente da Vertex Store. Seu único objetivo neste momento é identificar o primeiro nome do cliente.
+
+Tome uma decisão clara baseado na entrada do usuário. Sempre responda com um JSON contendo a ação decidida:
+
+{
+  "acao": "salvar_nome_usuario",
+  "argumento": { "nome": "João" }
+}
+
+ou
+
+{
+  "acao": "pedir_nome_novamente"
+}
+
+⚠️ Regras:
+
+- Se o cliente disser algo como "me chamo Ana", "sou o Lucas", "João aqui", extraia apenas o primeiro nome e chame "salvar_nome_usuario".
+- Se o cliente disser algo genérico como "oi", "quero celular", "me ajuda", ou não disser o nome claramente, chame "pedir_nome_novamente".
+- Nunca invente nomes. Só chame "salvar_nome_usuario" se houver clareza.
+
+Sempre retorne um JSON limpo com apenas "acao" e "argumento" se aplicável.
+`
         },
         { role: "user", content: msgContent }
-      ],
-      functions,
-      function_call: "auto"
+      ]
     });
 
-    const toolCall = completion.choices[0]?.message?.function_call;
-    if (toolCall) {
-      const { name, arguments: argsStr } = toolCall;
-      const args = argsStr ? JSON.parse(argsStr) : {};
+    const resposta = completion.choices[0]?.message?.content?.trim();
+    let decisao = {};
 
-      if (handlers[name]) {
-        return await handlers[name](sender, args, { msgContent });
-      }
+    try {
+      decisao = JSON.parse(resposta);
+    } catch (err) {
+      console.warn("❗ Resposta fora do padrão JSON:", resposta);
+      decisao = { acao: "pedir_nome_novamente" };
     }
 
-    // fallback
-    await sendBotMessage(sender, "🤖 Não consegui entender. Qual é o seu primeiro nome?");
+    if (decisao.acao === "salvar_nome_usuario" && decisao.argumento?.nome) {
+      const nome = decisao.argumento.nome;
+      await storeNomeUsuario(sender, nome);
+      await setUserStage(sender, "rotina_de_primeiro_atendimento");
+      return await rotinaDePrimeiroAtendimento({ sender, msgContent, pushName: nome });
+    }
+
+    // Fallback para pedir nome novamente
     await setUserStage(sender, "agente_de_identificação_de_nome");
+
+    const frases = [
+      `A gente adora atender bem, e seu nome é fundamental pra isso. Como devo te chamar? 💜`,
+      `Compartilha seu nome com a gente? Assim ajustamos tudo pra te atender do seu jeito 💜`
+    ];
+    const fraseEscolhida = frases[Math.floor(Math.random() * frases.length)];
+    return await sendBotMessage(sender, fraseEscolhida);
+
   } catch (error) {
     console.error("❌ Erro no agenteDeIdentificacaoDeNome:", error.message);
     await sendBotMessage(sender, "⚠️ Ocorreu um erro ao tentar identificar seu nome. Pode repetir?");

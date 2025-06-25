@@ -1,99 +1,178 @@
 const { sendBotMessage } = require("../../../messageSender");
 const {
   setUserStage,  
-  getNomeUsuario,
-  getUserStage
+  appendToConversation
 } = require("../../../redisService");
- 
- 
 const { informacoesPayjoy } = require("../../../utils/informacoesPayjoy");
 const { gatilhosEmocionaisVertex } = require('../../../utils/gatilhosEmocionais');
 const { tomDeVozVertex } = require('../../../utils/tomDeVozVertex');
-const { objeçõesVertexBoleto } = require("../../../utils/objecoesBoleto"); ;
+const { objeçõesVertexBoleto } = require("../../../utils/objecoesBoleto");;
 const { handlers: handlersDemonstracaoDetalhadaBoleto, agenteDeDemonstracaoDetalhadaBoleto } = require("../../../GerenciadorDeRotinas/GerenciadorDeDemonstracao/agenteDeDemonstracaoDetalhadaBoleto");
-const { appendToConversation, getConversation } = require("../../../HistoricoDeConversas/conversationManager");
-const {getAllCelulareBoleto } = require('../../../dbService')
-
+const { getConversation } = require("../../../HistoricoDeConversas/conversationManager");
+const { getAllCelulareBoleto } = require('../../../dbService')
+const { sanitizarEntradaComQuoted } = require("../../../utils/utilitariosDeMensagem/sanitizarEntradaComQuoted");
+const { prepararContextoDeModelosRecentes } = require("../../../utils/utilitariosDeMensagem/prepararContextoDeModelosRecentes");
 const OpenAI = require("openai");
 const { agenteDeDemonstracaoPorNomePorBoleto } = require("./agenteDeDemonstracaoPorNomePorBoleto");
- 
 require("dotenv").config();
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+const obterModelosDoBling = async () => {
+  try {
+    const celulares = await getAllCelulareBoleto();
+
+    const termosIgnorados = [
+      "BLACK", "WHITE", "BLUE", "GREEN", "GOLD", "PURPLE", "SILVER", "CORAL",
+      "MIDNIGHT", "OCEAN", "TEAL", "AZUL", "VERDE", "LAVENDER", "VOYAGE",
+      "MARBLE", "STORM", "LIGHTNING", "SPARKLE", "DARK", "LIME", "STAR", "STARRY",
+      "OCÉANO", "ROM", "RAM"
+    ];
+
+    const normalizeNome = (nome) => nome
+      .replace(/^smartphone\s*/i, "")
+      .replace(/[^\w\s]/gi, '')
+      .trim()
+      .split(/\s+/)
+      .filter(p => !termosIgnorados.includes(p.toUpperCase()))
+      .join(" ")
+      .toLowerCase()
+      .trim();
+
+    const mapaUnico = new Map();
+
+    for (const c of celulares) {
+      const chave = normalizeNome(c.nome);
+      if (!mapaUnico.has(chave)) {
+        mapaUnico.set(chave, {
+          nome: c.nome,
+          preco: c.preco,
+          descricaoCurta: c.descricao,
+          imagemURL: c.imageURL,
+          precoParcelado: c.precoParcelado,
+          fraseImpacto: c.fraseImpacto,
+          subTitulo: c.subTitulo
+        });
+      }
+    }
+
+    const listaParaPrompt = Array.from(mapaUnico.values());
+
+    console.log("📦 Modelos carregados do banco:");
+    listaParaPrompt.forEach(m => console.log("-", m.nome));
+
+    return listaParaPrompt;
+  } catch (err) {
+    console.error("❌ Erro ao carregar modelos do banco:", err);
+    return [];
+  }
+};
+
+const calcularSimilaridadePorEmbeddings = async (entrada, modelos) => {
+  const entradaEmbedding = await openai.embeddings.create({
+    model: "text-embedding-3-small",
+    input: entrada
+  });
+
+  const nomesModelos = modelos.map(m => m.nome);
+
+  const modelosEmbedding = await openai.embeddings.create({
+    model: "text-embedding-3-small",
+    input: nomesModelos
+  });
+
+  const vetorEntrada = entradaEmbedding.data[0].embedding;
+
+  const distancias = modelosEmbedding.data.map((item, i) => {
+    const modeloOriginal = modelos[i];
+    const vetorModelo = item.embedding;
+    const score = vetorEntrada.reduce((acc, val, idx) => acc + val * vetorModelo[idx], 0);
+    return {
+      imagemURL: modeloOriginal.imagemURL,
+      descricaoCurta: modeloOriginal.descricaoCurta,
+      modelo: modeloOriginal.nome,
+      preco: modeloOriginal.preco,
+      subTitulo: modeloOriginal.subTitulo,
+      fraseImpacto: modeloOriginal.fraseImpacto,
+      precoParcelado: modeloOriginal.precoParcelado,
+      score
+    };
+  });
+
+  return distancias.sort((a, b) => b.score - a.score);
+};
 
 const agenteDeDemonstracaoPosDecisaoPorBoleto = async ({ sender, msgContent, pushName, quotedMessage }) => {
   try {
     await setUserStage(sender, "agente_de_demonstracao_pos_decisao_por_boleto");
 
-    // 🔍 Entrada sanitizada
-    let entrada = typeof msgContent === "string" ? msgContent : msgContent?.termosRelacionados || "";
-    if (quotedMessage) entrada += ` || Mensagem citada: ${quotedMessage}`;
-    entrada = entrada.trim().replace(/^again\s*/i, "") || "o cliente marcou uma mensagem mas não escreveu nada";
+    const entrada = await sanitizarEntradaComQuoted(sender, msgContent, quotedMessage);
 
-    // 📝 Salva no histórico com JSON estruturado
-    await appendToConversation(sender, JSON.stringify({
-      tipo: "entrada_usuario",
-      conteudo: entrada,
-      timestamp: new Date().toISOString()
-    }));
+    const { modelos, modelosConfirmados, nomeUsuario, conversaCompleta } = await prepararContextoDeModelosRecentes(sender);
 
-    const conversa = await getConversation(sender);
+    // 🎯 Tenta detectar similaridade de entrada com algum modelo
+    const listaModelos = await obterModelosDoBling();
+    const similares = await calcularSimilaridadePorEmbeddings(entrada, listaModelos);
+    const maisProvavel = similares?.[0];
 
-    // 🧠 Modelos recentes (JSON e prefixo antigo compatível)
-    const modelosRecentes = conversa
-    .map(msg => {
-      try {
-        const obj = typeof msg === "string" ? JSON.parse(msg) : msg;
-  
-        if (obj.tipo === "modelo_sugerido_json") return obj.conteudo;
-        if (obj.tipo === "modelo_sugerido") {
-          return typeof obj.conteudo === "string"
-            ? { nome: obj.conteudo }
-            : obj.conteudo;
-        }
-      } catch {
-        if (typeof msg === "string" && msg.startsWith("modelo_sugerido: ")) {
-          return { nome: msg.replace("modelo_sugerido: ", "") };
-        }
-      }
-      return null;
-    })
-    .filter(Boolean);
-  
+    if (maisProvavel?.score > 0.90) {
+      console.log("✅ Entrada casa fortemente com modelo:", maisProvavel.modelo);
+      await appendToConversation(sender, {
+        tipo: "deliberacao_toa",
+        conteudo: {
+          acao: "demonstracaoDetalhadaBoleto",
+          motivo: `Cliente mencionou ${maisProvavel.modelo} com alta similaridade`,
+          argumento: { modeloMencionado: maisProvavel.modelo }
+        },
+        timestamp: new Date().toISOString()
+      });
 
-    // 📜 Formato simples da conversa para prompt
-    const conversaCompleta = conversa
-      .map(msg => {
-        try {
-          const obj = JSON.parse(msg);
-          return `[${obj.tipo}] ${obj.conteudo}`;
-        } catch {
-          return msg;
-        }
-      })
-      .slice(-10)
-      .join(" | ");
+      return await handlers.demonstracaoDetalhadaBoleto(sender, {
+        modeloMencionado: maisProvavel.modelo
+      }, { msgContent: entrada });
+    }
 
     // 🤖 Deliberação TOA
     const deliberarPossibilidades = async () => {
       const prompt = `
-Cliente enviou: "${entrada}"
-MODELOS MOSTRADOS:
-${modelosRecentes.map(m => `- ${m.nome}`).join("\n") || "(nenhum modelo mostrado ainda)"}
-
-💡 Quais são as 3 possibilidades mais prováveis que o cliente quer com essa mensagem?
-1. Se — e SOMENTE SE — o cliente disser explicitamente frases como "fechou", "quero esse", "vamos fechar", "é esse mesmo", "bora", "fechado", ou mencionar uma data exata de fechamento como "vou hoje", "passo aí amanhã", "mês que vem", então ele está confirmando um dos modelos sugeridos. Escolha mostrarResumoModeloBoleto.
-
-2. Se o cliente fizer QUALQUER pergunta mesmo sem usar ponto de ? — mesmo curta — como "é bom?", "e esse?", "a câmera é boa?", "qual o preço?", ou mostrar dúvida sobre qualquer aspecto, isso deve ser interpretado como que ele ainda está indeciso e precisa de mais informações. Escolha "responderDuvida".
-
-3. Se ele mencionar um novo modelo, diferente dos listados, é "identificarModeloPorNome".
-
-Retorne em formato JSON:
-{
-  "possibilidades": [
-    { "acao": "", "motivo": "" }
-  ]
-}`;
+      📜 Histórico da conversa:
+        ${conversaCompleta}
+      
+      🧠 Última mensagem do cliente:
+      "${entrada}"
+      
+      📱 Modelos apresentados:
+      ${modelos.map(m => `➡️ *${m.nome}*\n📝 ${m.descricaoCurta}\n💵 Preço: R$ ${m.preco.toFixed(2)}`).join("\n")}
+      
+      Nome do cliente: ${nomeUsuario}
+      
+      ✅ Modelos confirmados anteriormente pelo cliente:
+      ${modelosConfirmados.length > 0
+        ? modelosConfirmados.map(m => `✔️ *${m}*`).join("\n")
+        : "Nenhum ainda foi confirmado."}
+      
+      🧠 Último modelo confirmado:
+      ${modelosConfirmados[modelosConfirmados.length - 1] || "nenhum"}
+      
+      💡 Quais são as 3 possibilidades mais prováveis que o cliente quer com essa mensagem?
+      
+      1. Se — e SOMENTE SE — o cliente disser explicitamente frases como "fechou", "quero esse", "vamos fechar", "é esse mesmo", "bora", "fechado", ou mencionar uma data exata de fechamento como "vou hoje", "passo aí amanhã", "mês que vem", então ele está confirmando um dos modelos sugeridos. Escolha **demonstracaoDetalhadaBoleto**.
+      
+      2. Se o cliente fizer QUALQUER pergunta (mesmo sem ponto de interrogação) — como "é bom?", "e esse?", "a câmera é boa?", "qual o preço?" — **sobre qualquer um dos modelos apresentados anteriormente**, ou **sobre o último modelo confirmado**, interprete como dúvida ou indecisão. Escolha **responderDuvida**.
+      
+      ⚠️ Mesmo se o cliente mencionar o nome do modelo de novo ou compará-lo com outro lugar (ex: Mercado Livre), se esse modelo já foi apresentado, ainda assim escolha **responderDuvida**, pois o cliente já demonstrou interesse anteriormente.
+      
+      3. Se ele mencionar um modelo que **ainda não foi apresentado na conversa** e **também não é o último confirmado**, escolha **agenteDeDemonstracaoPorNomePorBoleto**. Isso indica que o cliente está abrindo uma nova intenção.
+      
+      Retorne apenas isso:
+      {
+        "acao": "NOME_DA_ACAO",
+        "motivo": "Texto explicando por que esta ação foi escolhida",
+        "argumento": {
+          "nomeModelo": ""
+        }
+      }
+      `;     
 
       const resp = await openai.chat.completions.create({
         model: "gpt-4o",
@@ -107,27 +186,76 @@ Retorne em formato JSON:
       return JSON.parse(jsonMatch[0]);
     };
 
-    // 🔍 Avaliação baseada nas possibilidades da IA
-    const avaliarMelhorCaminho = (possibilidades) => {
-      if (!possibilidades?.possibilidades || possibilidades.possibilidades.length === 0) {
-        return "responderDuvida";
-      }
-      return possibilidades.possibilidades[0].acao;
-    };
-
     const resultadoTOA = await deliberarPossibilidades();
-    const acaoEscolhida = avaliarMelhorCaminho(resultadoTOA);
+    const acaoEscolhida = resultadoTOA?.acao;
     console.log("🎯 Resultado TOA:", JSON.stringify(resultadoTOA, null, 2));
 
-    // 🎬 Execução da ação
-    if (handlers[acaoEscolhida]) {
-      return await handlers[acaoEscolhida](sender, {}, {
-        msgContent: entrada,
-        quotedMessage,
-        pushName,
-        conversaCompleta
+    // 🔐 Grava modelo confirmado só se a TOA deliberar isso com clareza
+if (acaoEscolhida === "agenteDeDemonstracaoPorNomePorBoleto") {
+  const nomeModelo = resultadoTOA.argumento?.nomeModelo?.trim();
+  if (nomeModelo && !modelosConfirmados.includes(nomeModelo)) {
+    await appendToConversation(sender, {
+      tipo: "modelo_confirmado",
+      conteudo: nomeModelo,
+      timestamp: new Date().toISOString()
+    });
+  }
+}
+
+  // ✅ ⬇️ Aqui tratamos ambiguidade se a TOA escolher mostrarResumoModeloBoleto
+if (acaoEscolhida === "demonstracaoDetalhadaBoleto") {
+  let nomeModelo = resultadoTOA.argumento?.nomeModelo?.trim();
+  console.log(`aqui dentro do pos decisão eu chamei o resumomodelo com esse modelo confirmado ${nomeModelo}`)
+
+  if (!nomeModelo) {
+    if (modelosConfirmados.length === 1) {
+      // Só um modelo confirmado → usar direto
+      nomeModelo = modelosConfirmados[0];
+      resultadoTOA.argumento.nomeModelo = nomeModelo;
+
+      await appendToConversation(sender, {
+        tipo: "modelo_confirmado",
+        conteudo: nomeModelo,
+        timestamp: new Date().toISOString()
       });
+
+    } else {
+      // Múltiplos modelos ou nenhum → pedir confirmação  
+      await setUserStage(sender, "agente_de_demonstração_detalhada_boleto");   
+
+      await sendBotMessage(sender, `⚠️ ${nomeUsuario}, você falou que quer fechar, mas fiquei na dúvida sobre qual modelo exatamente.`);
+
+      if (modelosConfirmados.length > 1) {
+        const lista = modelosConfirmados.map(m => `✔️ *${m}*`).join("\n");
+        await sendBotMessage(sender, `Você pode confirmar qual desses modelos quer?\n\n${lista}`);
+      } else {
+        await sendBotMessage(sender, `Você pode me dizer qual o modelo que quer fechar?`);
+      }
+
+      return; // ⚠️ IMPORTANTE: não segue pro handler se ainda não temos nomeModelo
     }
+  }
+ // ✅ Garante que o modelo está gravado como confirmado
+ if (!modelosConfirmados.includes(nomeModelo)) {
+  await appendToConversation(sender, {
+    tipo: "modelo_confirmado",
+    conteudo: nomeModelo,
+    timestamp: new Date().toISOString()
+  });
+}
+  
+}
+
+// 🎬 Execução da ação
+if (handlers[acaoEscolhida]) {
+  return await handlers[acaoEscolhida](sender, resultadoTOA.argumento || {}, {
+    msgContent: entrada,
+    quotedMessage,
+    pushName,
+    conversaCompleta
+  });
+
+  }
 
     return await sendBotMessage(sender, "⚠️ Não entendi sua escolha. Pode repetir?");
   } catch (error) {
@@ -138,122 +266,96 @@ Retorne em formato JSON:
 
 const handlers = {
   demonstracaoDetalhadaBoleto: async (sender, args, extras) => {
-    await setUserStage(sender, "agente_de_demonstração_detalhada_boleto");
+    await setUserStage(sender, "agente_de_demonstração_detalhada_boleto");     
   
     const historico = await getConversation(sender);
   
     const modeloJaMostrado = historico.some((m) =>
-      m.includes("modelo_sugerido_json") && m.includes(args.modeloMencionado)
+      m?.tipo === "modelo_sugerido_json" &&
+      typeof m?.conteudo?.nome === "string" &&
+      m.conteudo.nome.toLowerCase() === args.nomeModelo.toLowerCase()
     );
+  
+    let modeloEscolhido;
   
     if (!modeloJaMostrado && args?.modeloMencionado) {
       const modelos = await getAllCelulareBoleto();
-      const modeloEscolhido = modelos.find(m =>
+      modeloEscolhido = modelos.find(m =>
         m.nome.toLowerCase() === args.modeloMencionado.toLowerCase()
       );
-  
-      if (modeloEscolhido) {
-        // ⚠️ Aqui você chama o outro handle
-        await handlers.mostrarResumoModeloBoleto(sender, { nomeModelo: modeloEscolhido.nome }, { modeloEscolhido });
-
-      }
     }
   
-    // Continua com a demonstração detalhada
-    return await agenteDeDemonstracaoDetalhadaBoleto({
-      sender,
-      msgContent: extras.msgContent,
-      pushName: extras.pushName,
-      modeloMencionado: args.modeloMencionado
-    });
-  },
-  mostrarResumoModeloBoleto: handlersDemonstracaoDetalhadaBoleto.mostrarResumoModeloBoleto,
-  responderDuvida: async (sender, _args, extras) => {
+    // Se encontrou o modelo, chama direto o resumo
+    if (modeloEscolhido) {
+      return await handlersDemonstracaoDetalhadaBoleto.mostrarResumoModeloBoleto(sender,
+      { nomeModelo: modeloEscolhido.nome },
+       { modeloEscolhido });
+    }
+  
+    // Fallback: chama o resumo mesmo que o modelo já tenha sido mostrado ou não foi encontrado de novo
+    return await handlersDemonstracaoDetalhadaBoleto.mostrarResumoModeloBoleto(sender, { nomeModelo: args.nomeModelo }, {});
+  },  
+  responderDuvida: async (sender, args, extras) => {
     await setUserStage(sender, "agente_de_demonstracao_pos_decisao_por_boleto");
 
     const { msgContent, quotedMessage } = extras;
- 
 
-    let entrada = typeof msgContent === "string" ? msgContent : msgContent?.termosRelacionados || "";
+    const entrada = await sanitizarEntradaComQuoted(sender, msgContent, quotedMessage);     
 
-    // 🔍 Extrai o modelo da mensagem citada
-    let modeloExtraido = null;
-    if (quotedMessage) {
-      const match = quotedMessage.match(/\*([^*]*(REALME|REDMI|POCO)[^*]*)\*/i);
-      modeloExtraido = match?.[1]?.replace(/🔥/g, '').trim();
-      console.log("🔎 Modelo extraído da quotedMessage:", modeloExtraido);
-    }
-
-    // 🧠 Substitui mensagens vagas pela citação
-    if ((!entrada || /esse|modelo|aqui|isso/i.test(entrada)) && modeloExtraido) {
-      entrada = modeloExtraido;
-      console.log("📌 Entrada substituída pela citação:", entrada);
-    }
-
-    entrada = entrada.trim().replace(/^again\s*/i, "") || "o cliente marcou uma mensagem mas não escreveu nada";
-    console.log("✏️ Entrada final:", entrada);
-
-    await appendToConversation(sender, JSON.stringify({
-      tipo: "entrada_usuario",
-      conteudo: entrada,
-      timestamp: new Date().toISOString()
-    }));
-    
-
-    const historico = await getConversation(sender);
-    const conversaCompleta = historico
-  .map(f => {
-    try {
-      const obj = typeof f === "string" ? JSON.parse(f) : f;
-      const texto = obj?.conteudo || "";
-      return texto.replace(/^again\s*/i, "").trim();
-    } catch {
-      return typeof f === "string" ? f.trim() : "";
-    }
-  })
-  .slice(-10)
-  .join(" | ");
-
-
-    const modelosBanco = await getAllCelulareBoleto();
-    const nome = await getNomeUsuario(sender);
-
-    const modelosRecentes = historico
-  .map(msg => {
-    try {
-      const obj = typeof msg === "string" ? JSON.parse(msg) : msg;
-
-      if (obj.tipo === "modelo_sugerido_json") return obj.conteudo;
-      if (obj.tipo === "modelo_sugerido") {
-        return typeof obj.conteudo === "string"
-          ? { nome: obj.conteudo }
-          : obj.conteudo;
-      }
-    } catch {
-      if (typeof msg === "string" && msg.startsWith("modelo_sugerido: ")) {
-        return { nome: msg.replace("modelo_sugerido: ", "") };
-      }
-    }
-    return null;
-  })
-  .filter(Boolean);
-
-
-    const mapaUnico = new Map();
-    for (const modelo of modelosRecentes.reverse()) {
-      const chave = modelo.nome.toLowerCase();
-      if (!mapaUnico.has(chave)) {
-        mapaUnico.set(chave, modelo);
-      }
-    }
-
-    const modelos = Array.from(mapaUnico.values())
-      .map(mJson => modelosBanco.find(m => m.nome.toLowerCase() === mJson.nome.toLowerCase()))
-      .filter(Boolean);
+    const { modelos, nomeUsuario,  modelosConfirmados, conversaCompleta } = await prepararContextoDeModelosRecentes(sender);
 
     if (modelos.length === 0) {
       return await sendBotMessage(sender, "⚠️ Ainda não te mostrei nenhum modelo pra comparar. Quer ver algumas opções?");
     }
+
+    let modeloFocado = null;
+
+if (args?.nomeModelo) {
+  const normalizar = (str) => str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  const nomeNormalizado = normalizar(args.nomeModelo);
+
+  // 1️⃣ Tenta encontrar entre os modelos recentes
+  modeloFocado = modelos.find(m => normalizar(m.nome) === nomeNormalizado);
+
+  // 2️⃣ Fallback: busca no banco se não estiver entre os recentes
+  if (!modeloFocado) {
+    const todos = await getAllCelulareBoleto();
+    modeloFocado = todos.find(m => normalizar(m.nome) === nomeNormalizado);
+  }
+}
+
+
+    let descricaoModelos = "";
+
+    if (modeloFocado) {
+      descricaoModelos = `
+  ➡️ *${modeloFocado.nome}*
+  💬 Descrição: ${modeloFocado.descricaoCurta}
+  🧠 Subtítulo: ${modeloFocado.subTitulo}
+  💡 Frase impacto: ${modeloFocado.fraseImpacto}
+  💵 Preço: R$ ${modeloFocado.preco.toFixed(2)}
+  💳 Parcelado: ${modeloFocado.precoParcelado}
+  🖼️ Imagem: ${modeloFocado.imagemURL}
+  `;
+    } else {
+      descricaoModelos = modelos.map(m => `
+  ➡️ *${m.nome}*
+  💬 Descrição: ${m.descricaoCurta}
+  🧠 Subtítulo: ${m.subTitulo}
+  💡 Frase impacto: ${m.fraseImpacto}
+  💵 Preço: R$ ${m.preco.toFixed(2)}
+  💳 Parcelado: ${m.precoParcelado}
+  🖼️ Imagem: ${m.imagemURL}
+  `).join("\n");
+    }
+// 🔁 Se o modelo focado veio do banco e ainda não está na lista, adiciona na lista de modelos
+if (modeloFocado && !modelos.find(m => m.nome.toLowerCase() === modeloFocado.nome.toLowerCase())) {
+  modelos.push(modeloFocado);
+}
+
+const historico = await getConversation(sender);
+const ultimaTOA = [...historico].reverse().find(msg => msg.tipo === "deliberacao_toa");
+
     const contexto = `
     Você é Anna, especialista da Vertex Store.
     
@@ -281,7 +383,7 @@ const handlers = {
   *** SEMPRE AO FALAR DE PREÇOS DEIXE BEM CLARO QUE ESSE VALORES SÃO ESTIMATIVAS E QUE PODEM FLUTUAR DE ACORDO COM A DISPONIBILIDADE DA PAY JOY ***
   ## TOM_DE_VOZ
   - Saudação acolhedora porém direta.
-  - Use vocativo informal respeitoso (ex.: “Perfeito, ${nome}!”).
+  - Use vocativo informal respeitoso (ex.: “Perfeito, ${nomeUsuario}!”).
   - Emojis: 💜 obrigatório + 1 contextual; use 🔥 para descontos.
   - Até 250 caracteres por bloco; quebre linhas por assunto.
   - Pontuação dupla (“!!”, “…” ) permitida.
@@ -294,7 +396,7 @@ const handlers = {
   ## OBJEÇÕES & COMPARATIVOS
   - Se cliente comparar preço online → explique valor agregado (lista de diferenciais).
   - Descontos: no boleto não descontos
-  - Parcelamento padrão apenas em 18×; .
+  - Parcelamento padrão apenas em 18× somente parcelamos em 18x; .
   - Use analogias para comparar serviços (ex.: “comprar só preço é como…”).
 
    ## OBJEÇÕES DE DUVIDAS SOBRE BOLETO(OBJEÇÕES SOBRE PAYJOY:)
@@ -304,16 +406,27 @@ const handlers = {
   - Seja conciso e humanizado; máximo 3 blocos (“emoção”, “benefício”, “call-to-action”).
   - Sempre feche perguntando algo que avance (ex.: “Fecho em 10× pra você?”).
 
-  📜 Histórico da conversa:
-  ${conversaCompleta}
-
+  
   🧠 Última mensagem do cliente:
-  "${entrada}"
+      "${entrada}"
 
-  📱 Modelos apresentados:
-  ${modelos.map(m => `➡️ *${m.nome}*\n💵 Preço: R$ ${m.preco.toFixed(2)}`).join("\n")}
-
-  Nome do cliente: ${nome}
+  📜 Histórico da conversa:
+        ${conversaCompleta}
+ Utilize a ultima decisão TOA para te ajudar na resolução de duvida
+        ${ultimaTOA}           
+      
+      📱 Modelos apresentados:
+      ${modelos.map(m => `➡️ *${m.nome}*\n📝 ${m.descricaoCurta}\n💵 Preço: R$ ${m.preco.toFixed(2)}`).join("\n")}
+      
+      Nome do cliente: ${nomeUsuario}
+      
+      ✅ Modelos confirmados anteriormente pelo cliente:
+      ${modelosConfirmados.length > 0
+        ? modelosConfirmados.map(m => `✔️ *${m}*`).join("\n")
+        : "Nenhum ainda foi confirmado."}
+      
+      🧠 Último modelo confirmado:
+      ${modelosConfirmados[modelosConfirmados.length - 1] || "nenhum"}
   `;
 
     const respostaIA = await openai.chat.completions.create({
@@ -334,14 +447,21 @@ const handlers = {
 
     return await sendBotMessage(sender, respostaFinal);
   },
-  identificarModeloPorNome: async (sender, _args, { msgContent, pushName }) => {
+  agenteDeDemonstracaoPorNomePorBoleto: async (sender, args, { msgContent, pushName }) => {
     await setUserStage(sender, "agente_de_demonstracao_por_nome_por_boleto");
-    const novoStage = await getUserStage(sender);
-    await sendBotMessage(sender, novoStage);
-    return await agenteDeDemonstracaoPorNomePorBoleto({ sender, msgContent, pushName });
-  }
+    // Salva como modelo confirmado
+    const nomeModelo = args?.nomeModelo?.trim();
+
+    return await agenteDeDemonstracaoPorNomePorBoleto({ sender, msgContent, pushName, modeloMencionado: nomeModelo });
+  },
+
+
 };
 
- 
 
-module.exports = { agenteDeDemonstracaoPosDecisaoPorBoleto };
+
+module.exports = {
+  agenteDeDemonstracaoPosDecisaoPorBoleto,
+  
+};
+

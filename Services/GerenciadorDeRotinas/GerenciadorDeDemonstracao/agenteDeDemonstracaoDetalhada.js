@@ -15,7 +15,7 @@ const { objeçõesVertex } = require("../../../Services/utils/objecoes");
 const { gatilhosEmocionaisVertex } = require('../../../Services/utils/gatilhosEmocionais'); 
 const { intencaoDataEntregaDesconto } = require('../../../Services/utils/intencaoDataEntregaDesconto');
 const { tomDeVozVertexData } = require("../../utils/tomDeVozVertexData");
-const { extrairTextoDoQuotedMessage } = require("../../utils/extrairTextoDoQuotedMessage");
+const { extrairTextoDoQuotedMessage } = require("../../utils/utilitariosDeMensagem/extrairTextoDoQuotedMessage");
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 

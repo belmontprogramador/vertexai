@@ -11,7 +11,7 @@ const {
 
 const { getAllCelulares } = require("../../../dbService");
 const extrairNumeroDeTexto = require("./extratoNumeroDeTexto");
-const { extrairTextoDoQuotedMessage } = require("../../../utils/extrairTextoDoQuotedMessage");
+const { extrairTextoDoQuotedMessage } = require("../../../utils/utilitariosDeMensagem/extrairTextoDoQuotedMessage");
 
  
 
