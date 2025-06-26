@@ -70,7 +70,7 @@ const functions = [
   }
 ];
 
-const openAiServicesDuvidasBoleto = async ({ sender, msgContent, pushName = "" }) => {  
+const openAiServicesDuvidasBoleto = async ({ sender, msgContent, pushName = "", quotedMessage }) => {  
 
   try {
     const userMessage = msgContent;

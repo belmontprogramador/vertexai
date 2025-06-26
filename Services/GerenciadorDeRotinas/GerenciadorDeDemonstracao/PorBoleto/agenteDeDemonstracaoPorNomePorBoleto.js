@@ -3,7 +3,7 @@ const {
   setUserStage,
   getNomeUsuario
 } = require("../../../redisService");
-const { getAllCelulareBoleto } = require("../../../dbService");
+const { getAllCelulareBoleto, getAllCelulares } = require("../../../dbService");
 const { appendToConversation, getConversation } = require("../../../HistoricoDeConversas/conversationManager");
 
 
@@ -33,7 +33,7 @@ const normalizeNome = (nome) => nome
 
 const obterModelosDoBling = async () => {
   try {
-    const celulares = await getAllCelulareBoleto();
+    const celulares = await getAllCelulares();
    
 
     const mapaUnico = new Map();

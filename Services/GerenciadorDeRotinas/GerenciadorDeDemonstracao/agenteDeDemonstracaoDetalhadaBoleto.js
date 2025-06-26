@@ -293,6 +293,14 @@ const handlers = {
       conteudo: modelo,
       timestamp: new Date().toISOString()
     });
+
+    // 💾 Salva também como modelo confirmado (para referência futura)
+await appendToConversation(sender, {
+  tipo: "modelo_confirmado",
+  conteudo: modelo.nome,
+  timestamp: new Date().toISOString()
+});
+
   
     // 📹 Envia o vídeo com resumo na legenda
     if (modelo.videoURL) {

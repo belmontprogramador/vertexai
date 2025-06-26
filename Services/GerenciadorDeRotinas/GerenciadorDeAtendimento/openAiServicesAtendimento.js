@@ -25,14 +25,15 @@ const handlers = {
     await setUserStage(sender, "rotina_de_demonstracao_de_celular_por_nome");
   
     const fraseCompleta = args.fraseCompleta || msgContent?.termosRelacionados || msgContent;
-    
+    const quotedMessage = args.quotedMessage || null; // ← aqui é o fix
+  
     await rotinaDeDemonstracaoDeCelularPorNome({
       sender,
-      msgContent: fraseCompleta, 
-      modeloMencionado: args.termosRelacionados,
+      msgContent, 
+      quotedMessage,
       pushName
     });
-  },
+  },  
   consultarParcelamento: async (sender, args, extras) => {
     const { msgContent, pushName } = extras;
 const nome = await getNomeUsuario(sender, pushName); 
@@ -163,7 +164,7 @@ const functions = [
 ];
 
 // 🔹 Função principal para rodar o agente de sondagem
-const openAiServicesAtendimento = async ({ sender, msgContent, pushName }) => {
+const openAiServicesAtendimento = async ({ sender, msgContent, pushName, quotedMessage }) => {
   try {    
     // fallback direto para boleto se a mensagem for claramente sobre isso
     if (/\bboleto\b/i.test(msgContent)) {
@@ -208,8 +209,10 @@ Responda com a função apropriada e seus parâmetros.
       if (handlers[funcName]) {
         return await handlers[funcName](sender, msgContent, pushName, {
           ...args,
-          fraseCompleta: msgContent // 🔥 passa a frase original
+          fraseCompleta: msgContent,
+          quotedMessage 
         });
+        
       }
     }
     

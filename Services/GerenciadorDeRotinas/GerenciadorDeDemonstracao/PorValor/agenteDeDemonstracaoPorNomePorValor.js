@@ -64,7 +64,7 @@ const obterModelosDoBling = async () => {
   }
 };
 
-const agenteDeDemonstracaoPorNome = async ({ sender, msgContent, modeloMencionado }) => {    
+const agenteDeDemonstracaoPorNomePorValor = async ({ sender, msgContent, modeloMencionado }) => {    
 
   await appendToConversation(sender, {
     tipo: "entrada_usuario",
@@ -117,7 +117,7 @@ const agenteDeDemonstracaoPorNome = async ({ sender, msgContent, modeloMencionad
     
 
   if (!modelo) {
-    await setUserStage(sender, "identificar_modelo_por_nome_pos_demonstração");
+    await setUserStage(sender, "identificar_modelo_por_nome_pos_demonstração_por_valor");
     const nome = await getNomeUsuario(sender);
     const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   await delay(3000);
@@ -150,22 +150,15 @@ ${modelo.fraseImpacto ? `\n\n${modelo.fraseImpacto}` : ""}
     timestamp: new Date().toISOString()
   });
 
-  await appendToConversation(sender, {
-    tipo: "modelo_confirmado",
-    conteudo: modelo.nome,
-    timestamp: new Date().toISOString()
-  });
-  
-
   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   await delay(1000);
 
   const nome = await getNomeUsuario(sender);
   await sendBotMessage(sender, `📣 ${nome} temos esse modelo a pronta entrega. Vou te passar todas a informações sobre ele?`);
-  await setUserStage(sender, "identificar_modelo_por_nome_pos_demonstração");
+  await setUserStage(sender, "identificar_modelo_por_nome_pos_demonstração_por_valor");
 };
 
 
-module.exports = { agenteDeDemonstracaoPorNome
+module.exports = { agenteDeDemonstracaoPorNomePorValor
   
  };

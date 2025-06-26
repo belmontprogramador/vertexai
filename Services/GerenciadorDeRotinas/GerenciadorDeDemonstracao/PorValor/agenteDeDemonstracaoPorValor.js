@@ -3,8 +3,7 @@ const {
   setUserStage,
   getUserStage,
   getUserResponses,
-  appendToConversation,
-  getConversation,
+  appendToConversation, 
   getNomeUsuario,
   storeUserResponse
 } = require("../../../redisService");
@@ -158,7 +157,18 @@ if ((!textoDeReferencia || textoDeReferencia.toLowerCase().includes("esse")) && 
         caption: copy
       });
 
-      await appendToConversation(sender, `modelo_sugerido_json: ${JSON.stringify(modelo)}`);
+      await appendToConversation(sender, {
+        tipo: "modelo_sugerido_json",
+        conteudo: modelo,
+        timestamp: new Date().toISOString()
+      });
+      
+      await appendToConversation(sender, {
+        tipo: "modelo_confirmado",
+        conteudo: modelo.nome,
+        timestamp: new Date().toISOString()
+      });
+      
       
 
     }

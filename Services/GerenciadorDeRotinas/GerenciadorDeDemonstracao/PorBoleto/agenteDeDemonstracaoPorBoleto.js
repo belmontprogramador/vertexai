@@ -1,7 +1,6 @@
 const { sendBotMessage } = require("../../../messageSender");
 const {
-  setUserStage,  
-  getNomeUsuario,  
+  setUserStage, 
 } = require("../../../redisService");
 const {  getAllCelulareBoleto } = require('../../../dbService')
 const { appendToConversation, getConversation } = require("../../../HistoricoDeConversas/conversationManager");
