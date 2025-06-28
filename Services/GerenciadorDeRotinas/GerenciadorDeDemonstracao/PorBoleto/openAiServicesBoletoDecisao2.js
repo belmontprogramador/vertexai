@@ -5,7 +5,7 @@ const OpenAI = require("openai");
 require("dotenv").config();
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const { estaBloqueado, setBloqueio } = require("../../../utils/bloqueioTemporario");
+const { estaBloqueado, setBloqueio } = require("../../../utils/filaDeMensagem/bloqueioTemporario");
 
 
 // 🔹 Handlers
@@ -15,7 +15,7 @@ const handlers = {
   
     await setUserStage(sender, "open_ai_services_duvidas_boleto");
     const nome = await getNomeUsuario(sender);
-    await sendBotMessage (sender, `${nome} aguarda um minutinho que eu vou verificar e ja volto aqui`)
+    // await sendBotMessage (sender, `${nome} aguarda um minutinho que eu vou verificar e ja volto aqui`)
 
     setBloqueio(sender);
 

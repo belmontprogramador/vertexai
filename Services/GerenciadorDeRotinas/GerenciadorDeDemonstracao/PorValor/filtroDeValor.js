@@ -58,6 +58,8 @@ const filtroDeValor = async ({ sender, msgContent, pushName, messageId }) => {
     }
 
     const modeloDetectado = await buscarModeloPorNome(respostaLimpa);
+    await setUserStage(sender,"identificar_modelo_por_nome")
+    
     if (modeloDetectado) {
       return await identificarModeloPorNome({
         sender,

@@ -1,4 +1,4 @@
-const { redis } = require("../redisService");
+const { redis } = require("../../redisService");
 
 const CHAVE_BLOQUEIO = (sender) => `bloqueio:${sender}`;
 const CHAVE_FILA = (sender) => `fila:mensagens:${sender}`;

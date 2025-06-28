@@ -11,11 +11,11 @@ const { getAllCelulareBoleto } = require("../../dbService");
 const { rotinaDeAgendamento } = require("../../GerenciadorDeRotinas/GerenciadorDeAgendamento/rotinaDeAgendamento");
 const OpenAI = require("openai");
 require("dotenv").config();
-const { informacoesPayjoy } = require("../../utils/informacoesPayjoy");
-const { gatilhosEmocionaisVertex } = require('../../utils/gatilhosEmocionais');
-const { tomDeVozVertex } = require('../../utils/tomDeVozVertex');
-const { objeçõesVertexBoleto } = require("../../utils/objecoesBoleto");;
-const { tomDeVozVertexData } = require("../../../Services/utils/tomDeVozVertexData");
+const { informacoesPayjoy } = require("../../utils/documentacoes/informacoesPayjoy");
+const { gatilhosEmocionaisVertex } = require('../../utils/documentacoes/gatilhosEmocionais');
+const { tomDeVozVertex } = require('../../utils/documentacoes/tomDeVozVertex');
+const { objeçõesVertexBoleto } = require("../../utils/documentacoes/objecoesBoleto");;
+const { tomDeVozVertexData } = require("../../utils/documentacoes/tomDeVozVertexData");
 const { extrairTextoDoQuotedMessage } = require("../../utils/utilitariosDeMensagem/extrairTextoDoQuotedMessage");
 const { sanitizarEntradaComQuoted } = require("../../utils/utilitariosDeMensagem/sanitizarEntradaComQuoted");
 const { prepararContextoDeModelosRecentes } = require("../../utils/utilitariosDeMensagem/prepararContextoDeModelosRecentes");
@@ -400,6 +400,21 @@ await appendToConversation(sender, {
   - Use analogias para comparar serviços (ex.: “comprar só preço é como…”).
 
    ## OBJEÇÕES DE DUVIDAS SOBRE BOLETO(OBJEÇÕES SOBRE PAYJOY:)
+
+   ## REGRAS_DE_INDECISÃO
+- Em caso de dúvida ou indecisão, atue como consultor confiável, trazendo clareza e segurança.
+- Reforce os diferenciais da Vertex:
+  Pronta entrega 💨 | Pós-venda humanizado 💜 | Garantia local | Teste/backup na hora 🔧📲
+- Use perguntas abertas para desbloquear a decisão:
+  - “Qual parte você quer que eu explique melhor?”
+  - “Está comparando com outro modelo ou loja?”
+- Ofereça ajuda direta:
+  - “Quer que eu compare dois modelos pra facilitar?”
+  - “Prefere decidir por câmera, bateria ou desempenho?”
+- Finalize com call-to-action leve:
+  - “Quer que eu mostre o resumo e você decide com calma?”
+- Quando a indecisão não for tecnica de aparelho nem sobre valores
+  - "responda com criatividade em cima da objeção"
 
   ## REGRAS_DE_ESTILO
   - Nunca comece com saudação completa; a conversa já está em andamento.

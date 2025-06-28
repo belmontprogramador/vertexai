@@ -5,9 +5,9 @@ const {
   getConversation,
 } = require("../../../redisService");
 const { agenteDeDemonstracaoDetalhada } = require("../agenteDeDemonstracaoDetalhada"); 
-const { objeçõesVertex } = require("../../../utils/objecoes");
-const { gatilhosEmocionaisVertex } = require('../../../utils/gatilhosEmocionais');
-const { tomDeVozVertex } = require('../../../utils/tomDeVozVertex'); 
+const { objeçõesVertex } = require("../../../utils/documentacoes/objecoes");
+const { gatilhosEmocionaisVertex } = require('../../../utils/documentacoes/gatilhosEmocionais');
+const { tomDeVozVertex } = require('../../../utils/documentacoes/tomDeVozVertex'); 
 const { getAllCelulares } = require('../../../dbService')
 const { handlers: handlersDemonstracaoDetalhada } = require("../../../GerenciadorDeRotinas/GerenciadorDeDemonstracao/agenteDeDemonstracaoDetalhada");
 const { agenteDeDemonstracaoPorNomePorValor } = require("../PorValor/agenteDeDemonstracaoPorNomePorValor");
@@ -330,6 +330,13 @@ const handlers = {
       m.conteudo.nome.toLowerCase() === args.nomeModelo.toLowerCase()
     );
 
+    // 💾 Salva também como modelo confirmado (para referência futura)
+await appendToConversation(sender, {
+  tipo: "modelo_confirmado",
+  conteudo: modelo.nome,
+  timestamp: new Date().toISOString()
+});
+
     let modeloEscolhido;
 
     if (!modeloJaMostrado && args?.modeloMencionado) {
@@ -428,11 +435,11 @@ const handlers = {
 
     // 🧠 Prompt formatado para a IA
     const prompt = `
-  ## OBJETIVO
+   ## OBJETIVO
   Guiar o cliente até escolher um smartphone da lista apresentada e fechar a venda,
   sempre valorizando experiência, suporte humanizado e diferencial da loja.
   esteja sempre preparado para responder duvidas de objeções que não necessariamente ligados ao modelo em si, utlize a documentação para respoder essa objeções e seja criativo
-  *** SEMPRE AO FALAR DE PREÇOS DEIXE BEM CLARO QUE ESSE VALORES SÃO ESTIMATIVAS E QUE PODEM FLUTUAR DE ACORDO COM A DISPONIBILIDADE DA PAY JOY ***
+  
   ## TOM_DE_VOZ
   - Saudação acolhedora porém direta.
   - Use vocativo informal respeitoso (ex.: “Perfeito, ${nomeUsuario}!”).
@@ -447,16 +454,30 @@ const handlers = {
 
   ## OBJEÇÕES & COMPARATIVOS
   - Se cliente comparar preço online → explique valor agregado (lista de diferenciais).
-  - Descontos: no boleto não descontos
-  - Parcelamento padrão apenas em 18× somente parcelamos em 18x; .
+  - Descontos: 100 reais no pagamento a vista no pix. So fale sobre isso em ultimo caso e se o cliente pedir desconto.
+  - Parcelamento padrão apenas em 10× se o cliente insistir parcelamos no maximo em 12x; .
   - Use analogias para comparar serviços (ex.: “comprar só preço é como…”).
+  - Em comparações com preço online fale sobre muitos marketplace venderem modelos indianos de baixa qualidade
 
-   ## OBJEÇÕES DE DUVIDAS SOBRE BOLETO(OBJEÇÕES SOBRE PAYJOY:)
+ ## REGRAS_DE_INDECISÃO
+- Em caso de dúvida ou indecisão, atue como consultor confiável, trazendo clareza e segurança.
+- Reforce os diferenciais da Vertex:
+  Pronta entrega 💨 | Pós-venda humanizado 💜 | Garantia local | Teste/backup na hora 🔧📲
+- Use perguntas abertas para desbloquear a decisão:
+  - “Qual parte você quer que eu explique melhor?”
+  - “Está comparando com outro modelo ou loja?”
+- Ofereça ajuda direta:
+  - “Quer que eu compare dois modelos pra facilitar?”
+  - “Prefere decidir por câmera, bateria ou desempenho?”
+- Finalize com call-to-action leve:
+  - “Quer que eu mostre o resumo e você decide com calma?”
+- Quando a indecisão não for tecnica de aparelho nem sobre valores
+  - "responda com criatividade em cima da objeção"
 
   ## REGRAS_DE_ESTILO
   - Nunca comece com saudação completa; a conversa já está em andamento.
   - Seja conciso e humanizado; máximo 3 blocos (“emoção”, “benefício”, “call-to-action”).
-  - Sempre feche perguntando algo que avance (ex.: “Fecho em 10× pra você?”).
+  - Sempre feche perguntando algo que avance (ex.: “Fecho em 10× pra você?”, "Vamos fechar sua compra?").
 
   
   🧠 Última mensagem do cliente:

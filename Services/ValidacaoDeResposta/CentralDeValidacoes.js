@@ -6,7 +6,7 @@ const {
   redis
 } = require("../redisService");
 
-const { estaBloqueado, setBloqueio } = require("../utils/bloqueioTemporario");
+const { estaBloqueado, setBloqueio } = require("../utils/filaDeMensagem/bloqueioTemporario");
 
 
 /**

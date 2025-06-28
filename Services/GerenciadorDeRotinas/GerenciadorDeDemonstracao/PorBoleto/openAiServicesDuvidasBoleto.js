@@ -7,8 +7,8 @@ const {
 } = require("../../../redisService");
 const { rotinaDeAgendamento } = require("../../GerenciadorDeAgendamento/rotinaDeAgendamento");
 const { agenteDeDemonstracaoPorBoleto } = require("./agenteDeDemonstracaoPorBoleto");
-const { informacoesPayjoy } = require("../../../utils/informacoesPayjoy");
-const { tomDeVozVertexData } = require("../../../utils/tomDeVozVertexData");
+const { informacoesPayjoy } = require("../../../utils/documentacoes/informacoesPayjoy");
+const { tomDeVozVertexData } = require("../../../utils/documentacoes/tomDeVozVertexData");
 const OpenAI = require("openai");
 require("dotenv").config();
 

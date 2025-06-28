@@ -2,7 +2,7 @@
 
 const { checagemInicial } = require("../Services/checagemInicial");
 const { agenteDeTranscricao } = require("../Services/agenteDeTranscricao");
-const { isBotPausado, setPrimeiraInteracao, getPrimeiraInteracao } = require("../Services/redisService");
+const { isBotPausado, setPrimeiraInteracao, getPrimeiraInteracao, getUserStage, isBotPausadoParaUsuario } = require("../Services/redisService");
 const { DateTime } = require("luxon");
 const { sendBotMessage } = require("../Services/messageSender");
 const { extrairTextoDoQuotedMessage } = require("../Services/utils/utilitariosDeMensagem/extrairTextoDoQuotedMessage");
@@ -11,7 +11,9 @@ const {
   enfileirarMensagem,
   setBloqueioComFila,
   injectProcessor
-} = require("../Services/utils/bloqueioTemporarioLiberado");
+} = require("../Services/utils/filaDeMensagem/bloqueioTemporarioLiberado"); 
+const { obterTempoDeBloqueio } = require("../Services/utils/filaDeMensagem/tempoDeBloqueioPorStage");
+
 
 // 🧠 Injeção da função para processar mensagens enfileiradas
 injectProcessor(async (sender, content, messageId, quotedMessage, pushName) => {
@@ -32,10 +34,10 @@ const webhookControllerReceived = async (req, res) => {
       return res.status(400).json({ error: "Mensagem inválida." });
     }
 
-    if (await isBotPausado()) {
-      console.log("⏸️ Bot pausado.");
-      return res.status(200).json({ message: "Bot pausado." });
-    }
+    if (await isBotPausadoParaUsuario(senderId)) {
+      console.log(`⏸️ Bot pausado para ${senderId}.`);
+      return res.status(200).json({ message: "Bot pausado para este usuário." });
+    }    
 
     const content =
       msgContent?.conversation?.trim() ||
@@ -91,9 +93,12 @@ const webhookControllerReceived = async (req, res) => {
       quotedMessage
     });
 
-    await setBloqueioComFila(senderId, 1);
+    const stageAtual = await getUserStage(senderId);
+const tempoBloqueio = obterTempoDeBloqueio(stageAtual);
+console.log(`⏱️ Tempo de bloqueio para o stage "${stageAtual}": ${tempoBloqueio}s`);
 
-    console.log("🕒 Mensagem enfileirada e bloqueio iniciado. Será processada em breve.");
+await setBloqueioComFila(senderId, tempoBloqueio);
+
 
     return res.json({ message: "Mensagem processada com sucesso!" });
 

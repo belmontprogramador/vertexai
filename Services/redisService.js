@@ -265,6 +265,24 @@ const recuperarMensagemCitada = async ({ instanceId, quotedMsgId }) => {
   return Object.keys(dados).length > 0 ? dados : null;
 };
 
+// 📌 Pausa o bot apenas para um usuário específico
+const pausarBotParaUsuario = async (userId) => {
+  await redis.set(`bot:pausado:${userId}`, "true");
+};
+
+// 🔄 Retoma o bot para um usuário específico
+const retomarBotParaUsuario = async (userId) => {
+  await redis.del(`bot:pausado:${userId}`);
+};
+
+// ❓ Verifica se o bot está pausado para o usuário (ou globalmente)
+const isBotPausadoParaUsuario = async (userId) => {
+  const global = await redis.get(pauseBotKey);
+  const individual = await redis.get(`bot:pausado:${userId}`);
+  return global === "true" || individual === "true";
+};
+
+
 
 
 module.exports = {        
@@ -293,5 +311,8 @@ module.exports = {
   getTodosUsuariosComStageESemInteracao,
   salvarMensagemCitada,
   recuperarMensagemCitada,
+  pausarBotParaUsuario,
+  retomarBotParaUsuario,
+  isBotPausadoParaUsuario,
   redis
 };

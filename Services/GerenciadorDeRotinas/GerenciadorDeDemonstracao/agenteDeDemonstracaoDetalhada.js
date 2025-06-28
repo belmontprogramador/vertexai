@@ -11,10 +11,10 @@ const { getAllCelulares } = require("../../dbService");
 const { rotinaDeAgendamento } = require("../../GerenciadorDeRotinas/GerenciadorDeAgendamento/rotinaDeAgendamento");
 const OpenAI = require("openai");
 require("dotenv").config();
-const { objeçõesVertex } = require("../../../Services/utils/objecoes");
-const { gatilhosEmocionaisVertex } = require('../../../Services/utils/gatilhosEmocionais'); 
-const { intencaoDataEntregaDesconto } = require('../../../Services/utils/intencaoDataEntregaDesconto');
-const { tomDeVozVertex  } = require("../../utils/tomDeVozVertex");
+const { objeçõesVertex } = require("../../utils/documentacoes/objecoes");
+const { gatilhosEmocionaisVertex } = require('../../utils/documentacoes/gatilhosEmocionais'); 
+const { intencaoDataEntregaDesconto } = require('../../utils/documentacoes/intencaoDataEntregaDesconto');
+const { tomDeVozVertex  } = require("../../utils/documentacoes/tomDeVozVertex");
 const { extrairTextoDoQuotedMessage } = require("../../utils/utilitariosDeMensagem/extrairTextoDoQuotedMessage");
 const { sanitizarEntradaComQuoted } = require("../../utils/utilitariosDeMensagem/sanitizarEntradaComQuoted");
 const { prepararContextoDeModelosRecentes } = require("../../utils/utilitariosDeMensagem/prepararContextoDeModelosRecentes");
@@ -151,6 +151,7 @@ ${listaModelos.map(m => `- ${m.nome}`).join("\n")}
 2. Se o cliente fizer **qualquer pergunta**, mesmo curta (ex.: "é bom?", "qual o preço?", "tem câmera boa?"), isso significa que ele ainda está com dúvida e precisa de mais informações. Escolha "responderDuvida".
 
 ⚠️ SE o cliente mencionar claramente um modelo (ex: "o note 60 é bom?"), você DEVE preencher o campo "argumento.nomeModelo" com o nome exato do modelo mencionado.
+⚠️ SE o cliente mencionar qualquer tipo de indecisão apos mostrar o resumo do modelo, Escolha "responderDuvida".
 
 3. Se ele mencionar um modelo da lista e não for uma pergunta, escolha "mostrarResumoModelo".
 
@@ -225,6 +226,12 @@ const handlers = {
     if (!modelo && args?.nomeModelo) {
       modelo = listaModelos.find(m => normalize(m.nome) === normalize(args.nomeModelo));
     }
+
+    await appendToConversation(sender, {
+      tipo: "modelo_confirmado",
+      conteudo: modelo.nome,
+      timestamp: new Date().toISOString()
+    });
   
     // 🔍 Fallback: tenta recuperar do histórico
     if (!modelo) {
@@ -396,7 +403,22 @@ await appendToConversation(sender, {
   - Se cliente comparar preço online → explique valor agregado (lista de diferenciais).
   - Descontos: no boleto não descontos
   - Parcelamento padrão apenas em 18× somente parcelamos em 18x; .
-  - Use analogias para comparar serviços (ex.: “comprar só preço é como…”).    
+  - Use analogias para comparar serviços (ex.: “comprar só preço é como…”).  
+  
+  ## REGRAS_DE_INDECISÃO
+- Em caso de dúvida ou indecisão, atue como consultor confiável, trazendo clareza e segurança.
+- Reforce os diferenciais da Vertex:
+  Pronta entrega 💨 | Pós-venda humanizado 💜 | Garantia local | Teste/backup na hora 🔧📲
+- Use perguntas abertas para desbloquear a decisão:
+  - “Qual parte você quer que eu explique melhor?”
+  - “Está comparando com outro modelo ou loja?”
+- Ofereça ajuda direta:
+  - “Quer que eu compare dois modelos pra facilitar?”
+  - “Prefere decidir por câmera, bateria ou desempenho?”
+- Finalize com call-to-action leve:
+  - “Quer que eu mostre o resumo e você decide com calma?”
+- Quando a indecisão não for tecnica de aparelho nem sobre valores
+  - "responda com criatividade em cima da objeção"
 
   ## REGRAS_DE_ESTILO
   - Nunca comece com saudação completa; a conversa já está em andamento.

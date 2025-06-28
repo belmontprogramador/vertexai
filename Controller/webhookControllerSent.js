@@ -1,6 +1,8 @@
 const {
   pausarBotGlobalmente,
-  retomarBotGlobalmente
+  retomarBotGlobalmente,
+  pausarBotParaUsuario,
+  retomarBotParaUsuario
 } = require("../Services/redisService");
 
 
@@ -44,6 +46,19 @@ const webhookControllerSent = async (req, res) => {
       await retomarBotGlobalmente();
       console.log("✅ Bot retomado via mensagem enviada.");
     }
+
+    if (comando === "pausar usuario") {
+      await pausarBotParaUsuario(recipientId);
+      console.log(`⏸️ Bot pausado individualmente para ${recipientId}`);
+    }
+    
+    
+    if (comando === "retomar usuario") {
+      await retomarBotParaUsuario(recipientId);
+      console.log(`✅ Bot retomado individualmente para ${recipientId}`);
+    }
+    
+    
 
     console.log(`
 📤 [DEBUG] Mensagem enviada:

@@ -3,10 +3,10 @@ const {
   setUserStage,  
   appendToConversation
 } = require("../../../redisService");
-const { informacoesPayjoy } = require("../../../utils/informacoesPayjoy");
-const { gatilhosEmocionaisVertex } = require('../../../utils/gatilhosEmocionais');
-const { tomDeVozVertex } = require('../../../utils/tomDeVozVertex');
-const { objeçõesVertexBoleto } = require("../../../utils/objecoesBoleto");;
+const { informacoesPayjoy } = require("../../../utils/documentacoes/informacoesPayjoy");
+const { gatilhosEmocionaisVertex } = require('../../../utils/documentacoes/gatilhosEmocionais');
+const { tomDeVozVertex } = require('../../../utils/documentacoes/tomDeVozVertex');
+const { objeçõesVertexBoleto } = require("../../../utils/documentacoes/objecoesBoleto");;
 const { handlers: handlersDemonstracaoDetalhadaBoleto, agenteDeDemonstracaoDetalhadaBoleto } = require("../../../GerenciadorDeRotinas/GerenciadorDeDemonstracao/agenteDeDemonstracaoDetalhadaBoleto");
 const { getConversation } = require("../../../HistoricoDeConversas/conversationManager");
 const { getAllCelulareBoleto } = require('../../../dbService')

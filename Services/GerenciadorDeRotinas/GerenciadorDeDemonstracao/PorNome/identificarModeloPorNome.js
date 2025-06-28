@@ -221,7 +221,7 @@ const handlers = {
   demonstrarCelular: async (sender, args, extras = {}) => {
     const { msgContent = "", quotedMessage = null } = extras;
   
-    await setUserStage(sender, "rotina_de_demonstracao_de_celular_por_nome");
+    await setUserStage(sender, "identificar_modelo_por_nome_pos_demonstração");
   
     await appendToConversation(sender, {
       tipo: "modelo_confirmado",
@@ -268,7 +268,7 @@ const handlers = {
         });
   
         await appendToConversation(sender, {
-          tipo: "modelo_sugerido",
+          tipo: "modelo_confirmado",
           conteudo: modelo.nome,
           timestamp: new Date().toISOString()
         });
@@ -292,7 +292,7 @@ const handlers = {
     }
 
   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-  await delay(1000);
+  await delay(2000);
   
     await sendBotMessage(sender, "➡️ *Desses, qual mais te chamou atenção?*");
   },  

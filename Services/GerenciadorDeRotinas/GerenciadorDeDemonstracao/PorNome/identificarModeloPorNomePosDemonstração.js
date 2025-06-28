@@ -7,9 +7,9 @@ const {
 
 const { agenteDeDemonstracaoDetalhada } = require("../agenteDeDemonstracaoDetalhada");
 const { identificarModeloPorNome } = require("./identificarModeloPorNome");
-const { objeçõesVertex } = require("../../../../Services/utils/objecoes");
-const { gatilhosEmocionaisVertex } = require('../../../../Services/utils/gatilhosEmocionais');
-const { tomDeVozVertex } = require('../../../../Services/utils/tomDeVozVertex');
+const { objeçõesVertex } = require("../../../utils/documentacoes/objecoes");
+const { gatilhosEmocionaisVertex } = require('../../../utils/documentacoes/gatilhosEmocionais');
+const { tomDeVozVertex } = require('../../../utils/documentacoes/tomDeVozVertex');
 // const { rotinaDeAgendamento } = require("../../../GerenciadorDeRotinas/GerenciadorDeAgendamento/rotinaDeAgendamento");
 const { handlers: handlersDemonstracaoDetalhada } = require("../../../GerenciadorDeRotinas/GerenciadorDeDemonstracao/agenteDeDemonstracaoDetalhada");
 
@@ -198,55 +198,57 @@ const identificarModeloPorNomePosDemonstração = async ({ sender, msgContent, p
     console.log("🎯 Resultado TOA:", JSON.stringify(resultadoTOA, null, 2));
 
    // 🛠️ Fallback se TOA escolher responderDuvida
-if (acaoEscolhida === "responderDuvida") {
-  const normalizar = (str) => str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-
-  // 🔍 Tenta identificar o nome do modelo citado
-  let nomeIdentificado = resultadoTOA.argumento?.nomeModelo?.trim();
-
-  // 1️⃣ Se ainda não tem nomeModelo, tenta extrair da entrada
-  if (!nomeIdentificado) {
-    const citado = modelos.find(m => entrada.toLowerCase().includes(normalizar(m.nome)));
-    if (citado) nomeIdentificado = citado.nome;
-    else if (quotedMessage) {
-      const mencionado = modelos.find(m => quotedMessage.toLowerCase().includes(normalizar(m.nome)));
-      if (mencionado) nomeIdentificado = mencionado.nome;
-    }
-  }
-
-  // 2️⃣ Se ainda não tem, busca no banco por similaridade textual
-  if (!nomeIdentificado) {
-    const todos = await getAllCelulares();
-    const matchBanco = todos.find(m => entrada.toLowerCase().includes(normalizar(m.nome)));
-    if (matchBanco) nomeIdentificado = matchBanco.nome;
-  }
-
-  if (nomeIdentificado) {
-    resultadoTOA.argumento = resultadoTOA.argumento || {};
-    resultadoTOA.argumento.nomeModelo = nomeIdentificado;
-
-    // ⚠️ Verifica se esse modelo já foi demonstrado
-    const historico = await getConversation(sender);
-const foiDemonstrado = historico.some(m => {
-  try {
-    const obj = typeof m === "string" ? JSON.parse(m) : m;
-    return (
-      obj?.tipo === "modelo_confirmado" &&
-      normalizar(obj.conteudo?.nome || "") === normalizar(nomeIdentificado)
-    );
-  } catch {
-    return false;
-  }
-});
-
-    if (!foiDemonstrado) {
-      // ⚠️ O modelo existe no banco mas não foi demonstrado → precisa mudar a ação!
-      console.log(`🛠️ Corrigindo TOA: modelo "${nomeIdentificado}" citado mas ainda não demonstrado. Mudando para demonstracaoPorNome`);
-      resultadoTOA.acao = "agenteDeDemonstracaoPorNome";
-      acaoEscolhida = "agenteDeDemonstracaoPorNome"; // importante sobrescrever para que o handler correto execute
-    }
-  }
-}   
+  //  if (acaoEscolhida === "responderDuvida") {
+  //   const normalizar = (str) => str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  
+  //   // 🔍 Tenta identificar o nome do modelo citado
+  //   let nomeIdentificado = resultadoTOA.argumento?.nomeModelo?.trim();
+  
+  //   // 1️⃣ Se ainda não tem nomeModelo, tenta extrair da entrada
+  //   if (!nomeIdentificado) {
+  //     const citado = modelos.find(m => entrada.toLowerCase().includes(normalizar(m.nome)));
+  //     if (citado) nomeIdentificado = citado.nome;
+  //     else if (quotedMessage) {
+  //       const mencionado = modelos.find(m => quotedMessage.toLowerCase().includes(normalizar(m.nome)));
+  //       if (mencionado) nomeIdentificado = mencionado.nome;
+  //     }
+  //   }
+  
+  //   // 2️⃣ Se ainda não tem, busca no banco por similaridade textual
+  //   if (!nomeIdentificado) {
+  //     const todos = await getAllCelulares();
+  //     const matchBanco = todos.find(m => entrada.toLowerCase().includes(normalizar(m.nome)));
+  //     if (matchBanco) nomeIdentificado = matchBanco.nome;
+  //   }
+  
+  //   if (nomeIdentificado) {
+  //     resultadoTOA.argumento = resultadoTOA.argumento || {};
+  //     resultadoTOA.argumento.nomeModelo = nomeIdentificado;
+  
+  //     // ⚠️ Verifica se esse modelo já foi demonstrado
+  //     const historico = await getConversation(sender);
+  //     const foiDemonstrado = historico.some(m => {
+  //       try {
+  //         const obj = typeof m === "string" ? JSON.parse(m) : m;
+  //         const nomeModeloHist = typeof obj.conteudo === "string" ? obj.conteudo : obj.conteudo?.nome;
+  //         return (
+  //           (obj?.tipo === "modelo_confirmado" || obj?.tipo === "modelo_sugerido_json") &&
+  //           normalizar(nomeModeloHist || "") === normalizar(nomeIdentificado)
+  //         );
+  //       } catch {
+  //         return false;
+  //       }
+  //     });
+      
+  
+  //     if (!foiDemonstrado) {
+  //       // ⚠️ O modelo existe no banco mas não foi demonstrado → precisa mudar a ação!
+  //       console.log(`🛠️ Corrigindo TOA: modelo "${nomeIdentificado}" citado mas ainda não demonstrado. Mudando para demonstracaoPorNome`);
+  //       resultadoTOA.acao = "agenteDeDemonstracaoPorNome";
+  //       acaoEscolhida = "agenteDeDemonstracaoPorNome"; // importante sobrescrever para que o handler correto execute
+  //     }
+  //   }
+  // }  
 
     // 🔐 Grava modelo confirmado só se a TOA deliberar isso com clareza
     if (acaoEscolhida === "agenteDeDemonstracaoPorNome") {
@@ -332,6 +334,13 @@ const handlers = {
       typeof m?.conteudo?.nome === "string" &&
       m.conteudo.nome.toLowerCase() === args.nomeModelo.toLowerCase()
     );
+
+    // 💾 Salva também como modelo confirmado (para referência futura)
+await appendToConversation(sender, {
+  tipo: "modelo_confirmado",
+  conteudo: nomeModelo,
+  timestamp: new Date().toISOString()
+});
 
     let modeloEscolhido;
 
@@ -434,7 +443,7 @@ const handlers = {
   Guiar o cliente até escolher um smartphone da lista apresentada e fechar a venda,
   sempre valorizando experiência, suporte humanizado e diferencial da loja.
   esteja sempre preparado para responder duvidas de objeções que não necessariamente ligados ao modelo em si, utlize a documentação para respoder essa objeções e seja criativo
-  *** SEMPRE AO FALAR DE PREÇOS DEIXE BEM CLARO QUE ESSE VALORES SÃO ESTIMATIVAS E QUE PODEM FLUTUAR DE ACORDO COM A DISPONIBILIDADE DA PAY JOY ***
+  
   ## TOM_DE_VOZ
   - Saudação acolhedora porém direta.
   - Use vocativo informal respeitoso (ex.: “Perfeito, ${nomeUsuario}!”).
@@ -449,16 +458,30 @@ const handlers = {
 
   ## OBJEÇÕES & COMPARATIVOS
   - Se cliente comparar preço online → explique valor agregado (lista de diferenciais).
-  - Descontos: no boleto não descontos
-  - Parcelamento padrão apenas em 18× somente parcelamos em 18x; .
+  - Descontos: 100 reais no pagamento a vista no pix. So fale sobre isso em ultimo caso e se o cliente pedir desconto.
+  - Parcelamento padrão apenas em 10× se o cliente insistir parcelamos no maximo em 12x; .
   - Use analogias para comparar serviços (ex.: “comprar só preço é como…”).
+  - Em comparações com preço online fale sobre muitos marketplace venderem modelos indianos de baixa qualidade
 
-   ## OBJEÇÕES DE DUVIDAS SOBRE BOLETO(OBJEÇÕES SOBRE PAYJOY:)
+ ## REGRAS_DE_INDECISÃO
+- Em caso de dúvida ou indecisão, atue como consultor confiável, trazendo clareza e segurança.
+- Reforce os diferenciais da Vertex:
+  Pronta entrega 💨 | Pós-venda humanizado 💜 | Garantia local | Teste/backup na hora 🔧📲
+- Use perguntas abertas para desbloquear a decisão:
+  - “Qual parte você quer que eu explique melhor?”
+  - “Está comparando com outro modelo ou loja?”
+- Ofereça ajuda direta:
+  - “Quer que eu compare dois modelos pra facilitar?”
+  - “Prefere decidir por câmera, bateria ou desempenho?”
+- Finalize com call-to-action leve:
+  - “Quer que eu mostre o resumo e você decide com calma?”
+- Quando a indecisão não for tecnica de aparelho nem sobre valores
+  - "responda com criatividade em cima da objeção"
 
   ## REGRAS_DE_ESTILO
   - Nunca comece com saudação completa; a conversa já está em andamento.
   - Seja conciso e humanizado; máximo 3 blocos (“emoção”, “benefício”, “call-to-action”).
-  - Sempre feche perguntando algo que avance (ex.: “Fecho em 10× pra você?”).
+  - Sempre feche perguntando algo que avance (ex.: “Fecho em 10× pra você?”, "Vamos fechar sua compra?").
 
   
   🧠 Última mensagem do cliente:

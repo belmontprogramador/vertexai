@@ -1,62 +1,62 @@
 const { sendBotMessage } = require('../../messageSender');
-const {
-  setUserStage,
-  getConversation,
-  getNomeUsuario
-} = require('../../redisService');
+const { setUserStage } = require('../../redisService');
 const OpenAI = require('openai');
 
+const { prepararContextoDeModelosRecentes } = require("../../utils/utilitariosDeMensagem/prepararContextoDeModelosRecentes");
+const { prepararContextoDeModelosRecentesFluxo } = require("../../utils/utilitariosDeMensagem/prepararContextoDeModelosRecentesFluxo");
+
+require("dotenv").config();
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const rotinaDeAgendamento = async ({ sender, msgContent, pushName }) => {
   await setUserStage(sender, "agendamento");
 
-  const historico = await getConversation(sender);
-  const nomeCliente = await getNomeUsuario(sender);
+  // 🔄 Carrega ambos os contextos
+  const contexto1 = await prepararContextoDeModelosRecentes(sender);
+  const contexto2 = await prepararContextoDeModelosRecentesFluxo(sender);
 
-  // 🧠 Extração do modelo sugerido a partir do histórico
-  const trechoComModelo = historico.find(
-    (m) => typeof m === "string" && m.includes("modelo_sugerido_json:")
-  );
-  
-  let modeloEscolhido = null;
+  // 🧠 Escolhe a versão com mais modelos como a principal
+  const contexto = (contexto2.modelos?.length || 0) >= (contexto1.modelos?.length || 0)
+    ? contexto2
+    : contexto1;
 
-  if (trechoComModelo) {
-    try {
-      const jsonString = trechoComModelo.split("modelo_sugerido_json:")[1].trim();
-      modeloEscolhido = JSON.parse(jsonString);
-    } catch (e) {
-      console.warn("Erro ao parsear modelo_sugerido_json:", e);
-    }
-  }
+  const {
+    nomeUsuario: nomeCliente,
+    modelos,
+    modelosConfirmados,
+    conversaCompleta
+  } = contexto;
 
-  const conversaFormatada = historico.join("\n");
-  console.log(`este log esta vindo de agendamento de ${conversaFormatada}`)
-  // Prompt para o GPT gerar o resumo
+  // 🎯 Pega o modelo confirmado mais recente, ou primeiro sugerido
+  const modeloEscolhido = modelosConfirmados.length > 0
+    ? modelos.find(m => m.nome === modelosConfirmados[modelosConfirmados.length - 1])
+    : modelos[0];
+
+  // ✍️ Prompt para gerar o resumo
   const prompt = [
     {
       role: "system",
       content: `
-  Você é a Anna, uma vendedora especialista da Vertex Store. Gere um *resumo breve* do atendimento com foco em:
-  
-  - Nome do cliente: ${nomeCliente || "não informado"}
-  - Modelo demonstrado: ${modeloEscolhido?.nome || "não houve modelos demonstrados"}
-  - Histórico da conversa:
-  ${conversaFormatada}
+Você é a Anna, uma vendedora especialista da Vertex Store. Gere um *resumo breve* do atendimento com foco em:
 
-  - Sempre entregue o resumo no formato abaixo
-  - Em relação a datas de agendamento pode ser um dia da semana, assim como uma referencia numerica de datas, ou qulquer intenção de dia data ou horario
-  
-  Analise as informações acima e gere um resumo claro e humano, abordando:
-  • Interesse do cliente
-  • Modelo(s) demonstrado(s)
-  • Objeções respondidas
-  • Dúvidas técnicas
-  • Dúvidas sobre financiamento
-  • Clima da negociação (frio, morno, quente)
-  • Informações sobre datas de agendamento
-  
-  Responda no estilo de um vendedor humano e direto ao ponto, sem linguagem de IA.
+- Nome do cliente: ${nomeCliente || "não informado"}
+- Modelo demonstrado: ${modeloEscolhido?.nome || "não houve modelos demonstrados"}
+- Histórico da conversa:
+${conversaCompleta}
+
+Sempre entregue o resumo no formato abaixo.
+Considere como *intenção de agendamento* qualquer menção a datas, dias da semana, horários ou frases como "vou passar aí", "volto depois", etc.
+
+Inclua no resumo:
+• Interesse do cliente  
+• Modelo(s) demonstrado(s)  
+• Objeções respondidas  
+• Dúvidas técnicas  
+• Dúvidas sobre financiamento  
+• Clima da negociação (frio, morno, quente)  
+• Qualquer menção a agendamento ou data provável  
+
+Seja direto e escreva como um vendedor humano de loja física.
       `.trim()
     }
   ];
@@ -76,13 +76,15 @@ const rotinaDeAgendamento = async ({ sender, msgContent, pushName }) => {
     console.error("Erro ao gerar resumo do atendimento:", error);
   }
 
-  // Envia o resumo para o número da loja/supervisor
+  // ✅ Envia o resumo para a equipe interna
   await sendBotMessage("5521983735922", `📋 *Resumo do atendimento (${sender})*\n\n${resumoFinal}`);
+  await sendBotMessage("5522992484280", `📋 *Resumo do atendimento (${sender})*\n\n${resumoFinal}`)
+  await sendBotMessage("5522988319544", `📋 *Resumo do atendimento (${sender})*\n\n${resumoFinal}`)
+  await sendBotMessage("5522999018533", `📋 *Resumo do atendimento (${sender})*\n\n${resumoFinal}`)
+  await sendBotMessage("5522998668966", `📋 *Resumo do atendimento (${sender})*\n\n${resumoFinal}`)
 
-  // Continua o fluxo normal com o cliente
-  await sendBotMessage(sender, `Perfeito vou te encaminhar parao setor de agendamento`);
-  // await sendBotMessage(sender, `vou chamar outro atendente`);
-  
+  // ✅ Continua o fluxo com o cliente
+  await sendBotMessage(sender, `Perfeito! Vou te encaminhar para o setor de agendamento 💜`);
 };
 
 module.exports = { rotinaDeAgendamento };
