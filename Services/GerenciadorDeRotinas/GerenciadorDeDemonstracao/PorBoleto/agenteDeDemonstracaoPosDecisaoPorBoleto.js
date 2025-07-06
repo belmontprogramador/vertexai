@@ -156,14 +156,21 @@ const agenteDeDemonstracaoPosDecisaoPorBoleto = async ({ sender, msgContent, pus
       
       💡 Quais são as 3 possibilidades mais prováveis que o cliente quer com essa mensagem?
       
-      1. Se — e SOMENTE SE — o cliente disser explicitamente frases como "fechou", "quero esse", "vamos fechar", "é esse mesmo", "bora", "fechado", ou mencionar uma data exata de fechamento como "vou hoje", "passo aí amanhã", "mês que vem", então ele está confirmando um dos modelos sugeridos. Escolha **demonstracaoDetalhadaBoleto**.
-      
+      1. **demonstracaoDetalhadaBoleto** → quando estiver decidido ou indicar desejo de finalizar, mesmo que sem palavras exatas como "fechou". Ex: “gostei muito desse”, “acho que vou aí amanhã”, “vamos ver esse aí”.
+      1.1 - Se o cliente disser explicitamente que quer quer fechar a venda respondendo a pergunta do bot sobre visitar a loja. Escolha **demonstracaoDetalhadaBoleto**.
       2. Se o cliente fizer QUALQUER pergunta (mesmo sem ponto de interrogação) — como "é bom?", "e esse?", "a câmera é boa?", "qual o preço?" — **sobre qualquer um dos modelos apresentados anteriormente**, ou **sobre o último modelo confirmado**, interprete como dúvida ou indecisão. Escolha **responderDuvida**.
       
       ⚠️ Mesmo se o cliente mencionar o nome do modelo de novo ou compará-lo com outro lugar (ex: Mercado Livre), se esse modelo já foi apresentado, ainda assim escolha **responderDuvida**, pois o cliente já demonstrou interesse anteriormente.
       
       3. Se ele mencionar um modelo que **ainda não foi apresentado na conversa** e **também não é o último confirmado**, escolha **agenteDeDemonstracaoPorNomePorBoleto**. Isso indica que o cliente está abrindo uma nova intenção.
       
+       4. Se a mensagem do cliente **não mencionar nenhum modelo**,  
+e a dúvida parecer geral, filosófica, comportamental ou fora do escopo dos modelos —  
+ex: "vocês vendem usados?", "e se der defeito?", "vocês tem loja física?",  
+"qual é o diferencial de vocês?", "vocês são confiáveis?", "aceitam cartão?"  
+— então entenda que é uma dúvida genérica.  
+Escolha: **"responderDuvidasGenericas"**
+
       Retorne apenas isso:
       {
         "acao": "NOME_DA_ACAO",
@@ -221,7 +228,7 @@ if (acaoEscolhida === "demonstracaoDetalhadaBoleto") {
 
     } else {
       // Múltiplos modelos ou nenhum → pedir confirmação  
-      await setUserStage(sender, "agente_de_demonstração_detalhada_boleto");   
+      await setUserStage(sender, "agente_de_demonstracao_detalhada_boleto");   
 
       await sendBotMessage(sender, `⚠️ ${nomeUsuario}, você falou que quer fechar, mas fiquei na dúvida sobre qual modelo exatamente.`);
 
@@ -235,6 +242,7 @@ if (acaoEscolhida === "demonstracaoDetalhadaBoleto") {
       return; // ⚠️ IMPORTANTE: não segue pro handler se ainda não temos nomeModelo
     }
   }
+  
  // ✅ Garante que o modelo está gravado como confirmado
  if (!modelosConfirmados.includes(nomeModelo)) {
   await appendToConversation(sender, {
@@ -266,7 +274,7 @@ if (handlers[acaoEscolhida]) {
 
 const handlers = {
   demonstracaoDetalhadaBoleto: async (sender, args, extras) => {
-    await setUserStage(sender, "agente_de_demonstração_detalhada_boleto");     
+    await setUserStage(sender, "agente_de_demonstracao_detalhada_boleto");     
   
     const historico = await getConversation(sender);
   
@@ -406,6 +414,11 @@ const ultimaTOA = [...historico].reverse().find(msg => msg.tipo === "deliberacao
   - Seja conciso e humanizado; máximo 3 blocos (“emoção”, “benefício”, “call-to-action”).
   - Sempre feche perguntando algo que avance (ex.: “Fecho em 10× pra você?”).
 
+   "localizacaoLoja":  
+      "endereco": "Av. Getúlio Varga, 333, Centro, Araruama - RJ, Brasil. CEP 28979-129",
+      "referencia": "Mesma calçada da loteria e xerox do bolão, em frente à faixa de pedestre",
+      "horarioFuncionamento": "De 09:00 às 19:00, de segunda a sábado"
+
   
   🧠 Última mensagem do cliente:
       "${entrada}"
@@ -445,6 +458,79 @@ const ultimaTOA = [...historico].reverse().find(msg => msg.tipo === "deliberacao
       return await sendBotMessage(sender, "📌 Estou verificando... Pode repetir a dúvida de forma diferente?");
     }
 
+    return await sendBotMessage(sender, respostaFinal);
+  },
+  responderDuvidasGenericas: async (sender, args, extras) => {
+    await setUserStage(sender, "agente_de_demonstracao_pos_decisao_por_boleto");
+    const { msgContent, quotedMessage, pushName } = extras;
+    const nomeUsuario = pushName || "cliente";
+  
+    // 🧼 Entrada enriquecida com texto do quoted
+    const entrada = await sanitizarEntradaComQuoted(sender, msgContent, quotedMessage);
+  
+    // ⏺️ Salva como dúvida geral
+    await appendToConversation(sender, {
+      tipo: "duvida_geral",
+      conteudo: entrada,
+      timestamp: new Date().toISOString()
+    });
+  
+    // 📚 Carrega o contexto completo da conversa
+    const {
+      modelos,
+      nomeUsuario: nomeUsuarioContextual,
+      conversaCompleta,
+      modelosConfirmados
+    } = await prepararContextoDeModelosRecentes(sender);
+  
+    const prompt = `
+  Você é Anna, especialista da Vertex Store 💜
+  
+  Responda a seguinte dúvida do cliente com empatia, clareza e foco em ajudar de forma informal e acolhedora.
+  
+  🔍 Entrada do cliente:
+  "${entrada}"
+  
+  📦 Modelos sugeridos:
+  ${modelos.length > 0
+      ? modelos.map(m => `➡️ ${m.nome} - ${m.descricaoCurta} - R$ ${m.preco.toFixed(2)}`).join("\n")
+      : "Nenhum modelo sugerido ainda."}
+  
+  ✔️ Modelos confirmados:
+  ${modelosConfirmados.length > 0
+      ? modelosConfirmados.map(m => `✔️ ${m}`).join("\n")
+      : "Nenhum confirmado ainda."}
+  
+  📜 Histórico recente:
+  ${conversaCompleta}
+  
+  💡 Instruções:
+  - Se a dúvida for sobre produto, preço, garantia ou suporte → responda com clareza.
+  - Se for uma dúvida fora do escopo (ex: troca, defeito, localização), oriente e diga que será encaminhada.
+  - Use tom humano, empático, com emoji 💜 e uma pergunta no final.
+
+  "localizacaoLoja":  
+      "endereco": "Av. Getúlio Varga, 333, Centro, Araruama - RJ, Brasil. CEP 28979-129",
+      "referencia": "Mesma calçada da loteria e xerox do bolão, em frente à faixa de pedestre",
+      "horarioFuncionamento": "De 09:00 às 19:00, de segunda a sábado"
+  `;
+  
+    const respostaIA = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: `Você é uma atendente da Vertex Store, informal, clara e acolhedora.` },
+        { role: "user", content: prompt }
+      ],
+      temperature: 0.9,
+      max_tokens: 350
+    });
+  
+    const respostaFinal = respostaIA.choices?.[0]?.message?.content?.trim();
+  
+    if (!respostaFinal) {
+      return await sendBotMessage(sender, "📩 Recebi sua dúvida, e já estou vendo com a equipe! Já te retorno 💜");
+    }
+  
     return await sendBotMessage(sender, respostaFinal);
   },
   agenteDeDemonstracaoPorNomePorBoleto: async (sender, args, { msgContent, pushName }) => {

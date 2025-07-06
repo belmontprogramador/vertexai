@@ -117,7 +117,7 @@ const agenteDeDemonstracaoPorNome = async ({ sender, msgContent, modeloMencionad
     
 
   if (!modelo) {
-    await setUserStage(sender, "identificar_modelo_por_nome_pos_demonstração");
+    await setUserStage(sender, "identificar_modelo_por_nome_pos_demonstracao");
     const nome = await getNomeUsuario(sender);
     const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   await delay(3000);
@@ -162,7 +162,7 @@ ${modelo.fraseImpacto ? `\n\n${modelo.fraseImpacto}` : ""}
 
   const nome = await getNomeUsuario(sender);
   await sendBotMessage(sender, `📣 ${nome} temos esse modelo a pronta entrega. Vou te passar todas a informações sobre ele?`);
-  await setUserStage(sender, "identificar_modelo_por_nome_pos_demonstração");
+  await setUserStage(sender, "identificar_modelo_por_nome_pos_demonstracao");
 };
 
 

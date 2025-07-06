@@ -78,7 +78,12 @@ const objeçõesVertexBoleto = {
       "defenderAntesDesconto": true,
       "linguagemFlexivel": true,
       "tentativasAntesHumano": 3
-    }
+    },
+    "localizacaoLoja": {
+      "endereco": "Av. Getúlio Varga, 333, Centro, Araruama - RJ, Brasil. CEP 28979-129",
+      "referencia": "Mesma calçada da loteria e xerox do bolão, em frente à faixa de pedestre",
+      "horarioFuncionamento": "De 09:00 às 19:00, de segunda a sábado"
+    },
   }
     module.exports = { objeçõesVertexBoleto };
     

@@ -27,7 +27,8 @@ const webhookControllerReceived = async (req, res) => {
 
     const { messageId, sender, msgContent } = req.body;
     const pushName = sender?.pushName || "";
-    const senderId = sender?.id;
+    const normalizarSenderId = (id) => id?.split("@")[0]; // remove "@c.us"
+const senderId = normalizarSenderId(sender?.id);
 
     if (!messageId || !senderId) {
       console.log("🚨 Mensagem inválida.");
@@ -44,11 +45,11 @@ const webhookControllerReceived = async (req, res) => {
       msgContent?.extendedTextMessage?.text?.trim();
 
     // Ignora áudios (desativado, pode reativar se quiser)
-    // const isAudio = msgContent?.audioMessage;
-    // if (isAudio) {
-    //   await sendBotMessage(senderId, "No momento não estamos ouvindo áudio, pode digitar por favor?");
-    //   return res.status(200).json({ message: "Áudio ignorado." });
-    // }
+    const isAudio = msgContent?.audioMessage;
+    if (isAudio) {
+      await sendBotMessage(senderId, "No momento não estamos ouvindo áudio, pode digitar por favor?");
+      return res.status(200).json({ message: "Áudio ignorado." });
+    }
 
     await setPrimeiraInteracao(senderId);
     const timestamp = await getPrimeiraInteracao(senderId);
@@ -58,7 +59,7 @@ const webhookControllerReceived = async (req, res) => {
 
     console.log(`📅 Primeira interação de ${senderId}: ${dataFormatada}`);
 
-    const DATA_LIMITE = DateTime.fromISO("2025-06-14T09:00:00", {
+    const DATA_LIMITE = DateTime.fromISO("2025-07-02T09:23:00", {
       zone: "America/Sao_Paulo",
     }).toMillis();
 
@@ -85,6 +86,11 @@ const webhookControllerReceived = async (req, res) => {
       return res.status(200).json({ message: "Mensagem enfileirada." });
     }
 
+    const stageAtual = await getUserStage(senderId);
+    const tempoBloqueio = obterTempoDeBloqueio(stageAtual);
+    console.log(`⏱️ Tempo de bloqueio para o stage "${stageAtual}": ${tempoBloqueio}s`);
+
+    await setBloqueioComFila(senderId, tempoBloqueio);
     // Enfileira imediatamente e inicia o bloqueio temporário
     await enfileirarMensagem(senderId, {
       content,
@@ -93,11 +99,9 @@ const webhookControllerReceived = async (req, res) => {
       quotedMessage
     });
 
-    const stageAtual = await getUserStage(senderId);
-const tempoBloqueio = obterTempoDeBloqueio(stageAtual);
-console.log(`⏱️ Tempo de bloqueio para o stage "${stageAtual}": ${tempoBloqueio}s`);
+ 
 
-await setBloqueioComFila(senderId, tempoBloqueio);
+
 
 
     return res.json({ message: "Mensagem processada com sucesso!" });

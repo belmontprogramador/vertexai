@@ -12,7 +12,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const agenteDeIdentificacaoDeNome = async ({ sender, msgContent, pushName }) => {
   try {
-    await setUserStage(sender, "agente_de_identificação_de_nome");
+    await setUserStage(sender, "agente_de_identificacao_de_nome");
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4-turbo",
@@ -67,7 +67,7 @@ Sempre retorne um JSON limpo com apenas "acao" e "argumento" se aplicável.
     }
 
     // Fallback para pedir nome novamente
-    await setUserStage(sender, "agente_de_identificação_de_nome");
+    await setUserStage(sender, "agente_de_identificacao_de_nome");
 
     const frases = [
       `A gente adora atender bem, e seu nome é fundamental pra isso. Como devo te chamar? 💜`,

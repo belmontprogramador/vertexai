@@ -67,7 +67,7 @@ const agenteDeDecisaoPosDemonstracao = async ({ sender, msgContent, pushName, ex
     const decisao = await decidirProximaAcao(msgContent);
 
     if (decisao === "mais_informacoes") {
-      await setUserStage(sender, "agente_de_demonstração_detalhada");
+      await setUserStage(sender, "agente_de_demonstracao_detalhada");
       return await agenteDeDemonstracaoDetalhada({ sender, msgContent, pushName });
     }
 

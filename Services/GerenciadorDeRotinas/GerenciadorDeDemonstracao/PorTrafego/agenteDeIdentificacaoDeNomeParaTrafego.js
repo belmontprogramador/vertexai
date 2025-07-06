@@ -55,7 +55,7 @@ const functions = [
 
 // 🔹 Agente principal
 const agenteDeIdentificacaoDeNomeParaTrafego = async ({ sender, msgContent, pushName }) => {
-  await setUserStage(sender, "agente_de_identificação_de_nome");
+  await setUserStage(sender, "agente_de_identificacao_de_nome");
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4-turbo",

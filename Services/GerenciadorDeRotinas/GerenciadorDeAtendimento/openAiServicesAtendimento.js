@@ -6,11 +6,10 @@ const {
 const { rotinaDeDemonstracaoDeCelularPorValor } = require("../GerenciadorDeDemonstracao/PorValor/rotinaDeDemonstracaoDeCelularPorValor")
 const { rotinaDeDemonstracaoDeCelularPorNome } = require("../GerenciadorDeDemonstracao/PorNome/rotinaDeDemonstraçãoDeCelularPorNome") 
 const { rotinaDeBoleto } = require("../GerenciadorDeDemonstracao/PorBoleto/rotinaDeBoleto");
-// const { rotinaDeSondagemDeAcessorios } = require("../../GerenciadorDeSondagem/rotinaDeSondagemAcessorios");
-// const { rotinaDeBoleto } = require("../../GerenciadordeBoleto/rotinaDeBoleto")
-// const { rotinaDeSuporte } = require("../../GerenciadorDeSuporte/rotinaDeSuporte")
+const { recepcaoDuvidaGenerica } = require("../GerenciadorDeOutros/recepcaoDuvidaGenerica");
 
 const OpenAI = require("openai");
+
 require("dotenv").config();
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -54,10 +53,10 @@ const nome = await getNomeUsuario(sender, pushName);
 //     await setUserStage(sender, "boleto");
 //     await rotinaDeBoleto({ sender, msgContent, pushName });
 //   },
-//   consultarOutros: async (sender, msgContent, pushName) => {
-//     await setUserStage(sender, "suporte");
-//     await rotinaDeSuporte({ sender, msgContent, pushName });
-//   },
+  consultarOutros: async (sender, msgContent, pushName) => {
+    
+    await recepcaoDuvidaGenerica({ sender, msgContent, pushName });
+  },
 //  investigarIntencao: async (sender, msgContent, pushName) => {  
 //   await setUserStage(sender, "sequencia_de_abordagem")
 //   await sendBotMessage(
@@ -130,17 +129,17 @@ const functions = [
 //       required: ["interesse"] 
 //     } 
 //   },
-//   { 
-//     name: "consultarOutros", 
-//     description: "Usuário menciona algo fora das categorias definidas ou fala suporte ou digita 4.", 
-//     parameters: { 
-//       type: "object", 
-//       properties: { 
-//         interesse: { type: "string", enum: ["outros"] } 
-//       }, 
-//       required: ["interesse"] 
-//     } 
-//   },
+  { 
+    name: "consultarOutros", 
+    description: "Usuário digita 3.", 
+    parameters: { 
+      type: "object", 
+      properties: { 
+        interesse: { type: "string", enum: ["outros"] } 
+      }, 
+      required: ["interesse"] 
+    } 
+  },
   // {
   //   name: "investigarIntencao",
   //   description: `Use esta função quando a mensagem do usuário estiver vaga, ambígua ou evasiva, sem fornecer informações claras o suficiente para decidir se ele deseja ver celulares, acessórios, formas de pagamento, boletos ou suporte, uma marca ou modelo especifico.
@@ -165,7 +164,8 @@ const functions = [
 
 // 🔹 Função principal para rodar o agente de sondagem
 const openAiServicesAtendimento = async ({ sender, msgContent, pushName, quotedMessage }) => {
-  try {    
+  try {  
+    const nome = await getNomeUsuario(sender)   
     // fallback direto para boleto se a mensagem for claramente sobre isso
     if (/\bboleto\b/i.test(msgContent)) {
       return await handlers.seguir_para_boleto(sender, { querBoleto: true }, { msgContent, pushName });
@@ -216,8 +216,18 @@ Responda com a função apropriada e seus parâmetros.
       }
     }
     
-
-    await sendBotMessage(sender, "🤖 Não consegui entender. Você quer pagar no boleto ou prefere ver outras opções?");
+    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    await delay(2000);
+    await sendBotMessage(sender,  `Oi ${nome} nesse momento inicial preciso que você me dê informações basicas para eu te ajudar.` );
+    await delay(1000);
+    await sendBotMessage(sender,  `Escolha uma opção do menu abaixo para eu te ajudar` );
+    const menu = `Escolha seu clique 💜👇
+    1️⃣ Smartphones – lançamentos e custo-benefício top 🔥
+    2️⃣Pagamento Fácil – Boleto Vertex até 18X 💸
+    3️⃣ Outros Assuntos - Acessorios e Duvidas
+     `
+     await delay(1000);
+     await sendBotMessage(sender, menu);
   } catch (err) {
     console.error("❌ Erro no agente de decisão boleto/sondagem:", err);
     await sendBotMessage(sender, "⚠️ Ocorreu um erro ao tentar entender sua resposta. Pode tentar novamente?");

@@ -1,4 +1,4 @@
-const Redis = require("ioredis");
+const Redis = require("ioredis"); 
 
 const redis = new Redis({
   host: "127.0.0.1",
@@ -245,7 +245,7 @@ const getTodosUsuariosComStageESemInteracao = async () => {
   for (const stageKey of stageKeys) {
     const sender = stageKey.replace("user_stage:", "");
     const stage = await redis.get(stageKey);
-    const ultimaInteracao = await redis.get(`user_last_interaction:${sender}`);
+    const ultimaInteracao = await redis.get(`last_interaction:${sender}`); // ✅ corrigido
 
     usuarios.push({ sender, stage, ultimaInteracao });
   }
@@ -282,6 +282,53 @@ const isBotPausadoParaUsuario = async (userId) => {
   return global === "true" || individual === "true";
 };
 
+const getMensagemPorTempo = (template, minutos, nome) => {
+  const chaves = Object.keys(template)
+    .map(k => parseInt(k))
+    .sort((a, b) => a - b);
+
+  for (const tempo of chaves) {
+    if (minutos >= tempo) {
+      let mensagem = template[tempo];
+      if (mensagem.includes("{{nome}}")) {
+        return mensagem.replace(/{{nome}}/g, nome || ""); // fallback de nome
+      }
+      return mensagem;
+    }
+  }
+
+  return null;
+};
+
+
+const marcarRemarketingComoEnviado = async (sender, stage, tempo) => {
+  const status = await getRemarketingStatus(sender);
+  if (!status[stage]) status[stage] = {};
+  status[stage][tempo] = true;
+  await redis.set(`remarketing_enviado:${sender}`, JSON.stringify(status));
+};
+
+const resetarTodosRemarketingStatus = async () => {
+  try {
+    const chaves = await redis.keys("remarketing_enviado:*");
+    if (chaves.length === 0) {
+      console.log("ℹ️ Nenhum status de remarketing encontrado para resetar.");
+      return;
+    }
+
+    const resultado = await redis.del(...chaves);
+    console.log(`🧹 Resetados ${resultado} status de remarketing no total.`);
+  } catch (error) {
+    console.error(`❌ Erro ao resetar status de remarketing: ${error.message}`);
+  }
+};
+
+const getRemarketingStatus = async (sender) => {
+  const raw = await redis.get(`remarketing_enviado:${sender}`);
+  return raw ? JSON.parse(raw) : {};
+};
+
+
 
 
 
@@ -314,5 +361,9 @@ module.exports = {
   pausarBotParaUsuario,
   retomarBotParaUsuario,
   isBotPausadoParaUsuario,
+  getMensagemPorTempo,
+  marcarRemarketingComoEnviado,
+  resetarTodosRemarketingStatus,
+  getRemarketingStatus,
   redis
 };

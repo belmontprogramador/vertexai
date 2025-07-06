@@ -14,6 +14,7 @@ const rotinaDePrimeiroAtendimento = async ({ sender, msgContent, pushName }) => 
   const menu = `Escolha seu clique 💜👇
 1️⃣ Smartphones – lançamentos e custo-benefício top 🔥
 2️⃣Pagamento Fácil – Boleto Vertex até 18X 💸
+3️⃣ Outros Assuntos - Acessorios e Duvidas
  `
   
   await sendBotMessage(sender, fraseEscolhida);  

@@ -17,7 +17,7 @@ const { intencaoDataEntregaDesconto } = require('../../utils/documentacoes/inten
 const { tomDeVozVertex  } = require("../../utils/documentacoes/tomDeVozVertex");
 const { extrairTextoDoQuotedMessage } = require("../../utils/utilitariosDeMensagem/extrairTextoDoQuotedMessage");
 const { sanitizarEntradaComQuoted } = require("../../utils/utilitariosDeMensagem/sanitizarEntradaComQuoted");
-const { prepararContextoDeModelosRecentes } = require("../../utils/utilitariosDeMensagem/prepararContextoDeModelosRecentes");
+const { prepararContextoDeModelosRecentesFluxo } = require("../../utils/utilitariosDeMensagem/prepararContextoDeModelosRecentesFluxo");
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -79,7 +79,7 @@ const calcularSimilaridadePorEmbeddings = async (entrada, modelos) => {
 
 const  agenteDeDemonstracaoDetalhada = async ({ sender, msgContent, pushName }) => {
   try {
-    await setUserStage(sender, "agente_de_demonstração_detalhada");
+    await setUserStage(sender, "agente_de_demonstracao_detalhada");
 
     const nome = await getNomeUsuario(sender);
     const textoQuoted = extrairTextoDoQuotedMessage(msgContent);
@@ -144,8 +144,7 @@ ${conversaCompleta}
 📦 Modelos disponíveis:
 ${listaModelos.map(m => `- ${m.nome}`).join("\n")}
 
-1. Se — e SOMENTE SE — o cliente disser explicitamente frases como "fechou", "quero esse", "vamos fechar", "é esse mesmo", "bora", "fechado", ou mencionar uma data exata de fechamento como "vou hoje", "passo aí amanhã", "mês que vem", então ele está confirmando um dos modelos sugeridos. Escolha "fecharVenda".
-
+1. **fecharVenda** → quando estiver decidido ou indicar desejo de finalizar, mesmo que sem palavras exatas como "fechou". Ex: “gostei muito desse”, “acho que vou aí amanhã”, “vamos ver esse aí”.
 ⚠️ Só escolha "fecharVenda" se já houver uma execução anterior da ação "mostrarResumoModelo" com o modelo confirmado. Passe o modelo com argumento
 
 2. Se o cliente fizer **qualquer pergunta**, mesmo curta (ex.: "é bom?", "qual o preço?", "tem câmera boa?"), isso significa que ele ainda está com dúvida e precisa de mais informações. Escolha "responderDuvida".
@@ -157,6 +156,7 @@ ${listaModelos.map(m => `- ${m.nome}`).join("\n")}
 
 ⚠️ Quando escolher "mostrarResumoModelo" você também DEVE preencher "argumento.nomeModelo" com o nome exato do modelo citado.
 
+4. Se o cliente fizer qualquer pergunta sobre *BOLETO*  ou demonstrar curiosidade qualquer curiosidade sobre como funciona o *BOLETO* ou crediário, sem confirmar fechamento (ex: “como funciona o boleto?”, “qual valor de entrada?”, “como faço?”), então:Escolha: **"perguntarSobreBoleto"**
 
 
 Retorne apenas isso:
@@ -206,7 +206,7 @@ const handlers = {
     return await rotinaDeAgendamento({ sender, msgContent, pushName });
   },
   mostrarResumoModelo: async (sender, args, extras) => {
-    await setUserStage(sender, "agente_de_demonstração_detalhada");
+    await setUserStage(sender, "agente_de_demonstracao_detalhada");
   
     const nome = await getNomeUsuario(sender);
     let modelo = extras?.modeloEscolhido;
@@ -277,8 +277,12 @@ const handlers = {
       },
       {
         role: "user",
-        content: `Modelo: ${modelo.nome}\nFrase de impacto: ${modelo.fraseImpacto}\nDescrição curta: ${modelo.descricaoCurta}`
-      }
+        content: `Modelo: ${modelo.nome}
+        Frase de impacto: ${modelo.fraseImpacto}
+        Descrição curta: ${modelo.descricaoCurta}
+        Preço à vista: R$ ${modelo.preco.toFixed(2)}
+        Preço parcelado: ${modelo.precoParcelado || "consulte condições"}`
+              }
     ];
   
     let resumo = "";
@@ -323,13 +327,13 @@ await appendToConversation(sender, {
     return await sendBotMessage(sender, resumo);
   },  
   responderDuvida: async (sender, args, extras) => {
-    await setUserStage(sender, "agente_de_demonstração_detalhada");
+    await setUserStage(sender, "agente_de_demonstracao_detalhada");
 
     const { msgContent, quotedMessage } = extras;
 
     const entrada = await sanitizarEntradaComQuoted(sender, msgContent, quotedMessage);
 
-    const { modelos, nomeUsuario,  modelosConfirmados, conversaCompleta } = await prepararContextoDeModelosRecentes(sender);
+    const { modelos, nomeUsuario,  modelosConfirmados, conversaCompleta } = await prepararContextoDeModelosRecentesFluxo(sender);
 
     if (modelos.length === 0) {
       return await sendBotMessage(sender, "⚠️ Ainda não te mostrei nenhum modelo pra comparar. Quer ver algumas opções?");
@@ -425,6 +429,11 @@ await appendToConversation(sender, {
   - Seja conciso e humanizado; máximo 3 blocos (“emoção”, “benefício”, “call-to-action”).
   - Sempre feche perguntando algo que avance (ex.: “Fecho em 10× pra você?”).
 
+   "localizacaoLoja":  
+      "endereco": "Av. Getúlio Varga, 333, Centro, Araruama - RJ, Brasil. CEP 28979-129",
+      "referencia": "Mesma calçada da loteria e xerox do bolão, em frente à faixa de pedestre",
+      "horarioFuncionamento": "De 09:00 às 19:00, de segunda a sábado"
+
   📜 Histórico da conversa:
         ${conversaCompleta}
       
@@ -463,6 +472,90 @@ await appendToConversation(sender, {
 
     return await sendBotMessage(sender, respostaFinal);
   },
+  responderDuvidasGenericas: async (sender, args, extras) => {
+    await setUserStage(sender, "agente_de_demonstracao_detalhada");
+    const { msgContent, quotedMessage, pushName } = extras;
+    const nomeUsuario = pushName || "cliente";
+  
+    // 🧼 Entrada enriquecida com texto do quoted
+    const entrada = await sanitizarEntradaComQuoted(sender, msgContent, quotedMessage);
+  
+    // ⏺️ Salva como dúvida geral
+    await appendToConversation(sender, {
+      tipo: "duvida_geral",
+      conteudo: entrada,
+      timestamp: new Date().toISOString()
+    });
+  
+    // 📚 Carrega o contexto completo da conversa
+    const {
+      modelos,
+      nomeUsuario: nomeUsuarioContextual,
+      conversaCompleta,
+      modelosConfirmados
+    } = await prepararContextoDeModelosRecentesFluxo(sender);
+  
+    const prompt = `
+  Você é Anna, especialista da Vertex Store 💜
+  
+  Responda a seguinte dúvida do cliente com empatia, clareza e foco em ajudar de forma informal e acolhedora.
+  
+  🔍 Entrada do cliente:
+  "${entrada}"
+  
+  📦 Modelos sugeridos:
+  ${modelos.length > 0
+      ? modelos.map(m => `➡️ ${m.nome} - ${m.descricaoCurta} - R$ ${m.preco.toFixed(2)}`).join("\n")
+      : "Nenhum modelo sugerido ainda."}
+  
+  ✔️ Modelos confirmados:
+  ${modelosConfirmados.length > 0
+      ? modelosConfirmados.map(m => `✔️ ${m}`).join("\n")
+      : "Nenhum confirmado ainda."}
+  
+  📜 Histórico recente:
+  ${conversaCompleta}
+  
+  💡 Instruções:
+  - Se a dúvida for sobre produto, preço, garantia ou suporte → responda com clareza.
+  - Se for uma dúvida fora do escopo (ex: troca, defeito, localização), oriente e diga que será encaminhada.
+  - Use tom humano, empático, com emoji 💜 e uma pergunta no final.
+
+  "localizacaoLoja":  
+      "endereco": "Av. Getúlio Varga, 333, Centro, Araruama - RJ, Brasil. CEP 28979-129",
+      "referencia": "Mesma calçada da loteria e xerox do bolão, em frente à faixa de pedestre",
+      "horarioFuncionamento": "De 09:00 às 19:00, de segunda a sábado"
+  `;
+  
+    const respostaIA = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: `Você é uma atendente da Vertex Store, informal, clara e acolhedora.` },
+        { role: "user", content: prompt }
+      ],
+      temperature: 0.9,
+      max_tokens: 350
+    });
+  
+    const respostaFinal = respostaIA.choices?.[0]?.message?.content?.trim();
+  
+    if (!respostaFinal) {
+      return await sendBotMessage(sender, "📩 Recebi sua dúvida, e já estou vendo com a equipe! Já te retorno 💜");
+    }
+  
+    return await sendBotMessage(sender, respostaFinal);
+  },
+  perguntarSobreBoleto: async (sender, args, { pushName, msgContent }) => {  
+    await setUserStage(sender, "perguntar_sobre_boleto");
+    const nomeUsuario = await getNomeUsuario(sender)
+     
+    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    await delay(2000);
+  
+    await sendBotMessage(sender, `${nomeUsuario} para vendas no boleto temos modelos e condições diferentes. Me ajuda a entender algumas coisas antes`);
+   
+    return await rotinaDeBoleto({ sender, msgContent, pushName });
+  }
 
 }
 

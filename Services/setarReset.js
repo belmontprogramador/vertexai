@@ -6,7 +6,8 @@ const {
   deleteNomeUsuario,
   deleteConversation,
   deletePrimeiraInteracao,
-  redis
+  redis,
+  resetarTodosRemarketingStatus
 } = require("./redisService");
 
 const setarReset = async (userId) => {
@@ -20,6 +21,7 @@ const setarReset = async (userId) => {
     const rotinas = ["sondagem", "fechamento", "acessorios", "default"];
     for (const rotina of rotinas) {
       await deleteUserResponses(userId, rotina);
+      // resetarTodosRemarketingStatus(userId);
     }
 
     await deleteNomeUsuario(userId);  

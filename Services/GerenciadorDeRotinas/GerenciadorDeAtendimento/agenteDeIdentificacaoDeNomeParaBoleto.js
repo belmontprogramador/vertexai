@@ -21,7 +21,7 @@ const handlers = {
   },
 
   pedir_nome_novamente: async (sender) => {
-    await setUserStage(sender, "agente_de_identificação_de_nome");
+    await setUserStage(sender, "agente_de_identificacao_de_nome");
     const frases = [ `A gente adora atender bem, e seu nome é fundamental pra isso. Como devo te chamar? 💜`,
       `Compartilha seu nome com a gente? Assim ajustamos tudo pra te atender do seu jeito 💜`
 ] 
@@ -91,7 +91,7 @@ const agenteDeIdentificacaoDeNomeParaBoleto = async ({ sender, msgContent, pushN
 
     // fallback
     await sendBotMessage(sender, "🤖 Não consegui entender. Qual é o seu primeiro nome?");
-    await setUserStage(sender, "agente_de_identificação_de_nome");
+    await setUserStage(sender, "agente_de_identificacao_de_nome");
   } catch (error) {
     console.error("❌ Erro no agenteDeIdentificacaoDeNome:", error.message);
     await sendBotMessage(sender, "⚠️ Ocorreu um erro ao tentar identificar seu nome. Pode repetir?");

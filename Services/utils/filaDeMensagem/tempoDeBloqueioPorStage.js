@@ -45,7 +45,7 @@ const TEMPOS_POR_STAGE = {
   rotina_de_agendamento: 3,
 
   // 🟤 Fallback
-  default: 5
+  default: 20
 };
 
 const obterTempoDeBloqueio = (stage) => {

@@ -3,6 +3,7 @@ const {
   setUserStage,
   appendToConversation,
   getConversation,
+  getNomeUsuario,
 } = require("../../../redisService");
 const { agenteDeDemonstracaoDetalhada } = require("../agenteDeDemonstracaoDetalhada"); 
 const { objeçõesVertex } = require("../../../utils/documentacoes/objecoes");
@@ -13,6 +14,7 @@ const { handlers: handlersDemonstracaoDetalhada } = require("../../../Gerenciado
 const { agenteDeDemonstracaoPorNomePorValor } = require("../PorValor/agenteDeDemonstracaoPorNomePorValor");
 const { sanitizarEntradaComQuoted } = require("../../../utils/utilitariosDeMensagem/sanitizarEntradaComQuoted");
 const { prepararContextoDeModelosRecentesFluxo } = require("../../../utils/utilitariosDeMensagem/prepararContextoDeModelosRecentesFluxo");
+const { rotinaDeBoleto } = require("../../../GerenciadorDeRotinas/GerenciadorDeDemonstracao/PorBoleto/rotinaDeBoleto");
 
 const OpenAI = require("openai");
 require("dotenv").config();
@@ -104,7 +106,7 @@ const calcularSimilaridadePorEmbeddings = async (entrada, modelos) => {
 
 const identificarModeloPorNomePosDemonstraçãoPorValor = async ({ sender, msgContent, pushName, quotedMessage }) => {
   try {
-    await setUserStage(sender, "identificar_modelo_por_nome_pos_demonstração_por_valor");
+    await setUserStage(sender, "identificar_modelo_por_nome_pos_demonstracao_por_valor");
 
 
     const entrada = await sanitizarEntradaComQuoted(sender, msgContent, quotedMessage);
@@ -157,7 +159,7 @@ const identificarModeloPorNomePosDemonstraçãoPorValor = async ({ sender, msgCo
       
       💡 Quais são as 3 possibilidades mais prováveis que o cliente quer com essa mensagem?
       
-      1. Se — e SOMENTE SE — o cliente disser explicitamente frases como "fechou", "quero esse", "vamos fechar", "é esse mesmo", "bora", "fechado", ou mencionar uma data exata de fechamento como "vou hoje", "passo aí amanhã", "mês que vem", então ele está confirmando um dos modelos sugeridos. Escolha **demonstracaoDetalhada**.
+      1. **demonstracaoDetalhada** → quando estiver decidido ou indicar desejo de finalizar, mesmo que sem palavras exatas como "fechou". Ex: “gostei muito desse”, “acho que vou aí amanhã”, “vamos ver esse aí”.
       
       2. Se o cliente fizer QUALQUER pergunta sobre um modelo que ja tenha sido mencionado (mesmo sem ponto de interrogação) — como "é bom?", "e esse?", "a câmera é boa?", "qual o preço?" — **sobre qualquer um dos modelos apresentados anteriormente**, ou **sobre o último modelo confirmado**, interprete como dúvida ou indecisão. Escolha **responderDuvida**.
       
@@ -165,6 +167,17 @@ const identificarModeloPorNomePosDemonstraçãoPorValor = async ({ sender, msgCo
       
       3. Se ele mencionar qualquer modelo que **ainda não foi apresentado na conversa** e **também não é o último confirmado**, qualquer tipo de menção que seja, escolha **agenteDeDemonstracaoPorNomePorValor**. Isso indica que o cliente está abrindo uma nova intenção.
       
+      4. Se a mensagem do cliente **não mencionar nenhum modelo**,  
+e a dúvida parecer geral, filosófica, comportamental ou fora do escopo dos modelos —  
+ex: "vocês vendem usados?", "e se der defeito?", "vocês tem loja física?",  
+"qual é o diferencial de vocês?", "vocês são confiáveis?", "aceitam cartão?"  
+— então entenda que é uma dúvida genérica.  
+Escolha: **"responderDuvidasGenericas"**
+
+5. Se o cliente fizer qualquer pergunta sobre *BOLETO*  ou demonstrar curiosidade qualquer curiosidade sobre como funciona o *BOLETO* ou crediário, sem confirmar fechamento (ex: “como funciona o boleto?”, “qual valor de entrada?”, “como faço?”), então:Escolha: **"perguntarSobreBoleto"**
+
+ 
+
       Retorne apenas isso:
       {
         "acao": "NOME_DA_ACAO",
@@ -275,7 +288,7 @@ if (acaoEscolhida === "responderDuvida") {
 
         } else {
           // Múltiplos modelos ou nenhum → pedir confirmação  
-          await setUserStage(sender, "agente_de_demonstração_detalhada");
+          await setUserStage(sender, "agente_de_demonstracao_detalhada");
 
           await sendBotMessage(sender, `⚠️ ${nomeUsuario}, você falou que quer fechar, mas fiquei na dúvida sobre qual modelo exatamente.`);
 
@@ -320,7 +333,7 @@ if (acaoEscolhida === "responderDuvida") {
 
 const handlers = {
   demonstracaoDetalhada: async (sender, args, extras) => {
-    await setUserStage(sender, "agente_de_demonstração_detalhada");
+    await setUserStage(sender, "agente_de_demonstracao_detalhada");
 
     const historico = await getConversation(sender);
 
@@ -330,15 +343,8 @@ const handlers = {
       m.conteudo.nome.toLowerCase() === args.nomeModelo.toLowerCase()
     );
 
-    // 💾 Salva também como modelo confirmado (para referência futura)
-await appendToConversation(sender, {
-  tipo: "modelo_confirmado",
-  conteudo: modelo.nome,
-  timestamp: new Date().toISOString()
-});
-
-    let modeloEscolhido;
-
+    // 📂 Carrega o modelo se ele ainda não foi mostrado
+    let modeloEscolhido = null;
     if (!modeloJaMostrado && args?.modeloMencionado) {
       const modelos = await getAllCelulares();
       modeloEscolhido = modelos.find(m =>
@@ -346,18 +352,32 @@ await appendToConversation(sender, {
       );
     }
 
-    // Se encontrou o modelo, chama direto o resumo
-    if (modeloEscolhido) {
-      return await handlersDemonstracaoDetalhada.mostrarResumoModelo(sender,
-        { nomeModelo: modeloEscolhido.nome },
-        { modeloEscolhido });
+    // 🔖 Fallback: tenta encontrar o modelo por nomeModelo se ainda não foi definido
+    if (!modeloEscolhido && args?.nomeModelo) {
+      const modelos = await getAllCelulares();
+      modeloEscolhido = modelos.find(m =>
+        m.nome.toLowerCase() === args.nomeModelo.toLowerCase()
+      );
     }
 
-    // Fallback: chama o resumo mesmo que o modelo já tenha sido mostrado ou não foi encontrado de novo
-    return await handlersDemonstracaoDetalhada.mostrarResumoModelo(sender, { nomeModelo: args.nomeModelo }, {});
+    // 📂 Se não achou o modelo, avisa
+    if (!modeloEscolhido) {
+      return await sendBotMessage(sender, `⚠️ Ops, não consegui encontrar esse modelo agora. Pode repetir o nome certinho pra mim?`);
+    }
+
+    // 📅 Salva como modelo confirmado (para referência futura)
+    await appendToConversation(sender, {
+      tipo: "modelo_confirmado",
+      conteudo: modeloEscolhido.nome,
+      timestamp: new Date().toISOString()
+    });
+
+    return await handlersDemonstracaoDetalhada.mostrarResumoModelo(sender,
+      { nomeModelo: modeloEscolhido.nome },
+      { modeloEscolhido });
   },
    responderDuvida: async (sender, args, extras) => {
-    await setUserStage(sender, "identificar_modelo_por_nome_pos_demonstração_por_valor");
+    await setUserStage(sender, "identificar_modelo_por_nome_pos_demonstracao_por_valor");
 
     const { msgContent, quotedMessage } = extras;
 
@@ -479,6 +499,10 @@ await appendToConversation(sender, {
   - Seja conciso e humanizado; máximo 3 blocos (“emoção”, “benefício”, “call-to-action”).
   - Sempre feche perguntando algo que avance (ex.: “Fecho em 10× pra você?”, "Vamos fechar sua compra?").
 
+   "localizacaoLoja": 
+      "endereco": "Av. Getúlio Varga, 333, Centro, Araruama - RJ, Brasil. CEP 28979-129",
+      "referencia": "Mesma calçada da loteria e xerox do bolão, em frente à faixa de pedestre",
+      "horarioFuncionamento": "De 09:00 às 19:00, de segunda a sábado"
   
   🧠 Última mensagem do cliente:
       "${entrada}"
@@ -520,13 +544,101 @@ await appendToConversation(sender, {
 
     return await sendBotMessage(sender, respostaFinal);
   },
+  responderDuvidasGenericas: async (sender, args, extras) => {
+    await setUserStage(sender, "identificar_modelo_por_nome_pos_demonstracao_por_valor");
+      const { msgContent, quotedMessage, pushName } = extras;
+      const nomeUsuario = pushName || "cliente";
+    
+      // 🧼 Entrada enriquecida com texto do quoted
+      const entrada = await sanitizarEntradaComQuoted(sender, msgContent, quotedMessage);
+    
+      // ⏺️ Salva como dúvida geral
+      await appendToConversation(sender, {
+        tipo: "duvida_geral",
+        conteudo: entrada,
+        timestamp: new Date().toISOString()
+      });
+    
+      // 📚 Carrega o contexto completo da conversa
+      const {
+        modelos,
+        nomeUsuario: nomeUsuarioContextual,
+        conversaCompleta,
+        modelosConfirmados
+      } = await prepararContextoDeModelosRecentesFluxo(sender);
+    
+      const prompt = `
+    Você é Anna, especialista da Vertex Store 💜
+    
+    Responda a seguinte dúvida do cliente com empatia, clareza e foco em ajudar de forma informal e acolhedora.
+    
+    🔍 Entrada do cliente:
+    "${entrada}"
+    
+    📦 Modelos sugeridos:
+    ${modelos.length > 0
+        ? modelos.map(m => `➡️ ${m.nome} - ${m.descricaoCurta} - R$ ${m.preco.toFixed(2)}`).join("\n")
+        : "Nenhum modelo sugerido ainda."}
+    
+    ✔️ Modelos confirmados:
+    ${modelosConfirmados.length > 0
+        ? modelosConfirmados.map(m => `✔️ ${m}`).join("\n")
+        : "Nenhum confirmado ainda."}
+    
+    📜 Histórico recente:
+    ${conversaCompleta}
+    
+    💡 Instruções:
+    - Se a dúvida for sobre produto, preço, garantia ou suporte → responda com clareza.
+    - Se for uma dúvida fora do escopo (ex: troca, defeito, localização), oriente e diga que será encaminhada.
+    - Use tom humano, empático, com emoji 💜 e uma pergunta no final.
+  
+    "localizacaoLoja":  
+        "endereco": "Av. Getúlio Varga, 333, Centro, Araruama - RJ, Brasil. CEP 28979-129",
+        "referencia": "Mesma calçada da loteria e xerox do bolão, em frente à faixa de pedestre",
+        "horarioFuncionamento": "De 09:00 às 19:00, de segunda a sábado"
+    `;
+    
+      const respostaIA = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `Você é uma atendente da Vertex Store, informal, clara e acolhedora.` },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.9,
+        max_tokens: 350
+      });
+    
+      const respostaFinal = respostaIA.choices?.[0]?.message?.content?.trim();
+    
+      if (!respostaFinal) {
+        return await sendBotMessage(sender, "📩 Recebi sua dúvida, e já estou vendo com a equipe! Já te retorno 💜");
+      }
+    
+      return await sendBotMessage(sender, respostaFinal);
+  },
   agenteDeDemonstracaoPorNomePorValor: async (sender, args, { msgContent, pushName }) => {
     await setUserStage(sender, "agente_de_demonstracao_por_nome_por_valor");
     // Salva como modelo confirmado
     const nomeModelo = args?.nomeModelo?.trim();
 
     return await agenteDeDemonstracaoPorNomePorValor({ sender, msgContent, pushName, modeloMencionado: nomeModelo });
+    
   },
+  perguntarSobreBoleto: async (sender, args, { pushName, msgContent }) => {  
+    await setUserStage(sender, "perguntar_sobre_boleto");
+  
+     
+    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    await delay(2000);
+
+    const nomeUsuario = await getNomeUsuario(sender)
+  
+    await sendBotMessage(sender, `${nomeUsuario} para vendas no boleto temos modelos e condições diferentes. Me ajuda a entender algumas coisas antes`);
+   
+    return await rotinaDeBoleto({ sender, msgContent, pushName });
+  }
+  
 }
 
 

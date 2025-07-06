@@ -16,6 +16,27 @@ require("dotenv").config();
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+const modeloExisteApenasEmUmaVersao = (modeloPrincipal, listaModelos) => {
+  const normalizar = (str) =>
+    str.toLowerCase()
+       .normalize("NFD")
+       .replace(/[\u0300-\u036f]/g, "")
+       .replace(/[^\w\s]/gi, "")
+       .replace(/\s+/g, " ")
+       .trim();
+
+  const tokensBase = normalizar(modeloPrincipal)
+    .split(" ")
+    .filter(t => isNaN(t) && t.length >= 3); // ignora RAM, GB, ROM
+
+  const variantes = listaModelos.filter(m => {
+    const nomeNormalizado = normalizar(m.nome || m.modelo);
+    return tokensBase.every(token => nomeNormalizado.includes(token));
+  });
+
+  return variantes.length === 1;
+};
+
 const obterModelosDoBling = async () => {
   try {
     const celulares = await  getAllCelulares();
@@ -110,8 +131,26 @@ const identificarModeloPorNome  = async ({ sender, msgContent, pushName, quotedM
   // 🎯 Tenta detectar similaridade de entrada com algum modelo
   const listaModelos = await obterModelosDoBling();
   const similares = await calcularSimilaridadePorEmbeddings(entrada, listaModelos);
-  const maisProvavel = similares?.[0];
-  console.log(`o mais provavel ${JSON.stringify(maisProvavel, null, 2)}`);
+  const maisProvavel = similares?.[0]; 
+console.log(`o mais provavel ${JSON.stringify(maisProvavel, null, 2)}`);
+
+// 🔄 Fallback inteligente: match moderado + única versão → já demonstra
+if (maisProvavel?.score >= 0.5 && modeloExisteApenasEmUmaVersao(maisProvavel.modelo, listaModelos)) {
+  await appendToConversation(sender, {
+    tipo: "deliberacao_toa",
+    conteudo: {
+      acao: "demonstrarCelular",
+      motivo: `Match moderado com o modelo ${maisProvavel.modelo}, e ele é a única variante no catálogo.`,
+      argumento: { modeloMencionado: maisProvavel.modelo }
+    },
+    timestamp: new Date().toISOString()
+  });
+
+  return await handlers.demonstrarCelular(sender, {
+    modeloMencionado: maisProvavel.modelo
+  }, { msgContent: entrada });
+}
+
 
   const normalizar = (str) =>
     str.toLowerCase()

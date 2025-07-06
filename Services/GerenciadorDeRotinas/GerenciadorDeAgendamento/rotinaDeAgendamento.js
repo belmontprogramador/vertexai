@@ -85,6 +85,8 @@ Seja direto e escreva como um vendedor humano de loja física.
 
   // ✅ Continua o fluxo com o cliente
   await sendBotMessage(sender, `Perfeito! Vou te encaminhar para o setor de agendamento 💜`);
+  await sendBotMessage(sender, "um minuto");
+  
 };
 
 module.exports = { rotinaDeAgendamento };

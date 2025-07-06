@@ -28,7 +28,7 @@ const handlers = {
     const nome = await getNomeUsuario(sender);
     const { content, pushName } = args;
     
-    await setUserStage(sender, "agente_de_demonstração_por_boleto");
+    await setUserStage(sender, "agente_de_demonstracao_por_boleto");
     await sendBotMessage(sender, `📱 Entendi, ${nome}! No momento disponível no boleto temos esses modelos e preços.`);
     await sendBotMessage(sender, `📱 Lembrando que todas as definições de preço devem ser feitas após análise de crédito feita em loja.`);
     return await agenteDeDemonstracaoPorBoleto({ sender, msgContent: content, pushName });
@@ -97,6 +97,11 @@ Regras obrigatórias:
 - Se o cliente responde com uma data 'hoje', 'essa semana', 'mes que vem', 'na quarta feira'chame direto a função agendarVisita sem perguntar de novo.
 - Inicia o agendamento após o usuário  manifestar interesse em alguma data data tipo, 'hoje','terça feira', 'semana que vem', 'esse mes'
  - De vez em quando chame o cliente pelo nome para gerar conexão emocional.
+
+ "localizacaoLoja":  
+      "endereco": "Av. Getúlio Varga, 333, Centro, Araruama - RJ, Brasil. CEP 28979-129",
+      "referencia": "Mesma calçada da loteria e xerox do bolão, em frente à faixa de pedestre",
+      "horarioFuncionamento": "De 09:00 às 19:00, de segunda a sábado"
 
 NOME DO CLIENTE
 ${nome}

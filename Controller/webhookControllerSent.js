@@ -17,7 +17,9 @@ const webhookControllerSent = async (req, res) => {
 
     const senderId = sender.id;
     const verifiedBizName = sender.verifiedBizName || "Não verificado";
-    const recipientId = chat.id;
+    const normalizarSenderId = (id) => id?.split("@")[0];
+const recipientId = normalizarSenderId(chat.id);
+
 
     const content =
       msgContent?.extendedTextMessage?.text ||
@@ -47,7 +49,7 @@ const webhookControllerSent = async (req, res) => {
       console.log("✅ Bot retomado via mensagem enviada.");
     }
 
-    if (comando === "pausar usuario") {
+    if (comando === "um minuto") {
       await pausarBotParaUsuario(recipientId);
       console.log(`⏸️ Bot pausado individualmente para ${recipientId}`);
     }

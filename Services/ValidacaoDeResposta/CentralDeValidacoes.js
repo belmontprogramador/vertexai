@@ -13,7 +13,16 @@ const { estaBloqueado, setBloqueio } = require("../utils/filaDeMensagem/bloqueio
  * 📌 Valida mensagem recebida e define novo stage com base na lógica do fluxo
  */
 const validarFluxoInicial = async (sender, msgContent, pushName) => {
-  const cleanedContent = msgContent.replace(/^again\s*/i, "").trim() 
+  const cleanedContent = msgContent
+  .replace(/^again\s*/i, "")
+  .normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, "") // remove acentos
+  .replace(/[^\w\s]/g, "")         // remove pontuação
+  .replace(/[\p{Emoji}\p{Extended_Pictographic}]/gu, '') // remove emojis
+  .replace(/\s+/g, " ")
+  .toLowerCase()
+  .trim();
+
   const lastInteraction = await getLastInteraction(sender);
   const currentTime = Date.now();
   const CHECK_TIME_LIMIT = 10 * 60 * 1000;
@@ -22,26 +31,32 @@ const validarFluxoInicial = async (sender, msgContent, pushName) => {
    
 
   const stageAtual = await getUserStage(sender);
+  console.log("📥 cleanedContent:", cleanedContent);
 
   // 👶 Se o usuário nunca teve interação, começa com primeiro atendimento
   if (
     !stageAtual &&
+    cleanedContent.includes("parcelamento via boleto")
+  ) {
+    await setUserStage(sender, "rotina_captura_de_nome_para_boleto");
+    return "rotina_captura_de_nome_para_boleto";
+  
+  } else if (
+    !stageAtual &&
     (
-      cleanedContent.includes("Opa! quero um smartphone que combine com meu estilo 📲. podem me ajudar? 😊") ||
-      cleanedContent.includes("Olá, quero ver as ofertas de smartphones da semana. Me mostram? 😃")
+      cleanedContent.includes("quero um smartphone que combine com meu estilo") ||
+      cleanedContent.includes("ver as ofertas de smartphones da semana")
     )
   ) {
     await setUserStage(sender, "rotina_captura_de_nome_para_trafego");
     return "rotina_captura_de_nome_para_trafego";
-  } else if (!stageAtual && cleanedContent === "Olá! 😊 poderia me explicar como é o parcelamento via boleto? 💸") {
-    await setUserStage(sender, "rotina_captura_de_nome_para_boleto");
-    return "rotina_captura_de_nome_para_boleto";
   
   } else if (!stageAtual) {
     console.log(`👋 [DEBUG] Nenhum histórico encontrado. Setando como 'rotina_captura_de_nome'`);
     await setUserStage(sender, "rotina_captura_de_nome");
     return "rotina_captura_de_nome";
   }
+  
 
   // 🛡️ Ignora mensagens se ainda estiver dentro da "espera do boleto"
   if (stageAtual === "open_ai_services_duvidas_boleto") {
