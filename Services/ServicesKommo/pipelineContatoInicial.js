@@ -40,7 +40,24 @@ async function findContactAndLeadByPhone(phone) {
     phones: contact.custom_fields_values?.find(f => f.field_code === 'PHONE')?.values || []
   });
 
-  const lead = contact._embedded?.leads?.[0] || null;
+  const leads = contact._embedded?.leads || [];
+  let lead = null;
+  
+  for (const l of leads) {
+    const leadRes = await axios.get(`${KOMMO_BASE_URL}/api/v4/leads/${l.id}`, { headers });
+    const leadData = leadRes.data;
+  
+    if (leadData.pipeline_id === PIPELINE_ID) {
+      lead = {
+        id: leadData.id,
+        status_id: leadData.status_id,
+        pipeline_id: leadData.pipeline_id
+      };
+      break;
+    }
+  }
+  
+
 
   if (!lead) {
     console.log("ℹ️ Contato encontrado, mas sem leads vinculados.");

@@ -7,12 +7,9 @@ const rotinaDeBoleto = async ({ sender, msgContent, pushName }) => {
 
   const nome = await getNomeUsuario(sender);
 
-  try {  
-    // Cria ou move o lead no Kommo
-    await pipelineBoleto({
-      name: `Lead Boleto - ${pushName}`,
-      phone: `+${sender}`
-    });
+  try { 
+    
+    await pipelineBoleto(sender.startsWith("+") ? sender : `+${sender}`);
 
     await sendBotMessage(sender, {
       imageUrl: "https://imagensvertex.felipebelmont.com/wp-content/uploads/2025/06/Imagem-do-WhatsApp-de-2025-06-05-as-18.10.01_9a71d5d5.jpg", // coloque sua URL real aqui

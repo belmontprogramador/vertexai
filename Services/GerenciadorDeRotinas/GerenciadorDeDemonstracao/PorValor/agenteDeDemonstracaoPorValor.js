@@ -162,6 +162,13 @@ if ((!textoDeReferencia || textoDeReferencia.toLowerCase().includes("esse")) && 
         conteudo: modelo,
         timestamp: new Date().toISOString()
       });
+
+      await appendToConversation(sender, {
+        tipo: "modelo_confirmado",
+        conteudo: modelo.nome,
+        timestamp: new Date().toISOString()
+      });
+      ;
     }
 
     await setUserStage(sender, "identificar_modelo_por_nome_pos_demonstracao_por_valor");

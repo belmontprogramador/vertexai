@@ -3,7 +3,8 @@ const {
   setUserStage,
   storeUserResponse
 } = require("../../../redisService");
-const { pipelineConhecendoALoja } = require("../../../ServicesKommo/pipelineConecendoALoja");
+const { pipelineContatoInicial } = require("../../../ServicesKommo/pipelineContatoInicial");
+const { pipelineConhecendoALoja } = require("../../../ServicesKommo/pipelineConhecendoALoja");
 const { agenteDeDemonstracaoPorValor } = require("./agenteDeDemonstracaoPorValor");
 const { registrarOuAtualizarMensagem } = require("../../../GerenciadorDeRotinas/messages/mensagemEnviadaService");
 const { identificarModeloPorNome } = require("../PorNome/identificarModeloPorNome");
@@ -84,17 +85,31 @@ const filtroDeValor = async ({ sender, msgContent, pushName, messageId }) => {
     const modeloDetectado = await buscarModeloPorNome(respostaLimpa);
     if (modeloDetectado) {
       await setUserStage(sender, "identificar_modelo_por_nome");
+    
+      // Movimenta para o estágio "Conhecendo a loja"
+      await pipelineContatoInicial({ name: pushName, phone: sender });
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      await pipelineConhecendoALoja(sender);
+    
       return await identificarModeloPorNome({
         sender,
         msgContent: respostaLimpa,
         pushName
       });
     }
+    
 
     if (contemValorMonetario(respostaLimpa)) {
       await setUserStage(sender, "agente_de_demonstracao_por_valor");
       await storeUserResponse(sender, "sondagem", "investimento", respostaLimpa);
-      await pipelineConhecendoALoja(`+${sender}`);
+
+      await pipelineContatoInicial({ name: pushName, phone: sender });
+
+      // ⏳ Aguarda 2 segundos para o Kommo indexar o novo lead
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      
+      await pipelineConhecendoALoja(sender);
+      
 
       await registrarOuAtualizarMensagem({
         telefone: sender,
@@ -107,10 +122,16 @@ const filtroDeValor = async ({ sender, msgContent, pushName, messageId }) => {
     }
 
     await setUserStage(sender, "filtro_de_valor");
-    return await sendBotMessage(sender, `🤖 Não encontrei esse modelo. Trabalhamos com Realme, Redmi e Poco. Você pode digitar o nome de outro modelo ou me dizer quanto pretende investir?`);
+    return await sendBotMessage(
+      sender,
+      `🤖 Não encontrei esse modelo. Trabalhamos com Realme, Redmi e Poco. Você pode digitar o nome de outro modelo ou me dizer quanto pretende investir?`
+    );
   } catch (error) {
     console.error("❌ Erro na rotinaDeDemonstracaoPorValor:", error);
-    await sendBotMessage(sender, "❌ Ocorreu um erro ao buscar os modelos. Por favor, tente novamente mais tarde.");
+    await sendBotMessage(
+      sender,
+      "❌ Ocorreu um erro ao buscar os modelos. Por favor, tente novamente mais tarde."
+    );
   }
 };
 

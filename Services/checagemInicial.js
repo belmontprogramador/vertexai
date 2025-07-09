@@ -62,7 +62,7 @@ const checagemInicial = async (sender, msgContent, pushName, messageId, quotedMe
 
     let novoStage;
 
-    if (cleanedContent === "resetardados") {
+    if (cleanedContent === "again resetardados") {
         await setarReset(sender, msgContent)
         novoStage = "primeiro_atendimento"
         console.log(`🎯 [DEBUG] Executando switch para stage: ${novoStage}`);

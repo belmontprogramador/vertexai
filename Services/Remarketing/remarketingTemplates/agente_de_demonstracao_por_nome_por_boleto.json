@@ -1,11 +1,11 @@
 {
-    "mensagem_inicial": "💡 {{nome}}, ficou com alguma dúvida sobre os modelos? Posso te mostrar outras opções ou ajudar na escolha.",
-    "15": "{{nome}}, viu os valores? É rapidinho: você passa na loja, dou entrada no boleto e pronto—já pode escolher o aparelho. Qual dia passa por aqui? 😉",
-    "40": "Opa {{nome}}, sei que o dia corre, mas são só uns 10 min no balcão pra sair com crédito aprovado. Me diz um dia que deixo tudo esquematizado pra você.",
-    "120": "{{nome}}, tenho dois horários livres, manhã e tarde. Qual encaixa melhor? Assim já evito fila e agilizo teu celular novo.",
-    "1140": "Chegou em casa? Ótimo momento pra marcar: passo teu nome na agenda pra amanhã e resolvemos isso antes do café esfriar. Topa?",
+     
+    "5": "{{nome}}, viu os valores? É rapidinho: você passa na loja, dou entrada no boleto e pronto—já pode escolher o aparelho. Qual dia passa por aqui? 😉",
+    "25": "Opa {{nome}}, sei que o dia corre, mas são só uns 10 min no balcão pra sair com crédito aprovado. Me diz um dia que deixo tudo esquematizado pra você.",
+    "65": "{{nome}}, tenho dois horários livres, manhã e tarde. Qual encaixa melhor? Assim já evito fila e agilizo teu celular novo.",
+    "145": "Chegou em casa? Ótimo momento pra marcar: passo teu nome na agenda pra amanhã e resolvemos isso antes do café esfriar. Topa?",
     "1440": "{{nome}}, amanhã posso reservar um horário exclusivo pra você sair com o boleto aprovado e sem pressa. Me avisa? 🙂",
-    "4320": "Passaram alguns dias, {{nome}}, mas sua simulação ainda tá válida. Quer que eu separe um horário pra agilizar tudo pra você?",
-    "10080": "{{nome}}, mesmo depois de uma semana, ainda consigo ajudar com a aprovação do boleto e o melhor modelo. Bora retomar? 💜"
+    "4320": "Passaram alguns dias, {{nome}}, mas sua simulação ainda tá válida. Quer que eu separe um horário pra agilizar tudo pra você?"
+     
   }
   

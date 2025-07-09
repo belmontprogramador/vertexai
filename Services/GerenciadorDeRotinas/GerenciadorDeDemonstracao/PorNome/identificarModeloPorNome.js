@@ -260,7 +260,7 @@ const handlers = {
   demonstrarCelular: async (sender, args, extras = {}) => {
     const { msgContent = "", quotedMessage = null } = extras;
   
-    await setUserStage(sender, "identificar_modelo_por_nome_pos_demonstração");
+    await setUserStage(sender, "identificar_modelo_por_nome_pos_demonstracao");
   
     await appendToConversation(sender, {
       tipo: "modelo_confirmado",
@@ -274,9 +274,10 @@ const handlers = {
       quotedMessage,
       modeloMencionado: args.modeloMencionado
     });
-  },  
+  },
+    
   investigarMais: async (sender, args, extras) => {
-    await setUserStage(sender, "identificar_modelo_por_nome_pos_demonstração");
+    await setUserStage(sender, "identificar_modelo_por_nome_pos_demonstracao");
   
     const listaCompleta = await obterModelosDoBling();
     const entrada = extras?.msgContent || "";

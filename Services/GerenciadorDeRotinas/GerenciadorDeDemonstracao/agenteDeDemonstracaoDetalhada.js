@@ -18,7 +18,7 @@ const { tomDeVozVertex  } = require("../../utils/documentacoes/tomDeVozVertex");
 const { extrairTextoDoQuotedMessage } = require("../../utils/utilitariosDeMensagem/extrairTextoDoQuotedMessage");
 const { sanitizarEntradaComQuoted } = require("../../utils/utilitariosDeMensagem/sanitizarEntradaComQuoted");
 const { prepararContextoDeModelosRecentesFluxo } = require("../../utils/utilitariosDeMensagem/prepararContextoDeModelosRecentesFluxo");
-
+ 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const obterModelosDoBling = async () => {
@@ -80,6 +80,8 @@ const calcularSimilaridadePorEmbeddings = async (entrada, modelos) => {
 const  agenteDeDemonstracaoDetalhada = async ({ sender, msgContent, pushName }) => {
   try {
     await setUserStage(sender, "agente_de_demonstracao_detalhada");
+    
+
 
     const nome = await getNomeUsuario(sender);
     const textoQuoted = extrairTextoDoQuotedMessage(msgContent);
@@ -203,10 +205,12 @@ Retorne apenas isso:
 const handlers = {
   fecharVenda: async (sender, _args, extras) => {
     const { modeloEscolhido, pushName, msgContent } = extras;
+    
     return await rotinaDeAgendamento({ sender, msgContent, pushName });
   },
   mostrarResumoModelo: async (sender, args, extras) => {
     await setUserStage(sender, "agente_de_demonstracao_detalhada");
+     
   
     const nome = await getNomeUsuario(sender);
     let modelo = extras?.modeloEscolhido;

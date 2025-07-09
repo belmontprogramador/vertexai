@@ -9,6 +9,7 @@ const {
   getRemarketingStatus,
   marcarRemarketingComoEnviado
 } = require("../redisService");
+const { pipelineRemarketingInativo } = require("../ServicesKommo/pipelineRemarketingInativo");
 
 const { sendBotMessage } = require("../messageSender");
 

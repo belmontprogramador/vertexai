@@ -3,7 +3,7 @@ const {
   setUserStage,
   appendToConversation
 } = require("../../../redisService");
-const { pipelineConhecendoALoja } = require("../../../ServicesKommo/pipelineConecendoALoja");
+const { pipelineConhecendoALoja } = require("../../../ServicesKommo/pipelineConhecendoALoja");
 const { identificarModeloPorNome } = require("./identificarModeloPorNome");
 
 const rotinaDeDemonstracaoDeCelularPorNome = async ({ sender, msgContent, pushName }) => {

@@ -4,14 +4,19 @@ require('dotenv').config();
 const KOMMO_BASE_URL = "https://contatovertexstorecombr.kommo.com";
 const KOMMO_TOKEN = process.env.KOMMO_TOKEN;
 
-const PIPELINE_ID = 7214739; // COMERCIAL VERTEX
-const STAGE_ID_BOLETO = 74576504; // BOLETO
+// IDs fixos do Kommo
+const PIPELINE_ID = 7214739; // "COMERCIAL VERTEX"
+const STAGE_ID_CONHECENDO_A_LOJA = 61182927; // "Conhecendo a loja"
 
+// Headers de autenticação
 const headers = {
   Authorization: `Bearer ${KOMMO_TOKEN}`,
   'Content-Type': 'application/json'
 };
 
+/**
+ * Busca o contato e todos os leads, retorna o lead do pipeline correto com status detalhado
+ */
 async function findContactAndLeadByPhone(phone) {
   const res = await axios.get(`${KOMMO_BASE_URL}/api/v4/contacts`, {
     headers,
@@ -22,11 +27,13 @@ async function findContactAndLeadByPhone(phone) {
   });
 
   const contact = res.data._embedded?.contacts?.[0];
+
   if (!contact) throw new Error("❌ Contato não encontrado.");
 
   const leads = contact._embedded?.leads || [];
 
   let detailedLead = null;
+
   for (const l of leads) {
     const leadDetail = await axios.get(`${KOMMO_BASE_URL}/api/v4/leads/${l.id}`, { headers });
     const leadData = leadDetail.data;
@@ -44,32 +51,40 @@ async function findContactAndLeadByPhone(phone) {
   return { contact, lead: detailedLead };
 }
 
-async function updateLeadToBoleto(leadId) {
+/**
+ * Move o lead para o estágio "Conhecendo a loja"
+ */
+async function updateLeadToConhecendoALoja(leadId) {
   const payload = [
     {
       id: leadId,
       pipeline_id: PIPELINE_ID,
-      status_id: STAGE_ID_BOLETO
+      status_id: STAGE_ID_CONHECENDO_A_LOJA
     }
   ];
 
   await axios.patch(`${KOMMO_BASE_URL}/api/v4/leads`, payload, { headers });
-  console.log(`📦 Lead ${leadId} movido para o estágio 'BOLETO'`);
+  console.log(`📦 Lead ${leadId} movido para o estágio 'Conhecendo a loja'`);
 }
 
-async function pipelineBoleto(phone) {
+/**
+ * Função principal: localiza o lead e atualiza o estágio
+ */
+async function pipelineConhecendoALoja(phone) {
   const telefoneComMais = phone.startsWith('+') ? phone : `+${phone}`;
 
   const { contact, lead } = await findContactAndLeadByPhone(telefoneComMais);
 
-  if (!lead) throw new Error("❌ Nenhum lead encontrado no pipeline COMERCIAL VERTEX.");
+  if (!lead) {
+    throw new Error("❌ Nenhum lead encontrado no pipeline COMERCIAL VERTEX.");
+  }
 
-  if (lead.status_id === STAGE_ID_BOLETO) {
-    console.log("✅ Lead já está no estágio 'BOLETO'.");
+  if (lead.status_id === STAGE_ID_CONHECENDO_A_LOJA) {
+    console.log("✅ Lead já está em 'Conhecendo a loja'.");
     return;
   }
 
-  await updateLeadToBoleto(lead.id);
+  await updateLeadToConhecendoALoja(lead.id);
 }
 
-module.exports = { pipelineBoleto };
+module.exports = { pipelineConhecendoALoja };

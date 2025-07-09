@@ -12,7 +12,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const agenteDeIdentificacaoDeNome = async ({ sender, msgContent, pushName }) => {
   try {
-    await setUserStage(sender, "agente_de_identificacao_de_nome");
+    await setUserStage(sender, "rotina_de_primeiro_atendimento");
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4-turbo",
