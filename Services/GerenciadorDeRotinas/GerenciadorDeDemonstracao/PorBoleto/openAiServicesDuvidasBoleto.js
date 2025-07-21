@@ -9,6 +9,8 @@ const { rotinaDeAgendamento } = require("../../GerenciadorDeAgendamento/rotinaDe
 const { agenteDeDemonstracaoPorBoleto } = require("./agenteDeDemonstracaoPorBoleto");
 const { informacoesPayjoy } = require("../../../utils/documentacoes/informacoesPayjoy");
 const { tomDeVozVertexData } = require("../../../utils/documentacoes/tomDeVozVertexData");
+const { sanitizarEntradaComQuoted } = require("../../../utils/utilitariosDeMensagem/sanitizarEntradaComQuoted");
+const { prepararContextoDeModelosRecentes } = require("../../../utils/utilitariosDeMensagem/prepararContextoDeModelosRecentes");
 const OpenAI = require("openai");
 require("dotenv").config();
 
@@ -70,14 +72,19 @@ const functions = [
   }
 ];
 
-const openAiServicesDuvidasBoleto = async ({ sender, msgContent, pushName = "", quotedMessage }) => {  
+const openAiServicesDuvidasBoleto = async ({ sender, msgContent, pushName, quotedMessage }) => {  
 
   try {
+
+    const entrada = await sanitizarEntradaComQuoted(sender, msgContent, quotedMessage);
+
+    const { modelos, modelosConfirmados, nomeUsuario, conversaCompleta } = await prepararContextoDeModelosRecentes(sender);
+
     const userMessage = msgContent;
-    const nome = await getNomeUsuario(sender);
+     
 
     // 🧠 Salva a mensagem no histórico
-    await appendToConversation(sender, userMessage);
+    await appendToConversation(sender, entrada);
 
     // 🧠 Recupera histórico completo (últimas 10 interações)     
     const historicoCompleto = await getConversation(sender);
@@ -89,8 +96,7 @@ const openAiServicesDuvidasBoleto = async ({ sender, msgContent, pushName = "", 
 Você é um especialista da VertexStore no financiamento via PayJoy.
 
 Regras obrigatórias:
-- Pergunte de forma sucinta se o cliente quer agendar uma visita e sempre alterne entre as frases, nunca repita a mesma frase de convite de agendamento.
-- Demonstre sempre para o cliente que ele consegue tirar melhor suas duvidas na loja, e que a chance de aprovação final é muito grande.
+ - Se o cliente tiver duvidas pegunte qual é a duvida dele
 - Responda dúvidas com clareza, simpatia e objetividade utlizando (DOCUMENTAÇÃO COMPLETA:)
 - Se o cliente mencionar que quer ver celulares, modelos, aparelhos ou perguntar por *valores*, *preços*, *promoções* ou *ofertas*, chame a função identificarModeloPorBoleto com a última mensagem como argumento.
 - Se o cliente estiver pronto para comprar, chame direto a função agendarVisita, sem perguntar de novo.
@@ -104,7 +110,7 @@ Regras obrigatórias:
       "horarioFuncionamento": "De 09:00 às 19:00, de segunda a sábado"
 
 NOME DO CLIENTE
-${nome}
+${nomeUsuario}
 
 TOM DE VOZ:
   ${JSON.stringify(tomDeVozVertexData, null, 2)}

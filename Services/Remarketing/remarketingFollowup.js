@@ -3,13 +3,13 @@ const fs = require("fs");
 
 const {
   getTodosUsuariosComStageESemInteracao,
-  getConversation,
   getNomeUsuario,
   appendToConversation,
   getRemarketingStatus,
-  marcarRemarketingComoEnviado
+  marcarRemarketingComoEnviado,
+  getUsuariosComBotPausado,
+  isBotPausado
 } = require("../redisService");
-const { pipelineRemarketingInativo } = require("../ServicesKommo/pipelineRemarketingInativo");
 
 const { sendBotMessage } = require("../messageSender");
 
@@ -29,93 +29,109 @@ const carregarTemplatePorStage = (stage) => {
   try {
     const nomeArquivo = `${normalizarStage(stage)}.json`;
     const caminho = path.join(__dirname, "remarketingTemplates", nomeArquivo);
-
-    console.log(`📄 Buscando template para stage: "${stage}"`);
-    console.log(`📦 Caminho final do arquivo: ${caminho}`);
-
     const raw = fs.readFileSync(caminho, "utf8");
     return JSON.parse(raw);
   } catch (e) {
-    console.warn(`⚠️ Template não encontrado ou inválido para stage: ${stage}`);
+     
     return null;
   }
 };
 
-// 🧠 Escolhe a mensagem com base no tempo
-const getMensagemPorTempo = (template, minutos, nome) => {
-  const chaves = Object.keys(template)
-    .map(k => parseInt(k))
-    .filter(k => !isNaN(k))
-    .sort((a, b) => b - a); // ordem decrescente
-
-  for (const tempo of chaves) {
-    if (minutos >= tempo) {
-      let mensagem = template[tempo];
-      return mensagem.includes("{{nome}}")
-        ? mensagem.replace(/{{nome}}/g, nome || "")
-        : mensagem;
-    }
-  }
-
-  return null;
-};
-
 // 🚀 Loop principal de remarketing
 const remarketingFollowup = async () => {
+  console.log("🔁 Rodando cron de remarketing...");
+
   const usuarios = await getTodosUsuariosComStageESemInteracao();
   const agora = Date.now();
 
-  console.log(`🔁 Iniciando rotina de remarketing para ${usuarios.length} usuários...\n`);
+  if (!usuarios || usuarios.length === 0) return;
+
+  const usuariosPausados = new Set((await getUsuariosComBotPausado()).map(n => n.replace(/\D/g, '')));
+  const pausadoGlobalmente = await isBotPausado();
+  if (pausadoGlobalmente) return;
+
+  let totalEnviadas = 0;
 
   for (const usuario of usuarios) {
     const { sender, stage, ultimaInteracao } = usuario;
+    if (!sender || !stage) continue;
 
-    console.log(`🔍 Usuário: ${sender}`);
-    console.log(`🎯 Stage atual: "${stage}"`);
+    const senderNormalizado = sender.replace(/\D/g, '');
+    if (usuariosPausados.has(senderNormalizado)) continue;
+    if (!ultimaInteracao || isNaN(ultimaInteracao)) continue;
 
     const tempoParadoMs = agora - parseInt(ultimaInteracao, 10);
     const minutos = minutosDeInatividade(tempoParadoMs);
-    console.log(`⏱️ Tempo parado: ${minutos} minutos`);
-
-    const nome = await getNomeUsuario(sender);
-
-    const template = carregarTemplatePorStage(stage);
-    if (!template) {
-      console.log(`❌ Template ausente. Pulando usuário.\n`);
+    if (minutos < 0) {
+      console.warn(`⛔ Tempo negativo para ${sender} — valor: ${minutos}min`);
       continue;
     }
 
+    const nome = await getNomeUsuario(sender);
+    const template = carregarTemplatePorStage(stage);
+    if (!template) continue;
+
     const status = await getRemarketingStatus(sender);
+    const stageNormalizado = normalizarStage(stage);
+// ⚠️ Se já recebeu qualquer mensagem nesse estágio, não envia mais nada
+
+// ✅ Agora está no lugar certo
+if (status?.[stageNormalizado] && Object.keys(status[stageNormalizado]).length > 0) {
+ 
+  continue;
+}
 
     const chaves = Object.keys(template)
       .map(k => parseInt(k))
       .filter(k => !isNaN(k))
-      .sort((a, b) => a - b); // ordem crescente
-    
+      .sort((a, b) => a - b);
+
+const LIMITE_MAXIMO_MINUTOS = 4320;
+
+    const tempoMaximoTemplate = Math.max(...chaves);
+    if (minutos > LIMITE_MAXIMO_MINUTOS) {
+      // Proteção: só envia se estiver dentro do intervalo planejado
+      continue;
+    }
+
+    let enviado = false;
+
     for (const tempo of chaves) {
-      if (minutos >= tempo && !(status?.[stage]?.[tempo])) {
-        let mensagem = template[tempo];
+      const tempoStr = tempo.toString();
+      const jaEnviado = status?.[stageNormalizado]?.[tempoStr];
+
+      if (minutos >= tempo && !jaEnviado) {
+        let mensagem = template[tempoStr] || template[tempo]; // aceita string ou int
+
         if (mensagem.includes("{{nome}}")) {
           mensagem = mensagem.replace(/{{nome}}/g, nome || "");
         }
-    
-        console.log(`✅ Enviando mensagem para tempo ${tempo}min:\n"${mensagem}"\n`);
-    
-        await sendBotMessage(sender, mensagem);
-    
-        await appendToConversation(sender, {
-          tipo: "mensagem_automatica",
-          conteudo: `remarketing_${tempo}: ${mensagem}`,
-          timestamp: new Date().toISOString()
-        });
-    
-        await marcarRemarketingComoEnviado(sender, stage, tempo);
-        break; // envia só um por vez
+
+        try {
+          await sendBotMessage(sender, mensagem);
+
+          await appendToConversation(sender, {
+            tipo: "mensagem_automatica",
+            conteudo: `remarketing_${tempo}: ${mensagem}`,
+            timestamp: new Date().toISOString()
+          });
+
+          if (!status[stageNormalizado]) status[stageNormalizado] = {};
+          status[stageNormalizado][tempoStr] = true;
+          await marcarRemarketingComoEnviado(sender, stageNormalizado, tempoStr);
+
+          enviado = true;
+          totalEnviadas++;
+        } catch (err) {
+          console.error(`❌ Erro ao enviar mensagem para ${sender}:`, err.message);
+        }
+
+        break; // não envia múltiplas para o mesmo usuário no mesmo ciclo
       }
     }
-    
   }
 
+  console.log(`📊 Total de mensagens enviadas no remarketing: ${totalEnviadas}`);
   console.log(`✅ Remarketing finalizado.\n`);
 };
 

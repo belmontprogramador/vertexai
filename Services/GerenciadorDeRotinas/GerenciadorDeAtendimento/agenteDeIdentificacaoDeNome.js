@@ -3,7 +3,8 @@ const {
   setUserStage,
   storeNomeUsuario
 } = require("../../redisService");
-
+const { atualizarNomeLeadPorTelefone } = require("../../ServicesKommo/atualizarNomeDoLead");
+const { adicionarOuCriarTagPorDataAtual } = require("../../ServicesKommo/criarOuAdicionarTagDataAtual");
 const { rotinaDePrimeiroAtendimento } = require("./rotinaDePrimeiroAtendimento");
 const OpenAI = require("openai");
 require("dotenv").config();
@@ -21,10 +22,14 @@ const agenteDeIdentificacaoDeNome = async ({ sender, msgContent, pushName }) => 
         {
           role: "system",
           content: `
-Você é Anna, assistente da Vertex Store. Seu único objetivo neste momento é identificar o primeiro nome do cliente.
+Você é Anna, assistente da Vertex Store. Seu único objetivo neste momento é identificar o primeiro nome do cliente, mesmo que esteja embutido em uma frase.
 
-Tome uma decisão clara baseado na entrada do usuário. Sempre responda com um JSON contendo a ação decidida:
+⚠️ Regras importantes:
 
+- Aceite nomes **incomuns**, diferentes ou raros, como "Rubens", "Keverson", "Aylana", "Lorrany", "Jucélio", etc, desde que estejam usados de forma clara na frase como identificação do cliente.
+
+
+Sempre retorne um JSON com a ação decidida:
 {
   "acao": "salvar_nome_usuario",
   "argumento": { "nome": "João" }
@@ -61,12 +66,29 @@ Sempre retorne um JSON limpo com apenas "acao" e "argumento" se aplicável.
 
     if (decisao.acao === "salvar_nome_usuario" && decisao.argumento?.nome) {
       const nome = decisao.argumento.nome;
+
       await storeNomeUsuario(sender, nome);
       await setUserStage(sender, "rotina_de_primeiro_atendimento");
+
+      try {
+        const leadId = await atualizarNomeLeadPorTelefone(sender, nome);
+
+        if (leadId) {
+          console.log(`🚀 Chamando adicionarOuCriarTagPorDataAtual para leadId: ${leadId}`);
+          await adicionarOuCriarTagPorDataAtual(leadId);
+          console.log(`✅ Tag de mês/ano processada para leadId: ${leadId}`);
+        } else {
+          console.warn("⚠️ LeadId não retornado ao atualizar nome no Kommo.");
+        }
+        
+      } catch (err) {
+        console.warn("⚠️ Falha ao atualizar nome ou tag no Kommo:", err.message);
+      }
+
       return await rotinaDePrimeiroAtendimento({ sender, msgContent, pushName: nome });
     }
 
-    // Fallback para pedir nome novamente
+    // Fallback: pedir nome novamente
     await setUserStage(sender, "agente_de_identificacao_de_nome");
 
     const frases = [

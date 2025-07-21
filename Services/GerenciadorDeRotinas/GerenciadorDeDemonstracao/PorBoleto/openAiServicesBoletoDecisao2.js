@@ -33,9 +33,9 @@ const handlers = {
   naoDeuDados: async (sender) => {
     await setUserStage(sender, "open_ai_services_boleto_decisao_2");
     const nome = await getNomeUsuario(sender);   
-    const frases = [`${nome} para avançar já com valores e condições, preciso fazer uma pré‑análise: nome completo, CPF e endereço. Com isso, libero sua aprovação rapidinho. 💜`,
-                     `Claro ${nome}! Para liberar a simulação e tirar todas as suas dúvidas, preciso rodar a pré-análise: nome completo, CPF e endereço. Com esses dados já verifico sua aprovação. 💜`,
-                     `${nome} só falta a pré-análise! Envie nome completo, CPF e endereço e destravo sua aprovação rapidinho, aí seguimos com todos os detalhes. 💜`
+    const frases = [`${nome} para avançar já com valores e condições, preciso fazer uma pré‑análise: nome completo, CPF e data de nascimento. Com isso, libero sua aprovação rapidinho. 💜`,
+                     `Claro ${nome}! Para liberar a simulação e tirar todas as suas dúvidas, preciso rodar a pré-análise: nome completo, CPF e data de nascimento. Com esses dados já verifico sua aprovação. 💜`,
+                     `${nome} só falta a pré-análise! Envie nome completo, CPF e data de nascimento e destravo sua aprovação rapidinho, aí seguimos com todos os detalhes. 💜`
     ]
     const fraseEscolhida = frases[Math.floor(Math.random() * frases.length)];
     return await sendBotMessage(
@@ -47,7 +47,7 @@ const handlers = {
 const functions = [
   {
     name: "preAprovacao",
-    description: "Usuário forneceu nome completo, CPF e/ou /data de nascimento. Nome e cpf precisam conter. Data de nascimento e endereço pode conter um ou outro.",
+    description: "Usuário forneceu nome completo, CPF, data de nascimento. Nome e cpf e Data de nascimento precisam conter. ",
     parameters: {
       type: "object",
       properties: {
@@ -92,7 +92,7 @@ const openAiServicesBoletoDecisao2 = async ({ sender, msgContent = "", pushName 
           1. Se a mensagem contiver:
              - Um nome (como "Felipe Belmont")
              - Um CPF (como "11485925711" ou "114.859.257-11")
-             - Um endereço (como "Rua das Neves - 360 - bairro")
+             - Uma data de nascimento (como 16/01/1986 ou 16011986 ou 160186)
           
           ➡️ Chame a função **preAprovacao**.
           

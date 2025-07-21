@@ -14,7 +14,13 @@ const { sanitizarEntradaComQuoted } = require("../../../utils/utilitariosDeMensa
 const { prepararContextoDeModelosRecentes } = require("../../../utils/utilitariosDeMensagem/prepararContextoDeModelosRecentes");
 const OpenAI = require("openai");
 const { agenteDeDemonstracaoPorNomePorBoleto } = require("./agenteDeDemonstracaoPorNomePorBoleto");
+const { enviarResumoParaNumeros } = require("../../../utils/enviarResumoParaNumeros");
+const { registrarTagModeloConfirmado } = require("../../../ServicesKommo/registrarTagModeloConfirmado");
 require("dotenv").config();
+const { pipelineAtendimentoHumano } = require("../../../ServicesKommo/pipelineAtendimentoHumano");
+const { atualizarValorVendaDoLead } = require("../../../ServicesKommo/atualizarValorVendaDoLead");
+
+
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -293,48 +299,65 @@ const handlers = {
       );
     }
   
-    // Se encontrou o modelo, chama direto o resumo
-    if (modeloEscolhido) {
-      return await handlersDemonstracaoDetalhadaBoleto.mostrarResumoModeloBoleto(sender,
+     // ✅ Executa o resumo com ou sem modelo pré-exibido
+  if (modeloEscolhido) {
+    resultado = await handlersDemonstracaoDetalhadaBoleto.mostrarResumoModeloBoleto(
+      sender,
       { nomeModelo: modeloEscolhido.nome },
-       { modeloEscolhido });
-    }
-  
-    // Fallback: chama o resumo mesmo que o modelo já tenha sido mostrado ou não foi encontrado de novo
-    return await handlersDemonstracaoDetalhadaBoleto.mostrarResumoModeloBoleto(sender, { nomeModelo: args.nomeModelo }, {});
+      { modeloEscolhido }
+    );
+  } else {
+    resultado = await handlersDemonstracaoDetalhadaBoleto.mostrarResumoModeloBoleto(
+      sender,
+      { nomeModelo: args.nomeModelo },
+      {}
+    );
+  }
+
+  // ✅ Sempre envia o resumo após mostrar
+  await enviarResumoParaNumeros(sender);
+
+  return resultado;
   },  
   responderDuvida: async (sender, args, extras) => {
     await setUserStage(sender, "agente_de_demonstracao_pos_decisao_por_boleto");
 
+    // ✅ Movimenta o lead para o pipeline de atendimento humano, se necessário
+  try {
+    await pipelineAtendimentoHumano(sender);
+  } catch (err) {
+    console.warn("⚠️ Erro ao mover lead para atendimento humano:", err.message);
+  }
+  
     const { msgContent, quotedMessage } = extras;
-
-    const entrada = await sanitizarEntradaComQuoted(sender, msgContent, quotedMessage);     
-
-    const { modelos, nomeUsuario,  modelosConfirmados, conversaCompleta } = await prepararContextoDeModelosRecentes(sender);
-
+    const entrada = await sanitizarEntradaComQuoted(sender, msgContent, quotedMessage);
+  
+    const { modelos, nomeUsuario, modelosConfirmados, conversaCompleta } =
+      await prepararContextoDeModelosRecentes(sender);
+  
     if (modelos.length === 0) {
       return await sendBotMessage(sender, "⚠️ Ainda não te mostrei nenhum modelo pra comparar. Quer ver algumas opções?");
     }
-
+  
     let modeloFocado = null;
-
-if (args?.nomeModelo) {
-  const normalizar = (str) => str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-  const nomeNormalizado = normalizar(args.nomeModelo);
-
-  // 1️⃣ Tenta encontrar entre os modelos recentes
-  modeloFocado = modelos.find(m => normalizar(m.nome) === nomeNormalizado);
-
-  // 2️⃣ Fallback: busca no banco se não estiver entre os recentes
-  if (!modeloFocado) {
-    const todos = await getAllCelulareBoleto();
-    modeloFocado = todos.find(m => normalizar(m.nome) === nomeNormalizado);
-  }
-}
-
-
+  
+    if (args?.nomeModelo) {
+      const normalizar = (str) =>
+        str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+      const nomeNormalizado = normalizar(args.nomeModelo);
+  
+      // Tenta encontrar entre os modelos recentes
+      modeloFocado = modelos.find((m) => normalizar(m.nome) === nomeNormalizado);
+  
+      // Fallback: busca no banco se não estiver entre os recentes
+      if (!modeloFocado) {
+        const todos = await getAllCelulareBoleto();
+        modeloFocado = todos.find((m) => normalizar(m.nome) === nomeNormalizado);
+      }
+    }
+  
     let descricaoModelos = "";
-
+  
     if (modeloFocado) {
       descricaoModelos = `
   ➡️ *${modeloFocado.nome}*
@@ -346,7 +369,7 @@ if (args?.nomeModelo) {
   🖼️ Imagem: ${modeloFocado.imagemURL}
   `;
     } else {
-      descricaoModelos = modelos.map(m => `
+      descricaoModelos = modelos.map((m) => `
   ➡️ *${m.nome}*
   💬 Descrição: ${m.descricaoCurta}
   🧠 Subtítulo: ${m.subTitulo}
@@ -356,92 +379,110 @@ if (args?.nomeModelo) {
   🖼️ Imagem: ${m.imagemURL}
   `).join("\n");
     }
-// 🔁 Se o modelo focado veio do banco e ainda não está na lista, adiciona na lista de modelos
-if (modeloFocado && !modelos.find(m => m.nome.toLowerCase() === modeloFocado.nome.toLowerCase())) {
-  modelos.push(modeloFocado);
-}
+  
+    // ✅ Sempre registra tag no Kommo se houver modelo focado
+    if (modeloFocado) {
+      const modeloJaNaLista = modelos.find(m => m.nome.toLowerCase() === modeloFocado.nome.toLowerCase());
+      if (!modeloJaNaLista) {
+        modelos.push(modeloFocado); // adiciona na lista para IA responder com ele
+      }
+  
+      try {
+        await registrarTagModeloConfirmado(sender, modeloFocado.nome);
+        console.log(`✅ Tag registrada para modelo: ${modeloFocado.nome}`);
+      } catch (err) {
+        console.warn("⚠️ Erro ao registrar tag no Kommo:", err.message);
+      }
 
-const historico = await getConversation(sender);
-const ultimaTOA = [...historico].reverse().find(msg => msg.tipo === "deliberacao_toa");
-
+      try {
+        await atualizarValorVendaDoLead(`${sender}@c.us`, modeloFocado.preco);
+        console.log(`💰 Valor do lead atualizado para R$ ${modeloFocado.preco}`);
+      } catch (err) {
+        console.warn("⚠️ Erro ao atualizar valor do lead no Kommo:", err.message);
+      }
+      
+    }
+  
+    const historico = await getConversation(sender);
+    const ultimaTOA = [...historico].reverse().find(msg => msg.tipo === "deliberacao_toa");
+  
     const contexto = `
-    Você é Anna, especialista da Vertex Store.
-    
-    Siga exatamente as diretrizes abaixo para responder qualquer cliente:
-    
-    TOM DE VOZ:
-    ${JSON.stringify(tomDeVozVertex, null, 2)}
-    
-    OBJEÇÕES COMUNS:
-    ${JSON.stringify(objeçõesVertexBoleto, null, 2).slice(0, 3000)}
-
-       OBJEÇÕES SOBRE PAYJOY:
-    ${JSON.stringify(informacoesPayjoy).slice(0, 3500)}
-    
-    GATILHOS EMOCIONAIS:
-    ${JSON.stringify(gatilhosEmocionaisVertex, null, 2)}
-    `;
-
-    // 🧠 Prompt formatado para a IA
+  Você é Anna, especialista da Vertex Store.
+  
+  Siga exatamente as diretrizes abaixo para responder qualquer cliente:
+  
+  TOM DE VOZ:
+  ${JSON.stringify(tomDeVozVertex, null, 2)}
+  
+  OBJEÇÕES COMUNS:
+  ${JSON.stringify(objeçõesVertexBoleto, null, 2).slice(0, 3000)}
+  
+  OBJEÇÕES SOBRE PAYJOY:
+  ${JSON.stringify(informacoesPayjoy).slice(0, 3500)}
+  
+  GATILHOS EMOCIONAIS:
+  ${JSON.stringify(gatilhosEmocionaisVertex, null, 2)}
+  `;
+  
     const prompt = `
   ## OBJETIVO
   Guiar o cliente até escolher um smartphone da lista apresentada e fechar a venda,
   sempre valorizando experiência, suporte humanizado e diferencial da loja.
-  esteja sempre preparado para responder duvidas de objeções que não necessariamente ligados ao modelo em si, utlize a documentação para respoder essa objeções e seja criativo
-  *** SEMPRE AO FALAR DE PREÇOS DEIXE BEM CLARO QUE ESSE VALORES SÃO ESTIMATIVAS E QUE PODEM FLUTUAR DE ACORDO COM A DISPONIBILIDADE DA PAY JOY ***
+  Esteja sempre preparado para responder dúvidas de objeções que não necessariamente ligadas ao modelo em si.
+  Utilize a documentação para responder essas objeções e seja criativo.
+  *** SEMPRE ao falar de preços, deixe claro que são estimativas e podem flutuar conforme disponibilidade da PayJoy. ***
+  
   ## TOM_DE_VOZ
   - Saudação acolhedora porém direta.
   - Use vocativo informal respeitoso (ex.: “Perfeito, ${nomeUsuario}!”).
   - Emojis: 💜 obrigatório + 1 contextual; use 🔥 para descontos.
   - Até 250 caracteres por bloco; quebre linhas por assunto.
   - Pontuação dupla (“!!”, “…” ) permitida.
-
+  
   ## GATILHOS_EMOCIONAIS
   - Priorize Segurança ➜ Rapidez ➜ Transferência de dados na hora.
   - Explore “Garantia empática”, “Telefone reserva”, “Loja física confiável”.
   - Conecte benefícios à vida diária (produtividade, memórias, status).
-
+  
   ## OBJEÇÕES & COMPARATIVOS
   - Se cliente comparar preço online → explique valor agregado (lista de diferenciais).
-  - Descontos: no boleto não descontos
-  - Parcelamento padrão apenas em 18× somente parcelamos em 18x; .
+  - Descontos: no boleto, não há descontos.
+  - Parcelamento apenas em 18x.
   - Use analogias para comparar serviços (ex.: “comprar só preço é como…”).
-
-   ## OBJEÇÕES DE DUVIDAS SOBRE BOLETO(OBJEÇÕES SOBRE PAYJOY:)
-
+  
   ## REGRAS_DE_ESTILO
   - Nunca comece com saudação completa; a conversa já está em andamento.
-  - Seja conciso e humanizado; máximo 3 blocos (“emoção”, “benefício”, “call-to-action”).
+  - Seja conciso e humanizado; máximo 3 blocos: “emoção”, “benefício”, “call-to-action”.
   - Sempre feche perguntando algo que avance (ex.: “Fecho em 10× pra você?”).
+  
+  📍 Endereço:
+  Av. Getúlio Varga, 333, Centro, Araruama - RJ, Brasil. CEP 28979-129
+  📌 Referência: Mesma calçada da loteria e xerox do bolão, em frente à faixa de pedestre
+  🕘 Atendimento: De 09:00 às 19:00, de segunda a sábado
 
-   "localizacaoLoja":  
-      "endereco": "Av. Getúlio Varga, 333, Centro, Araruama - RJ, Brasil. CEP 28979-129",
-      "referencia": "Mesma calçada da loteria e xerox do bolão, em frente à faixa de pedestre",
-      "horarioFuncionamento": "De 09:00 às 19:00, de segunda a sábado"
-
+  **NOS NÃO POSSUIMOS IPHONE PARA EVNDA NA LOJA, DIGA DE MODO SUAVE QUE TRABALHAMOS APENAS COM A LINHA REDMI POCO E REALME**
   
   🧠 Última mensagem do cliente:
-      "${entrada}"
-
+  "${entrada}"
+  
   📜 Histórico da conversa:
-        ${conversaCompleta}
- Utilize a ultima decisão TOA para te ajudar na resolução de duvida
-        ${ultimaTOA}           
-      
-      📱 Modelos apresentados:
-      ${modelos.map(m => `➡️ *${m.nome}*\n📝 ${m.descricaoCurta}\n💵 Preço: R$ ${m.preco.toFixed(2)}`).join("\n")}
-      
-      Nome do cliente: ${nomeUsuario}
-      
-      ✅ Modelos confirmados anteriormente pelo cliente:
-      ${modelosConfirmados.length > 0
+  ${conversaCompleta}
+  
+  🧠 Última decisão TOA:
+  ${JSON.stringify(ultimaTOA, null, 2)}
+  
+  📱 Modelos apresentados:
+  ${descricaoModelos}
+  
+  ✔️ Modelos confirmados anteriormente:
+  ${modelosConfirmados.length > 0
         ? modelosConfirmados.map(m => `✔️ *${m}*`).join("\n")
         : "Nenhum ainda foi confirmado."}
-      
-      🧠 Último modelo confirmado:
-      ${modelosConfirmados[modelosConfirmados.length - 1] || "nenhum"}
+  
+  🧠 Último modelo confirmado:
+  ${modelosConfirmados[modelosConfirmados.length - 1] || "nenhum"}
   `;
-
+  
     const respostaIA = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
@@ -451,15 +492,18 @@ const ultimaTOA = [...historico].reverse().find(msg => msg.tipo === "deliberacao
       temperature: 1.0,
       max_tokens: 200
     });
-
-    const respostaFinal = respostaIA.choices[0]?.message?.content?.trim();
-
+  
+    const respostaFinal = respostaIA.choices?.[0]?.message?.content?.trim();
+  
     if (!respostaFinal) {
       return await sendBotMessage(sender, "📌 Estou verificando... Pode repetir a dúvida de forma diferente?");
     }
-
+  
+    // ✅ Envia resumo para os internos após responder dúvida sobre modelo
+    await enviarResumoParaNumeros(sender);
+  
     return await sendBotMessage(sender, respostaFinal);
-  },
+  }, 
   responderDuvidasGenericas: async (sender, args, extras) => {
     await setUserStage(sender, "agente_de_demonstracao_pos_decisao_por_boleto");
     const { msgContent, quotedMessage, pushName } = extras;
@@ -530,6 +574,9 @@ const ultimaTOA = [...historico].reverse().find(msg => msg.tipo === "deliberacao
     if (!respostaFinal) {
       return await sendBotMessage(sender, "📩 Recebi sua dúvida, e já estou vendo com a equipe! Já te retorno 💜");
     }
+
+    // ✅ Envia o resumo para os internos mesmo após dúvida genérica
+  await enviarResumoParaNumeros(sender);
   
     return await sendBotMessage(sender, respostaFinal);
   },
@@ -540,6 +587,7 @@ const ultimaTOA = [...historico].reverse().find(msg => msg.tipo === "deliberacao
 
     return await agenteDeDemonstracaoPorNomePorBoleto({ sender, msgContent, pushName, modeloMencionado: nomeModelo });
   },
+  //mostrar todos os modelos
 
 
 };

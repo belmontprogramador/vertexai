@@ -2,8 +2,16 @@ const {
   pausarBotGlobalmente,
   retomarBotGlobalmente,
   pausarBotParaUsuario,
-  retomarBotParaUsuario
+  retomarBotParaUsuario,
+  appendToConversation,
+  getNomeUsuario
 } = require("../Services/redisService");
+
+const { pipelineAtendimentoHumanoComando } = require("../Services/ServicesKommo/pipelineAtendimentoHumanoComando");
+const { pipelineReaquecimentoLead } = require("../Services/ServicesKommo/pipelineReaquecimentoLead");
+const { pipelineTarefaAgendada } = require("../Services/ServicesKommo/pipelineTarefaAgendada");
+
+
 
 
 // 📤 Controller para mensagens enviadas
@@ -31,11 +39,14 @@ const recipientId = normalizarSenderId(chat.id);
     }
 
     const comando = content
-  .toLowerCase()
-  .normalize("NFD") // remove acentos
-  .replace(/[\u0300-\u036f]/g, "")
-  .replace(/[^\w\s]/gi, "") // remove pontuação
-  .trim();
+    .toLowerCase()
+    .normalize("NFD") // remove acentos
+    .replace(/[\u0300-\u036f]/g, "") // remove marcas de acento
+    .replace(/[^\x00-\x7F]/g, "") // remove emojis e caracteres não ASCII
+    .replace(/[^a-z0-9\s]/gi, "") // remove pontuação restante
+    .trim();
+  
+    console.log("🔍 Comando normalizado:", comando);
 
 
     // ⚙️ Pausar e retomar o bot com base na mensagem enviada
@@ -49,16 +60,64 @@ const recipientId = normalizarSenderId(chat.id);
       console.log("✅ Bot retomado via mensagem enviada.");
     }
 
-    if (comando === "um minuto") {
+    const pushName = sender?.pushName || "Contato Vertex"; // ✅ Adicione esta linha onde define senderId
+
+    const comandosPausar = [
+      "um minuto",
+      "pausar atendimento",
+      "espera um pouco",
+      "oi amadinha aqui",
+      "oi felipe aqui",
+      "oi vitor aqui",
+      "ficou parada e queria saber se ainda posso te ajudar"
+    ];
+    
+    if (comandosPausar.includes(comando)) {
       await pausarBotParaUsuario(recipientId);
       console.log(`⏸️ Bot pausado individualmente para ${recipientId}`);
-    }
+    
+      try {
+        await pipelineAtendimentoHumanoComando({
+          name: pushName,
+          phone: recipientId
+        });
+      } catch (error) {
+        console.error(`❌ Erro ao mover para atendimento humano:`, error.message);
+      }
+    }   
+    
     
     
     if (comando === "retomar usuario") {
       await retomarBotParaUsuario(recipientId);
       console.log(`✅ Bot retomado individualmente para ${recipientId}`);
     }
+
+    if (comando === "beleza vou deixar agendado para entrar em contato novamente"
+    ) {
+      console.log(`♻️ Comando de reaquecimento detectado para ${recipientId}`);
+      try {
+        await pipelineReaquecimentoLead({
+          name: pushName,
+          phone: recipientId
+        });
+      } catch (err) {
+        console.error("❌ Erro ao mover para REAQUECIMENTO:", err.message);
+      }
+    }
+    
+    if (comando.includes("agendado para retomar contato")) {
+      console.log(`♻️ Comando de reaquecimento detectado para ${recipientId}`);
+      try {
+        await pipelineTarefaAgendada({
+          name: pushName,
+          phone: recipientId
+        });
+      } catch (err) {
+        console.error("❌ Erro ao mover para REAQUECIMENTO:", err.message);
+      }
+    }
+    
     
     
 
@@ -69,6 +128,18 @@ const recipientId = normalizarSenderId(chat.id);
 - Destinatário: ${recipientId}
 - Conteúdo: ${content}
 ------------------------------------------------`);
+
+
+// await appendToConversation(recipientId, {
+//   tipo: fromMe ? "mensagem_bot" : "mensagem_humana",
+//   conteudo: content,
+//   timestamp: new Date().toISOString()
+// });
+
+// console.log(`💾 Mensagem gravada no histórico de ${recipientId}:`, {
+//   tipo: fromMe ? "mensagem_bot" : "mensagem_humana",
+//   conteudo: content
+// });
 
     return res.json({ message: "Mensagem enviada processada com sucesso!" });
   } catch (error) {

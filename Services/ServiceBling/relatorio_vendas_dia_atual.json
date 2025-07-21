@@ -1,0 +1,15 @@
+{
+  "periodo": {
+    "dataInicial": "2025-07-20",
+    "dataFinal": "2025-07-20"
+  },
+  "totalPedidos": 0,
+  "valorTotalFaturado": 0,
+  "ticketMedio": 0,
+  "totalProdutosVendidos": 0,
+  "mediaProdutosPorPedido": 0,
+  "taxaCancelamento": 0,
+  "vendedores": [],
+  "produtosMaisVendidos": [],
+  "pedidos": []
+}

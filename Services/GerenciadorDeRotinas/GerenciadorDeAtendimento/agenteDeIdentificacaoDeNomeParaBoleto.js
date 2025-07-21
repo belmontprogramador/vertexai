@@ -1,8 +1,11 @@
 const { sendBotMessage } = require("../../messageSender");
 const {
   setUserStage,
-  storeNomeUsuario,  
+  storeNomeUsuario
 } = require("../../redisService");
+
+const { atualizarNomeLeadPorTelefone } = require("../../ServicesKommo/atualizarNomeDoLead");
+const { adicionarOuCriarTagPorDataAtual } = require("../../ServicesKommo/criarOuAdicionarTagDataAtual");
 const { rotinaDeBoleto } = require("../GerenciadorDeDemonstracao/PorBoleto/rotinaDeBoleto");
 
 const OpenAI = require("openai");
@@ -15,18 +18,34 @@ const handlers = {
   salvar_nome_usuario: async (sender, args, extras) => {
     const { msgContent } = extras;
     const nome = args.nome;
+
     await storeNomeUsuario(sender, nome);
     await setUserStage(sender, "rotina_de_boleto");
+
+    try {
+      const leadId = await atualizarNomeLeadPorTelefone(sender, nome);
+      if (leadId) {
+        console.log(`🚀 Atualizado nome no Kommo. Lead ID: ${leadId}`);
+        await adicionarOuCriarTagPorDataAtual(leadId);
+        console.log(`✅ Tag de mês/ano adicionada para o lead ${leadId}`);
+      } else {
+        console.warn("⚠️ Lead não encontrado no Kommo para atualizar nome.");
+      }
+    } catch (err) {
+      console.warn("⚠️ Falha ao atualizar nome ou tag no Kommo:", err.message);
+    }
+
     return await rotinaDeBoleto({ sender, msgContent, pushName: nome });
   },
 
   pedir_nome_novamente: async (sender) => {
-    await setUserStage(sender, "agente_de_identificacao_de_nome");
-    const frases = [ `A gente adora atender bem, e seu nome é fundamental pra isso. Como devo te chamar? 💜`,
-      `Compartilha seu nome com a gente? Assim ajustamos tudo pra te atender do seu jeito 💜`
-] 
-const fraseEscolhida = frases[Math.floor(Math.random() * frases.length)];  
-    return await sendBotMessage(sender,fraseEscolhida);
+    await setUserStage(sender, "agente_de_identificacao_de_nome_para_boleto");
+    const frases = [
+      `A gente adora atender bem, e seu nome é fundamental pra isso. Como devo te chamar? 💜`,
+      `Compartilha seu nome com a gente? Assim ajustamos tudo pra te atender do seu jeito 💜`
+    ];
+    const fraseEscolhida = frases[Math.floor(Math.random() * frases.length)];
+    return await sendBotMessage(sender, fraseEscolhida);
   }
 };
 
@@ -34,13 +53,13 @@ const fraseEscolhida = frases[Math.floor(Math.random() * frases.length)];
 const functions = [
   {
     name: "salvar_nome_usuario",
-    description: "Identificar o nome do usuario por exemplo 'felipe', 'julia', 'fernado', 'amanda'.Armazena o nome informado pelo usuário.",
+    description: "Identifica o nome do cliente e armazena.",
     parameters: {
       type: "object",
       properties: {
         nome: {
           type: "string",
-          description: "O usuario vai informar o nome dele"
+          description: "Primeiro nome do cliente"
         }
       },
       required: ["nome"]
@@ -48,7 +67,7 @@ const functions = [
   },
   {
     name: "pedir_nome_novamente",
-    description: "Usuário ainda não informou o nome, pedir novamente."
+    description: "Usuário ainda não informou o nome, então pede novamente"
   }
 ];
 
@@ -61,17 +80,17 @@ const agenteDeIdentificacaoDeNomeParaBoleto = async ({ sender, msgContent, pushN
         {
           role: "system",
           content: `
-          Você é Anna, assistente da Vertex Store. Seu único objetivo agora é identificar o **primeiro nome** do cliente.
-          
-          📌 Regras essenciais:
-          - Sempre que o cliente disser algo como "me chamo Ana", "sou o Lucas", "aqui é o João", ou até "meu nome é João da Silva", chame a função salvar_nome_usuario com **apenas o primeiro nome** (ex: "João").
-          - Aceite frases naturais, informais ou abreviadas, como "Ana aqui", "É o João", "Lucas falando", "eu Ana", etc.
-          - Ignore sobrenomes, emojis, números ou saudações.
-          - Caso o texto **não contenha nenhum nome**, ou pareça genérico demais ("oi", "bom dia", "quero celular", "me ajuda"), chame a função pedir_nome_novamente.
-          
-          ⚠️ Nunca invente nomes. Se não encontrar um nome claro, prefira chamar pedir_nome_novamente.
+Você é Anna, assistente da Vertex Store. Seu único objetivo neste momento é identificar o primeiro nome do cliente, mesmo que esteja embutido em uma frase.
+
+⚠️ Regras importantes:
+
+- Aceite nomes **incomuns**, diferentes ou raros, como "Rubens", "Keverson", "Aylana", "Lorrany", "Jucélio", etc, desde que estejam usados de forma clara na frase como identificação do cliente.
+📌 Regras:
+- Se o cliente disser "sou o João", "aqui é a Ana", "me chamo Felipe", etc., chame a função salvar_nome_usuario com o primeiro nome.
+- Ignore sobrenomes, emojis, números e saudações.
+- Caso a entrada seja genérica ("oi", "quero ajuda", "me atende"), chame pedir_nome_novamente.
+- Nunca invente nomes.
           `
-          
         },
         { role: "user", content: msgContent }
       ],
@@ -90,10 +109,10 @@ const agenteDeIdentificacaoDeNomeParaBoleto = async ({ sender, msgContent, pushN
     }
 
     // fallback
-    await sendBotMessage(sender, "🤖 Não consegui entender. Qual é o seu primeiro nome?");
-    await setUserStage(sender, "agente_de_identificacao_de_nome");
+    await setUserStage(sender, "agente_de_identificacao_de_nome_para_boleto");
+    return await sendBotMessage(sender, "🤖 Não consegui entender. Qual é o seu primeiro nome?");
   } catch (error) {
-    console.error("❌ Erro no agenteDeIdentificacaoDeNome:", error.message);
+    console.error("❌ Erro no agenteDeIdentificacaoDeNomeParaBoleto:", error.message);
     await sendBotMessage(sender, "⚠️ Ocorreu um erro ao tentar identificar seu nome. Pode repetir?");
   }
 };

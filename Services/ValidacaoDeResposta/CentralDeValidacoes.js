@@ -7,6 +7,7 @@ const {
 } = require("../redisService");
 
 const { estaBloqueado, setBloqueio } = require("../utils/filaDeMensagem/bloqueioTemporario");
+const { rotinaCapturaDeNomeParaMegafeirao } = require("../GerenciadorDeRotinas/GerenciadorDeDemonstracao/rotinaCapturaDeNomeParaMegafeirao"); // ajuste o caminho conforme seu projeto
 
 
 /**
@@ -33,7 +34,6 @@ const validarFluxoInicial = async (sender, msgContent, pushName) => {
   const stageAtual = await getUserStage(sender);
   console.log("📥 cleanedContent:", cleanedContent);
 
-  // 👶 Se o usuário nunca teve interação, começa com primeiro atendimento
   if (
     !stageAtual &&
     cleanedContent.includes("parcelamento via boleto")
@@ -50,6 +50,12 @@ const validarFluxoInicial = async (sender, msgContent, pushName) => {
   ) {
     await setUserStage(sender, "rotina_captura_de_nome_para_trafego");
     return "rotina_captura_de_nome_para_trafego";
+  
+  } else if (
+    !stageAtual &&
+    cleanedContent.includes("quero saber mais sobre o mega ofertao de aparelhos")
+  ) {
+    return await rotinaCapturaDeNomeParaMegafeirao(sender);
   
   } else if (!stageAtual) {
     console.log(`👋 [DEBUG] Nenhum histórico encontrado. Setando como 'rotina_captura_de_nome'`);

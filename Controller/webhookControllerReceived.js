@@ -24,11 +24,20 @@ injectProcessor(async (sender, content, messageId, quotedMessage, pushName) => {
 const webhookControllerReceived = async (req, res) => {
   try {
     console.log("📥 Webhook recebido");
+    // console.log(JSON.stringify(req.body, null, 2))
+
+    const chatId = req.body?.chat?.id || "";
+if (chatId.includes("@g.us")) {
+  console.log(`👥 Mensagem de grupo ignorada (${chatId})`);
+  return res.status(200).json({ message: "Mensagem de grupo ignorada." });
+}
 
     const { messageId, sender, msgContent } = req.body;
     const pushName = sender?.pushName || "";
     const normalizarSenderId = (id) => id?.split("@")[0]; // remove "@c.us"
 const senderId = normalizarSenderId(sender?.id);
+
+
 
     if (!messageId || !senderId) {
       console.log("🚨 Mensagem inválida.");
@@ -59,7 +68,7 @@ const senderId = normalizarSenderId(sender?.id);
 
     console.log(`📅 Primeira interação de ${senderId}: ${dataFormatada}`);
 
-    const DATA_LIMITE = DateTime.fromISO("2025-07-02T09:23:00", {
+    const DATA_LIMITE = DateTime.fromISO("2025-07-09T11:41:00", {
       zone: "America/Sao_Paulo",
     }).toMillis();
 
@@ -68,10 +77,12 @@ const senderId = normalizarSenderId(sender?.id);
       return res.status(200).json({ message: "Interação antiga ignorada." });
     }
 
-    if (!content || !content.toLowerCase().startsWith("again")) {
-      console.log("⚠️ Mensagem ignorada (sem 'again').");
-      return res.status(200).json({ message: "Mensagem irrelevante ignorada." });
-    }
+    // if (!content || !content.toLowerCase().startsWith("again")) {
+    //   console.log("⚠️ Mensagem ignorada (sem 'again').");
+    //   return res.status(200).json({ message: "Mensagem irrelevante ignorada." });
+    // }
+
+    
 
     const quotedMessage = extrairTextoDoQuotedMessage(msgContent);
 

@@ -15,6 +15,11 @@ const { agenteDeDemonstracaoPorNomePorValor } = require("../PorValor/agenteDeDem
 const { sanitizarEntradaComQuoted } = require("../../../utils/utilitariosDeMensagem/sanitizarEntradaComQuoted");
 const { prepararContextoDeModelosRecentesFluxo } = require("../../../utils/utilitariosDeMensagem/prepararContextoDeModelosRecentesFluxo");
 const { rotinaDeBoleto } = require("../../../GerenciadorDeRotinas/GerenciadorDeDemonstracao/PorBoleto/rotinaDeBoleto");
+const { enviarResumoParaNumeros } = require("../../../utils/enviarResumoParaNumeros");
+const { registrarTagModeloConfirmado } = require("../../../ServicesKommo/registrarTagModeloConfirmado");
+const { pipelineAtendimentoHumano } = require("../../../ServicesKommo/pipelineAtendimentoHumano");
+ 
+
 
 const OpenAI = require("openai");
 require("dotenv").config();
@@ -175,8 +180,10 @@ ex: "vocês vendem usados?", "e se der defeito?", "vocês tem loja física?",
 Escolha: **"responderDuvidasGenericas"**
 
 5. Se o cliente fizer qualquer pergunta sobre *BOLETO*  ou demonstrar curiosidade qualquer curiosidade sobre como funciona o *BOLETO* ou crediário, sem confirmar fechamento (ex: “como funciona o boleto?”, “qual valor de entrada?”, “como faço?”), então:Escolha: **"perguntarSobreBoleto"**
+5.1 - se o cliente fazer qualquer pergunta mencionando a payjoy ou qualquer nome similiar a esse sistema de boleto como "pejoi", "pejjoy", "pejoi", peijoy", "peijoi"  então:Escolha: **"perguntarSobreBoleto"**
 
- 
+ 6. Se o cliente perguntar o preço, valor, ou dizer frases como "quanto tá", "qual o valor", "tá quanto esse", "esse tá em promoção?", e já vimos esse modelo antes:  
+Escolha: **"demonstracaoDeCelularPorValor"**
 
       Retorne apenas isso:
       {
@@ -254,6 +261,7 @@ if (acaoEscolhida === "responderDuvida") {
       console.log(`🛠️ Corrigindo TOA: modelo "${nomeIdentificado}" citado mas ainda não demonstrado. Mudando para demonstracaoPorNome`);
       resultadoTOA.acao = "agenteDeDemonstracaoPorNomePorValor";
       acaoEscolhida = "agenteDeDemonstracaoPorNomePorValor"; // importante sobrescrever para que o handler correto execute
+      await registrarTagModeloConfirmado(sender, nomeIdentificado);
     }
   }
 }   
@@ -267,6 +275,7 @@ if (acaoEscolhida === "responderDuvida") {
           conteudo: nomeModelo,
           timestamp: new Date().toISOString()
         });
+        await registrarTagModeloConfirmado(sender, nomeModelo);
       }
     }
 
@@ -309,6 +318,8 @@ if (acaoEscolhida === "responderDuvida") {
           conteudo: nomeModelo,
           timestamp: new Date().toISOString()
         });
+
+        await registrarTagModeloConfirmado(sender, nomeModelo);
       }
 
     }
@@ -378,6 +389,15 @@ const handlers = {
   },
    responderDuvida: async (sender, args, extras) => {
     await setUserStage(sender, "identificar_modelo_por_nome_pos_demonstracao_por_valor");
+    const nome = await getNomeUsuario(sender);
+
+try {
+  await pipelineAtendimentoHumano(sender);
+
+} catch (e) {
+  console.warn("⚠️ Erro ao mover para ATENDIMENTO hUMANO:", e.message);
+}
+
 
     const { msgContent, quotedMessage } = extras;
 
@@ -404,6 +424,12 @@ const handlers = {
         modeloFocado = todos.find(m => normalizar(m.nome) === nomeNormalizado);
       }
     }
+
+    // 🏷️ Registra a tag com o nome exato do modelo (sem prefixo)
+if (modeloFocado) {
+  await registrarTagModeloConfirmado(sender, modeloFocado.nome);
+}
+
 
 
     let descricaoModelos = "";
@@ -503,6 +529,8 @@ const handlers = {
       "endereco": "Av. Getúlio Varga, 333, Centro, Araruama - RJ, Brasil. CEP 28979-129",
       "referencia": "Mesma calçada da loteria e xerox do bolão, em frente à faixa de pedestre",
       "horarioFuncionamento": "De 09:00 às 19:00, de segunda a sábado"
+
+      **NOS NÃO POSSUIMOS IPHONE PARA EVNDA NA LOJA, DIGA DE MODO SUAVE QUE TRABALHAMOS APENAS COM A LINHA REDMI POCO E REALME**
   
   🧠 Última mensagem do cliente:
       "${entrada}"
@@ -541,7 +569,7 @@ const handlers = {
     if (!respostaFinal) {
       return await sendBotMessage(sender, "📌 Estou verificando... Pode repetir a dúvida de forma diferente?");
     }
-
+    await enviarResumoParaNumeros(sender);
     return await sendBotMessage(sender, respostaFinal);
   },
   responderDuvidasGenericas: async (sender, args, extras) => {
@@ -626,7 +654,7 @@ const handlers = {
     
   },
   perguntarSobreBoleto: async (sender, args, { pushName, msgContent }) => {  
-    await setUserStage(sender, "perguntar_sobre_boleto");
+    await setUserStage(sender, "rotina_de_boleto");
   
      
     const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -637,7 +665,16 @@ const handlers = {
     await sendBotMessage(sender, `${nomeUsuario} para vendas no boleto temos modelos e condições diferentes. Me ajuda a entender algumas coisas antes`);
    
     return await rotinaDeBoleto({ sender, msgContent, pushName });
-  }
+  },
+  demonstracaoDeCelularPorValor: async (sender, args, { msgContent, pushName }) => {
+    await setUserStage(sender,"filtro_de_valor");
+  
+    
+      await sendBotMessage(sender, "Para eu te trazer as melhores opções,  me diga novamente quanto quer investir no aparelho💜");
+     
+  
+     
+  },
   
 }
 

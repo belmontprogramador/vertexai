@@ -8,6 +8,7 @@ const { pipelineConhecendoALoja } = require("../../../ServicesKommo/pipelineConh
 const { agenteDeDemonstracaoPorValor } = require("./agenteDeDemonstracaoPorValor");
 const { registrarOuAtualizarMensagem } = require("../../../GerenciadorDeRotinas/messages/mensagemEnviadaService");
 const { identificarModeloPorNome } = require("../PorNome/identificarModeloPorNome");
+const { atualizarValorVendaDoLead } = require("../../../ServicesKommo/atualizarValorVendaDoLead");
 const { getAllCelulares } = require("../../../dbService");
 
 // 🔤 Remove prefixo "again"
@@ -85,31 +86,39 @@ const filtroDeValor = async ({ sender, msgContent, pushName, messageId }) => {
     const modeloDetectado = await buscarModeloPorNome(respostaLimpa);
     if (modeloDetectado) {
       await setUserStage(sender, "identificar_modelo_por_nome");
-    
-      // Movimenta para o estágio "Conhecendo a loja"
+
       await pipelineContatoInicial({ name: pushName, phone: sender });
       await new Promise(resolve => setTimeout(resolve, 5000));
       await pipelineConhecendoALoja(sender);
-    
+
       return await identificarModeloPorNome({
         sender,
         msgContent: respostaLimpa,
         pushName
       });
     }
-    
 
     if (contemValorMonetario(respostaLimpa)) {
       await setUserStage(sender, "agente_de_demonstracao_por_valor");
       await storeUserResponse(sender, "sondagem", "investimento", respostaLimpa);
 
       await pipelineContatoInicial({ name: pushName, phone: sender });
-
-      // ⏳ Aguarda 2 segundos para o Kommo indexar o novo lead
       await new Promise(resolve => setTimeout(resolve, 5000));
-      
       await pipelineConhecendoALoja(sender);
-      
+
+      // 💰 Extrai valor numérico para o campo price
+      const valorNumerico = parseFloat(
+        respostaLimpa.replace(/[^\d,\.]/g, "").replace(/\./g, "").replace(",", ".")
+      );
+
+      if (!isNaN(valorNumerico)) {
+        try {
+          await atualizarValorVendaDoLead(`${sender}@c.us`, valorNumerico);
+
+        } catch (err) {
+          console.warn("⚠️ Falha ao atualizar valor de venda no Kommo:", err.message);
+        }
+      }
 
       await registrarOuAtualizarMensagem({
         telefone: sender,
@@ -118,7 +127,11 @@ const filtroDeValor = async ({ sender, msgContent, pushName, messageId }) => {
         mensagemExternaId: messageId,
       });
 
-      return await agenteDeDemonstracaoPorValor({ sender, pushName, valorBruto: respostaLimpa });
+      return await agenteDeDemonstracaoPorValor({
+        sender,
+        pushName,
+        valorBruto: respostaLimpa
+      });
     }
 
     await setUserStage(sender, "filtro_de_valor");

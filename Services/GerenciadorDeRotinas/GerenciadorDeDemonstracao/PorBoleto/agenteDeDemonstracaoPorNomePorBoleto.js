@@ -150,6 +150,12 @@ ${modelo.fraseImpacto ? `\n\n${modelo.fraseImpacto}` : ""}
     timestamp: new Date().toISOString()
   });
 
+  await appendToConversation(sender, {
+    tipo: "modelo_confirmado",
+    conteudo: modeloMencionado,
+    timestamp: new Date().toISOString()
+  });
+
   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   await delay(1000);
 

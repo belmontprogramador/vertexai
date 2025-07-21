@@ -13,13 +13,16 @@ const { gatilhosEmocionaisVertex } = require('../../../utils/documentacoes/gatil
 const { tomDeVozVertex } = require('../../../utils/documentacoes/tomDeVozVertex');
 // const { rotinaDeAgendamento } = require("../../../GerenciadorDeRotinas/GerenciadorDeAgendamento/rotinaDeAgendamento");
 const { handlers: handlersDemonstracaoDetalhada } = require("../../../GerenciadorDeRotinas/GerenciadorDeDemonstracao/agenteDeDemonstracaoDetalhada");
-
-const { getAllCelulares } = require('../../../dbService')
-
+const { getAllCelulares } = require('../../../dbService') 
 const OpenAI = require("openai");
 const { sanitizarEntradaComQuoted } = require("../../../utils/utilitariosDeMensagem/sanitizarEntradaComQuoted");
 const { prepararContextoDeModelosRecentesFluxo } = require("../../../utils/utilitariosDeMensagem/prepararContextoDeModelosRecentesFluxo");
 const { agenteDeDemonstracaoPorNome } = require("./agenteDeDemonstracaoPorNome");
+const { enviarResumoParaNumeros } = require("../../../utils/enviarResumoParaNumeros");
+const { rotinaDeBoleto } = require("../PorBoleto/rotinaDeBoleto");
+const { registrarTagModeloConfirmado } = require("../../../ServicesKommo/registrarTagModeloConfirmado");
+const { atualizarValorVendaDoLead } = require("../../../ServicesKommo/atualizarValorVendaDoLead");
+
 require("dotenv").config();
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -180,6 +183,10 @@ ex: "vocês vendem usados?", "e se der defeito?", "vocês tem loja física?",
 Escolha: **"responderDuvidasGenericas"**
 
 5. Se o cliente fizer qualquer pergunta sobre *BOLETO*  ou demonstrar curiosidade qualquer curiosidade sobre como funciona o *BOLETO* ou crediário, sem confirmar fechamento (ex: “como funciona o boleto?”, “qual valor de entrada?”, “como faço?”), então:Escolha: **"perguntarSobreBoleto"**
+5.1 - se o cliente fazer qualquer pergunta mencionando a payjoy ou qualquer nome similiar a esse sistema de boleto como "pejoi", "pejjoy", "pejoi", peijoy", "peijoi"  então:Escolha: **"perguntarSobreBoleto"**
+
+6. Se o cliente perguntar o preço, valor, ou dizer frases como "quanto tá", "qual o valor", "tá quanto esse", "esse tá em promoção?", e já vimos esse modelo antes:  
+Escolha: **"demonstracaoDeCelularPorValor"**
 
       Retorne apenas isso:
       {
@@ -385,36 +392,34 @@ const handlers = {
   },
   responderDuvida: async (sender, args, extras) => {
     await setUserStage(sender, "identificar_modelo_por_nome_pos_demonstracao");
-
+  
     const { msgContent, quotedMessage } = extras;
-
     const entrada = await sanitizarEntradaComQuoted(sender, msgContent, quotedMessage);
-
-    const { modelos, nomeUsuario, modelosConfirmados, conversaCompleta } = await prepararContextoDeModelosRecentesFluxo(sender);
-
+  
+    const { modelos, nomeUsuario, modelosConfirmados, conversaCompleta } =
+      await prepararContextoDeModelosRecentesFluxo(sender);
+  
     if (modelos.length === 0) {
       return await sendBotMessage(sender, "⚠️ Ainda não te mostrei nenhum modelo pra comparar. Quer ver algumas opções?");
     }
-
+  
     let modeloFocado = null;
-
+  
     if (args?.nomeModelo) {
-      const normalizar = (str) => str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+      const normalizar = (str) =>
+        str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
       const nomeNormalizado = normalizar(args.nomeModelo);
-
-      // 1️⃣ Tenta encontrar entre os modelos recentes
-      modeloFocado = modelos.find(m => normalizar(m.nome) === nomeNormalizado);
-
-      // 2️⃣ Fallback: busca no banco se não estiver entre os recentes
+  
+      modeloFocado = modelos.find((m) => normalizar(m.nome) === nomeNormalizado);
+  
       if (!modeloFocado) {
         const todos = await getAllCelulares();
-        modeloFocado = todos.find(m => normalizar(m.nome) === nomeNormalizado);
+        modeloFocado = todos.find((m) => normalizar(m.nome) === nomeNormalizado);
       }
     }
-
-
+  
     let descricaoModelos = "";
-
+  
     if (modeloFocado) {
       descricaoModelos = `
   ➡️ *${modeloFocado.nome}*
@@ -425,8 +430,31 @@ const handlers = {
   💳 Parcelado: ${modeloFocado.precoParcelado}
   🖼️ Imagem: ${modeloFocado.imagemURL}
   `;
+  
+      // Adiciona à lista se ainda não estiver presente
+      const jaApresentado = modelos.find((m) => m.nome.toLowerCase() === modeloFocado.nome.toLowerCase());
+      if (!jaApresentado) {
+        modelos.push(modeloFocado);
+      }
+  
+      // 🏷️ Registra a tag no Kommo
+      try {
+        await registrarTagModeloConfirmado(sender, modeloFocado.nome);
+        console.log(`✅ Tag registrada para modelo: ${modeloFocado.nome}`);
+      } catch (err) {
+        console.warn("⚠️ Erro ao registrar tag no Kommo:", err.message);
+      }
+
+      // ✅ Atualiza o valor da venda no Kommo
+  try {
+    await atualizarValorVendaDoLead(`${sender}@c.us`, modeloFocado.preco);
+    console.log(`💰 Valor do lead atualizado para R$ ${modeloFocado.preco}`);
+  } catch (err) {
+    console.warn("⚠️ Erro ao atualizar valor do lead no Kommo:", err.message);
+  }
+  
     } else {
-      descricaoModelos = modelos.map(m => `
+      descricaoModelos = modelos.map((m) => `
   ➡️ *${m.nome}*
   💬 Descrição: ${m.descricaoCurta}
   🧠 Subtítulo: ${m.subTitulo}
@@ -436,36 +464,30 @@ const handlers = {
   🖼️ Imagem: ${m.imagemURL}
   `).join("\n");
     }
-    // 🔁 Se o modelo focado veio do banco e ainda não está na lista, adiciona na lista de modelos
-    if (modeloFocado && !modelos.find(m => m.nome.toLowerCase() === modeloFocado.nome.toLowerCase())) {
-      modelos.push(modeloFocado);
-    }
-
+  
     const historico = await getConversation(sender);
     const ultimaTOA = [...historico].reverse().find(msg => msg.tipo === "deliberacao_toa");
-
+  
     const contexto = `
-    Você é Anna, especialista da Vertex Store.
-    
-    Siga exatamente as diretrizes abaixo para responder qualquer cliente:
-    
-    TOM DE VOZ:
-    ${JSON.stringify(tomDeVozVertex, null, 2)}
-    
-    OBJEÇÕES COMUNS:
-    ${JSON.stringify(objeçõesVertex, null, 2).slice(0, 3000)}
-     
-    
-    GATILHOS EMOCIONAIS:
-    ${JSON.stringify(gatilhosEmocionaisVertex, null, 2)}
-    `;
-
-    // 🧠 Prompt formatado para a IA
+  Você é Anna, especialista da Vertex Store.
+  
+  Siga exatamente as diretrizes abaixo para responder qualquer cliente:
+  
+  TOM DE VOZ:
+  ${JSON.stringify(tomDeVozVertex, null, 2)}
+  
+  OBJEÇÕES COMUNS:
+  ${JSON.stringify(objeçõesVertex, null, 2).slice(0, 3000)}
+  
+  GATILHOS EMOCIONAIS:
+  ${JSON.stringify(gatilhosEmocionaisVertex, null, 2)}
+  `;
+  
     const prompt = `
   ## OBJETIVO
   Guiar o cliente até escolher um smartphone da lista apresentada e fechar a venda,
   sempre valorizando experiência, suporte humanizado e diferencial da loja.
-  esteja sempre preparado para responder duvidas de objeções que não necessariamente ligados ao modelo em si, utlize a documentação para respoder essa objeções e seja criativo
+  Esteja sempre preparado para responder dúvidas e objeções que não necessariamente estejam ligadas ao modelo em si. Use a documentação e seja criativo.
   
   ## TOM_DE_VOZ
   - Saudação acolhedora porém direta.
@@ -473,66 +495,58 @@ const handlers = {
   - Emojis: 💜 obrigatório + 1 contextual; use 🔥 para descontos.
   - Até 250 caracteres por bloco; quebre linhas por assunto.
   - Pontuação dupla (“!!”, “…” ) permitida.
-
+  
   ## GATILHOS_EMOCIONAIS
   - Priorize Segurança ➜ Rapidez ➜ Transferência de dados na hora.
   - Explore “Garantia empática”, “Telefone reserva”, “Loja física confiável”.
   - Conecte benefícios à vida diária (produtividade, memórias, status).
-
+  
   ## OBJEÇÕES & COMPARATIVOS
   - Se cliente comparar preço online → explique valor agregado (lista de diferenciais).
-  - Descontos: 100 reais no pagamento a vista no pix. So fale sobre isso em ultimo caso e se o cliente pedir desconto.
-  - Parcelamento padrão apenas em 10× se o cliente insistir parcelamos no maximo em 12x; .
-  - Use analogias para comparar serviços (ex.: “comprar só preço é como…”).
-  - Em comparações com preço online fale sobre muitos marketplace venderem modelos indianos de baixa qualidade
-
- ## REGRAS_DE_INDECISÃO
-- Em caso de dúvida ou indecisão, atue como consultor confiável, trazendo clareza e segurança.
-- Reforce os diferenciais da Vertex:
-  Pronta entrega 💨 | Pós-venda humanizado 💜 | Garantia local | Teste/backup na hora 🔧📲
-- Use perguntas abertas para desbloquear a decisão:
-  - “Qual parte você quer que eu explique melhor?”
-  - “Está comparando com outro modelo ou loja?”
-- Ofereça ajuda direta:
-  - “Quer que eu compare dois modelos pra facilitar?”
-  - “Prefere decidir por câmera, bateria ou desempenho?”
-- Finalize com call-to-action leve:
-  - “Quer que eu mostre o resumo e você decide com calma?”
-- Quando a indecisão não for tecnica de aparelho nem sobre valores
-  - "responda com criatividade em cima da objeção"
-
+  - Descontos: 100 reais no pagamento à vista no pix. Só fale disso em último caso e se o cliente pedir.
+  - Parcelamento padrão: 10×. Se insistir, até 12x.
+  - Fale sobre modelos indianos de baixa qualidade em marketplaces, se aplicável.
+  
+  ## REGRAS_DE_INDECISÃO
+  - Se o cliente estiver indeciso:
+    - Reforce os diferenciais: Entrega rápida, Pós-venda 💜, Garantia local.
+    - Faça perguntas abertas: “Quer que eu compare dois modelos?”
+    - Ajude com decisão: “Prefere decidir por câmera, bateria ou desempenho?”
+    - Finalize com CTA leve: “Quer que eu mostre o resumo e você decide com calma?”
+  
   ## REGRAS_DE_ESTILO
   - Nunca comece com saudação completa; a conversa já está em andamento.
   - Seja conciso e humanizado; máximo 3 blocos (“emoção”, “benefício”, “call-to-action”).
-  - Sempre feche perguntando algo que avance (ex.: “Fecho em 10× pra você?”, "Vamos fechar sua compra?").
+  - Sempre feche com pergunta que avance (ex.: “Fecho em 10× pra você?”, “Vamos fechar sua compra?”).
+  
+  📍 Loja:
+  Av. Getúlio Varga, 333, Centro, Araruama - RJ, CEP 28979-129
+  Referência: Mesma calçada da loteria e xerox do bolão, em frente à faixa de pedestre
+  Horário: 09h às 19h, segunda a sábado
 
-   "localizacaoLoja":  
-      "endereco": "Av. Getúlio Varga, 333, Centro, Araruama - RJ, Brasil. CEP 28979-129",
-      "referencia": "Mesma calçada da loteria e xerox do bolão, em frente à faixa de pedestre",
-      "horarioFuncionamento": "De 09:00 às 19:00, de segunda a sábado"
-
+  **NOS NÃO POSSUIMOS IPHONE PARA EVNDA NA LOJA, DIGA DE MODO SUAVE QUE TRABALHAMOS APENAS COM A LINHA REDMI POCO E REALME**
+  
   🧠 Última mensagem do cliente:
-      "${entrada}"
-
+  "${entrada}"
+  
   📜 Histórico da conversa:
-        ${conversaCompleta}
- Utilize a ultima decisão TOA para te ajudar na resolução de duvida
-        ${ultimaTOA}           
-      
-      📱 Modelos apresentados:
-      ${modelos.map(m => `➡️ *${m.nome}*\n📝 ${m.descricaoCurta}\n💵 Preço: R$ ${m.preco.toFixed(2)}`).join("\n")}
-      
-      Nome do cliente: ${nomeUsuario}
-      
-      ✅ Modelos confirmados anteriormente pelo cliente:
-      ${modelosConfirmados.length > 0
-        ? modelosConfirmados.map(m => `✔️ *${m}*`).join("\n")
-        : "Nenhum ainda foi confirmado."}
-      
-      🧠 Último modelo confirmado:
-      ${modelosConfirmados[modelosConfirmados.length - 1] || "nenhum"}
+  ${conversaCompleta}
+  
+  🧠 Última decisão TOA:
+  ${JSON.stringify(ultimaTOA, null, 2)}
+  
+  📱 Modelos apresentados:
+  ${descricaoModelos}
+  
+  ✔️ Modelos confirmados:
+  ${modelosConfirmados.length > 0
+      ? modelosConfirmados.map(m => `✔️ *${m}*`).join("\n")
+      : "Nenhum ainda foi confirmado."}
+  
+  🧠 Último modelo confirmado:
+  ${modelosConfirmados[modelosConfirmados.length - 1] || "nenhum"}
   `;
-
+  
     const respostaIA = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
@@ -542,15 +556,16 @@ const handlers = {
       temperature: 1.0,
       max_tokens: 200
     });
-
+  
     const respostaFinal = respostaIA.choices[0]?.message?.content?.trim();
-
+  
     if (!respostaFinal) {
       return await sendBotMessage(sender, "📌 Estou verificando... Pode repetir a dúvida de forma diferente?");
     }
-
+  
+    await enviarResumoParaNumeros(sender);
     return await sendBotMessage(sender, respostaFinal);
-  },
+  },  
   responderDuvidasGenericas: async (sender, args, extras) => {
     await setUserStage(sender, "identificar_modelo_por_nome_pos_demonstracao");
     const { msgContent, quotedMessage, pushName } = extras;
@@ -621,7 +636,7 @@ const handlers = {
     if (!respostaFinal) {
       return await sendBotMessage(sender, "📩 Recebi sua dúvida, e já estou vendo com a equipe! Já te retorno 💜");
     }
-  
+    await enviarResumoParaNumeros(sender);
     return await sendBotMessage(sender, respostaFinal);
   },
   agenteDeDemonstracaoPorNome: async (sender, args, { msgContent, pushName }) => {
@@ -632,7 +647,7 @@ const handlers = {
     return await agenteDeDemonstracaoPorNome({ sender, msgContent, pushName, modeloMencionado: nomeModelo });
   },
   perguntarSobreBoleto: async (sender, args, { pushName, msgContent }) => {  
-    await setUserStage(sender, "perguntar_sobre_boleto");
+    await setUserStage(sender, "rotina_de_boleto");
     const nomeUsuario = await getNomeUsuario(sender)
      
     const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -641,7 +656,17 @@ const handlers = {
     await sendBotMessage(sender, `${nomeUsuario} para vendas no boleto temos modelos e condições diferentes. Me ajuda a entender algumas coisas antes`);
    
     return await rotinaDeBoleto({ sender, msgContent, pushName });
-  }
+  },
+  demonstracaoDeCelularPorValor: async (sender, args, { msgContent, pushName }) => {
+    await setUserStage(sender,"filtro_de_valor");
+  
+    
+      await sendBotMessage(sender, "Para eu te trazer as melhores opções,  me diga novamente quanto quer investir no aparelho💜");
+     
+  
+     
+  },
+  
 }
 
 module.exports = {

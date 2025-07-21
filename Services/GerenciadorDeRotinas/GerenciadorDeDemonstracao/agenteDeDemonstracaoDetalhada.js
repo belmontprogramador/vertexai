@@ -18,6 +18,8 @@ const { tomDeVozVertex  } = require("../../utils/documentacoes/tomDeVozVertex");
 const { extrairTextoDoQuotedMessage } = require("../../utils/utilitariosDeMensagem/extrairTextoDoQuotedMessage");
 const { sanitizarEntradaComQuoted } = require("../../utils/utilitariosDeMensagem/sanitizarEntradaComQuoted");
 const { prepararContextoDeModelosRecentesFluxo } = require("../../utils/utilitariosDeMensagem/prepararContextoDeModelosRecentesFluxo");
+const { pipelineAtendimentoHumano } = require("../../ServicesKommo/pipelineAtendimentoHumano");
+
  
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -211,7 +213,11 @@ const handlers = {
   mostrarResumoModelo: async (sender, args, extras) => {
     await setUserStage(sender, "agente_de_demonstracao_detalhada");
      
-  
+    try {
+      await pipelineAtendimentoHumano(sender);
+    } catch (err) {
+      console.warn("⚠️ Erro ao mover lead para atendimento humano:", err.message);
+    }
     const nome = await getNomeUsuario(sender);
     let modelo = extras?.modeloEscolhido;
   
@@ -410,7 +416,7 @@ await appendToConversation(sender, {
   ## OBJEÇÕES & COMPARATIVOS
   - Se cliente comparar preço online → explique valor agregado (lista de diferenciais).
   - Descontos: no boleto não descontos
-  - Parcelamento padrão apenas em 18× somente parcelamos em 18x; .
+  - Parcelamento padrão apenas em 10× somente parcelamos em 10x, e somente no cartão .
   - Use analogias para comparar serviços (ex.: “comprar só preço é como…”).  
   
   ## REGRAS_DE_INDECISÃO
@@ -437,6 +443,9 @@ await appendToConversation(sender, {
       "endereco": "Av. Getúlio Varga, 333, Centro, Araruama - RJ, Brasil. CEP 28979-129",
       "referencia": "Mesma calçada da loteria e xerox do bolão, em frente à faixa de pedestre",
       "horarioFuncionamento": "De 09:00 às 19:00, de segunda a sábado"
+      **NOS NÃO POSSUIMOS IPHONE PARA EVNDA NA LOJA, DIGA DE MODO SUAVE QUE TRABALHAMOS APENAS COM A LINHA REDMI POCO E REALME**
+
+
 
   📜 Histórico da conversa:
         ${conversaCompleta}

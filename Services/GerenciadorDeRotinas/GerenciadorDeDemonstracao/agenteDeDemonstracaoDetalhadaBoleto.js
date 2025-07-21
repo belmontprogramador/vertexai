@@ -19,6 +19,8 @@ const { tomDeVozVertexData } = require("../../utils/documentacoes/tomDeVozVertex
 const { extrairTextoDoQuotedMessage } = require("../../utils/utilitariosDeMensagem/extrairTextoDoQuotedMessage");
 const { sanitizarEntradaComQuoted } = require("../../utils/utilitariosDeMensagem/sanitizarEntradaComQuoted");
 const { prepararContextoDeModelosRecentes } = require("../../utils/utilitariosDeMensagem/prepararContextoDeModelosRecentes");
+const { pipelineAtendimentoHumano } = require("../../ServicesKommo/pipelineAtendimentoHumano");
+
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -209,6 +211,11 @@ const handlers = {
   },
   mostrarResumoModeloBoleto: async (sender, args, extras) => {
     await setUserStage(sender, "agente_de_demonstracao_detalhada_boleto");
+    try {
+      await pipelineAtendimentoHumano(sender);
+    } catch (err) {
+      console.warn("⚠️ Erro ao mover lead para atendimento humano:", err.message);
+    }
   
     const nome = await getNomeUsuario(sender);
     let modelo = extras?.modeloEscolhido;
@@ -264,6 +271,7 @@ const handlers = {
   Use uma linguagem formal mas descontraída.
   Pule uma linha entre o resumo e o tom de voz.
   Dê preferência ao preço parcelado.
+  Parcelamento em 18x no boleto
   
   Nome do cliente: ${nome}
   
@@ -429,6 +437,8 @@ await appendToConversation(sender, {
   - Nunca comece com saudação completa; a conversa já está em andamento.
   - Seja conciso e humanizado; máximo 3 blocos (“emoção”, “benefício”, “call-to-action”).
   - Sempre feche perguntando algo que avance (ex.: “Fecho em 10× pra você?”).
+
+  **NOS NÃO POSSUIMOS IPHONE PARA EVNDA NA LOJA, DIGA DE MODO SUAVE QUE TRABALHAMOS APENAS COM A LINHA REDMI POCO E REALME**
 
    "localizacaoLoja": 
       "endereco": "Av. Getúlio Varga, 333, Centro, Araruama - RJ, Brasil. CEP 28979-129",

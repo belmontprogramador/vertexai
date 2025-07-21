@@ -209,9 +209,24 @@ const handlers = {
   demonstrarCelular: async (sender, args, extras) => {
     await setUserStage(sender, "agente_de_demonstracao_por_nome_por_boleto");
   
+    const todosModelos = await obterModelosDoBling();
+    const modelo = todosModelos.find(m =>
+      m.nome.toLowerCase() === args.modeloMencionado.toLowerCase()
+    );
+  
+    if (!modelo) {
+      return await sendBotMessage(sender, "❌ Não consegui encontrar esse modelo no nosso catálogo.");
+    }
+  
     await appendToConversation(sender, {
       tipo: "modelo_confirmado",
       conteudo: args.modeloMencionado,
+      timestamp: new Date().toISOString()
+    });
+  
+    await appendToConversation(sender, {
+      tipo: "modelo_sugerido",
+      conteudo: modelo.nome,
       timestamp: new Date().toISOString()
     });
   
@@ -220,7 +235,8 @@ const handlers = {
       msgContent: extras.msgContent,
       modeloMencionado: args.modeloMencionado
     });
-  },
+  }
+  ,
   investigarMais: async (sender, args) => {
     await setUserStage(sender, "agente_de_demonstracao_pos_decisao_por_boleto");
   
@@ -247,6 +263,12 @@ const handlers = {
       await appendToConversation(sender, {
         tipo: "modelo_sugerido",
         conteudo: modelo.nome,
+        timestamp: new Date().toISOString()
+      });
+
+      await appendToConversation(sender, {
+        tipo: "modelo_confirmado",
+        conteudo: args.modeloMencionado,
         timestamp: new Date().toISOString()
       });
     };

@@ -161,7 +161,7 @@ ${modelo.fraseImpacto ? `\n\n${modelo.fraseImpacto}` : ""}
   await delay(1000);
 
   const nome = await getNomeUsuario(sender);
-  await sendBotMessage(sender, `📣 ${nome} temos esse modelo a pronta entrega. Vou te passar todas a informações sobre ele?`);
+  await sendBotMessage(sender, `📣 ${nome} temos esse modelo a pronta entrega. Estou aqui pronto para tirar todas as sua duvidas sobre esse modelo... é só perguntar`);
   await setUserStage(sender, "identificar_modelo_por_nome_pos_demonstracao");
 };
 

@@ -328,6 +328,19 @@ const getRemarketingStatus = async (sender) => {
   return raw ? JSON.parse(raw) : {};
 };
 
+const getUsuariosComBotPausado = async () => {
+  try {
+    const chaves = await redis.keys("bot:pausado:*");
+    const usuarios = chaves.map(chave => chave.replace("bot:pausado:", ""));
+    console.log(`📋 Usuários com bot pausado individualmente: ${usuarios.length}`);
+    return usuarios;
+  } catch (error) {
+    console.error("❌ Erro ao buscar usuários com bot pausado:", error);
+    return [];
+  }
+};
+
+
 
 
 
@@ -365,5 +378,6 @@ module.exports = {
   marcarRemarketingComoEnviado,
   resetarTodosRemarketingStatus,
   getRemarketingStatus,
+  getUsuariosComBotPausado,
   redis
 };

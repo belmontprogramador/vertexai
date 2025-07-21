@@ -1,15 +1,21 @@
 const { sendBotMessage } = require("../../../messageSender");
 const { setUserStage, getNomeUsuario} = require('../../../redisService');
+const { pipelineAtendimentoAIBoleto } = require("../../../ServicesKommo/pipelineAtendimentoAIBoleto"); // ajuste o caminho se necessário
 
-const { pipelineBoleto } = require("../../../ServicesKommo/pipelineBoleto");
+ 
 
 const rotinaDeBoleto = async ({ sender, msgContent, pushName }) => {
 
   const nome = await getNomeUsuario(sender);
 
   try { 
+
+    await pipelineAtendimentoAIBoleto({
+      name: pushName || nome || "Cliente",
+      phone: sender
+    });
     
-    await pipelineBoleto(sender.startsWith("+") ? sender : `+${sender}`);
+    // await pipelineBoleto(sender.startsWith("+") ? sender : `+${sender}`);
 
     await sendBotMessage(sender, {
       imageUrl: "https://imagensvertex.felipebelmont.com/wp-content/uploads/2025/06/Imagem-do-WhatsApp-de-2025-06-05-as-18.10.01_9a71d5d5.jpg", // coloque sua URL real aqui
@@ -28,7 +34,7 @@ Só precisamos de uma pequena entrada, um Chip e documento de identificação na
 
     await sendBotMessage(
     sender,
-    `🔍 Para começar sua análise e liberar condições, preciso destes dados:\n• Nome completo ✍\n• CPF 🔢\n• Endereço 🏠\nAssim corremos com sua aprovação rapidinho! 💜`
+    `🔍 Para começar sua análise e liberar condições, preciso destes dados:\n• Nome completo ✍\n• CPF 🔢\n• Data de nascimento 🏠\nAssim corremos com sua aprovação rapidinho! 💜`
     );
 
     return await setUserStage(sender, "open_ai_services_boleto_decisao_2");

@@ -1,0 +1,8 @@
+{
+    "ignore": [
+      "services/ServiceBling/relatorio_vendas_periodo.json",
+      "services/ServiceBling/**/*.json",
+      "*.json"
+    ]
+  }
+  

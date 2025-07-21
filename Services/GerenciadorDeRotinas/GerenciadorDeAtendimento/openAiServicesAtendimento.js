@@ -90,7 +90,7 @@ const functions = [
   },  
   {
     name: "demonstrarCelular",
-    description: "Quando o usuário menciona marcas ou modelos específicos de celular, como 'iPhone', 'Samsung', 'Motorola', 'POCO, 'poco' ,'Xiaomi', realm' e deseja ver detalhes do produto. ⚠️ Se o usuário também falar sobre formas de pagamento, a prioridade deve ser da função 'consultarParcelamento'.",
+    description: "Quando o usuário menciona marcas ou modelos específicos de celular, como 'iPhone', 'Samsung', 'Motorola', 'POCO, 'poco' ,'Xiaomi', realme' e deseja ver detalhes do produto. ⚠️ Se o usuário também falar sobre formas de pagamento, a prioridade deve ser da função 'consultarParcelamento'.",
     parameters: {
       type: "object",
       properties: {

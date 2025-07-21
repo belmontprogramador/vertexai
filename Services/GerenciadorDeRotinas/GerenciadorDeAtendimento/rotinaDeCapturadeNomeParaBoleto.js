@@ -10,7 +10,7 @@ const rotinaDeCapturadeNomeParaBoleto  = async ({ sender, msgContent, pushName }
   const fraseEscolhida = frases[Math.floor(Math.random() * frases.length)];  
 
   await sendBotMessage(sender, fraseEscolhida); 
-  await setUserStage(sender, "agente_de_identificação_de_nome_para_boleto");
+  await setUserStage(sender, "agente_de_identificacao_de_nome_para_boleto");
 };
 
 module.exports = { rotinaDeCapturadeNomeParaBoleto  };

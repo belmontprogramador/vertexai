@@ -19,6 +19,7 @@ const headers = {
 async function findContactAndLeadByPhone(phone) {
   const normalized = normalizePhone(phone);
   console.log("📞 Número normalizado:", normalized);
+  console.log("🔎 Enviando query para:", normalized);
 
   const res = await axios.get(`${KOMMO_BASE_URL}/api/v4/contacts`, {
     headers,
