@@ -19,6 +19,7 @@ const { extrairTextoDoQuotedMessage } = require("../../utils/utilitariosDeMensag
 const { sanitizarEntradaComQuoted } = require("../../utils/utilitariosDeMensagem/sanitizarEntradaComQuoted");
 const { prepararContextoDeModelosRecentesFluxo } = require("../../utils/utilitariosDeMensagem/prepararContextoDeModelosRecentesFluxo");
 const { pipelineAtendimentoHumano } = require("../../ServicesKommo/pipelineAtendimentoHumano");
+const { rotinaDeBoleto } = require("./PorBoleto/rotinaDeBoleto");
 
  
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -278,6 +279,7 @@ const handlers = {
   Use uma linguagem formal mas descontraída.
   Pule uma linha entre o resumo e o tom de voz.
   Dê preferência ao preço parcelado.
+  ***AO FALAR DOS VALORES SEMPRE DEIXE BEM CLARO QUE ESSES VALORES SÃO ESTIMATIVAS E PODEM VARIAS DE ACORDO COM A APROVAÇÃO DA PAYJOY***
   
   Nome do cliente: ${nome}
   

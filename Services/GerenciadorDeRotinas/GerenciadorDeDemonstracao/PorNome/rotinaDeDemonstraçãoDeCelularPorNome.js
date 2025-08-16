@@ -2,9 +2,10 @@ const { sendBotMessage } = require("../../../messageSender");
 const {
   setUserStage,
   appendToConversation
-} = require("../../../redisService");
-const { pipelineConhecendoALoja } = require("../../../ServicesKommo/pipelineConhecendoALoja");
+} = require("../../../redisService"); 
 const { identificarModeloPorNome } = require("./identificarModeloPorNome");
+const { pipelineAtendimentoAI } = require("../../../ServicesKommo/pipelineAtendimentoAI"); // mantém o nome do arquivo
+
 
 const rotinaDeDemonstracaoDeCelularPorNome = async ({ sender, msgContent, pushName }) => {
   try {
@@ -16,8 +17,8 @@ const rotinaDeDemonstracaoDeCelularPorNome = async ({ sender, msgContent, pushNa
     .trim();  
      
 
-    // 🗂️ Move o lead no funil do Kommo
-    await pipelineConhecendoALoja(`+${sender}`);
+    await pipelineAtendimentoAI({ name: pushName || "Lead WhatsApp", phone: sender });
+
 
     return await identificarModeloPorNome({ sender, msgContent, pushName });
 

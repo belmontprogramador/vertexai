@@ -29,7 +29,7 @@ async function moverContatosParadosParaTag() {
     }
 
     // Aguarda 500ms antes de continuar com o próximo
-    await delay(60000);
+    await delay(120000);
   }
 }
 

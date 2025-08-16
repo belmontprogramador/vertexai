@@ -158,7 +158,10 @@ ${modelo.fraseImpacto ? `\n\n${modelo.fraseImpacto}` : ""}
   
 
   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-  await delay(1000);
+   
+  await delay(2000);
+  await sendBotMessage(sender, "*Por que na Vertex Store?\n📲 *Sai com tudo configurado, transferência de dados e suporte de verdade.*\n⚙️ *Se rolar garantia, é rápido e tem celular reserva.*\n*Simples assim. Padrão Vertex.* 💜")
+  await delay(2000);
 
   const nome = await getNomeUsuario(sender);
   await sendBotMessage(sender, `📣 ${nome} temos esse modelo a pronta entrega. Estou aqui pronto para tirar todas as sua duvidas sobre esse modelo... é só perguntar`);

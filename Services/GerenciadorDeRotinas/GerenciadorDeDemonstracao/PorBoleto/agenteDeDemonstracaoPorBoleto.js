@@ -153,7 +153,7 @@ Seu objetivo é identificar a ação ideal com base na intenção do cliente.
 1. "demonstrarCelular" ➜ Quando a entrada indicar um modelo específico da lista.⚠️ Se essa sugestão estiver alinhada com a mensagem do cliente, use a ação "demonstrarCelular" com o campo "argumento: { modeloMencionado: "NOME DO MODELO" }".
 
 2. "investigarMais" ➜ Quando houver dúvida, modelo genérico ou múltiplas variações.
-3. "modeloInvalido" ➜ Quando o modelo não pertence às marcas Realme, Redmi ou Poco.
+3. "modeloInvalido" ➜ Quando o modelo não pertence às marcas Realme, Redmi, Poco ou Infinix Smart 9.
 
 Retorne apenas isso:
 {
@@ -249,29 +249,24 @@ const handlers = {
       nome?.toLowerCase().replace(/[^a-z0-9]/gi, ' ').replace(/\s+/g, ' ').trim();
   
     const exibirModelo = async (modelo) => {
-      const nomeModeloKey = normalizarNome(modelo.nome);
-      if (modelosExibidos.has(nomeModeloKey)) return;
-      modelosExibidos.add(nomeModeloKey);
-  
-      const textoFormatado = formatarDescricaoParaCaption(modelo);
-  
-      await sendBotMessage(sender, {
-        imageUrl: modelo.imagemURL,
-        caption: textoFormatado
-      });
-  
-      await appendToConversation(sender, {
-        tipo: "modelo_sugerido",
-        conteudo: modelo.nome,
-        timestamp: new Date().toISOString()
-      });
+  const nomeModeloKey = normalizarNome(modelo.nome);
+  if (modelosExibidos.has(nomeModeloKey)) return;
+  modelosExibidos.add(nomeModeloKey);
 
-      await appendToConversation(sender, {
-        tipo: "modelo_confirmado",
-        conteudo: args.modeloMencionado,
-        timestamp: new Date().toISOString()
-      });
-    };
+  const textoFormatado = formatarDescricaoParaCaption(modelo);
+
+  await sendBotMessage(sender, {
+    imageUrl: modelo.imagemURL,
+    caption: textoFormatado
+  });
+
+  await appendToConversation(sender, {
+    tipo: "modelo_sugerido",
+    conteudo: modelo.nome,
+    timestamp: new Date().toISOString()
+  });
+};
+
   
     // 🔍 1. IA NÃO enviou lista de modelos, tentar extrair de blocos com "🔥"
     if (!Array.isArray(args.modelos)) {
@@ -304,11 +299,12 @@ const handlers = {
           await exibirModelo(modelo);
         }
       }
-  
+
       await delay(2000);
       await sendBotMessage(sender, "➡️ *Desses, qual mais te chamou atenção?*");
       return;
     }
+    
   
     // 🔍 2. IA ENVIOU modelos (nomes ou objetos)
     const ehListaDeNomes = args.modelos.every((m) => typeof m === "string");
@@ -331,7 +327,8 @@ const handlers = {
     for (const modelo of modelosParaExibir) {
       await exibirModelo(modelo);
     }
-  
+    await delay(2000);
+    await sendBotMessage(sender, "*Por que na Vertex Store?\n📲 *Sai com tudo configurado, transferência de dados e suporte de verdade.*\n⚙️ *Se rolar garantia, é rápido e tem celular reserva.*\n*Simples assim. Padrão Vertex.* 💜")
     await delay(2000);
     await sendBotMessage(sender, "➡️ *Desses, qual mais te chamou atenção?*");
   },

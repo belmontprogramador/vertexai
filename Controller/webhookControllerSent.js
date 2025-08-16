@@ -10,6 +10,8 @@ const {
 const { pipelineAtendimentoHumanoComando } = require("../Services/ServicesKommo/pipelineAtendimentoHumanoComando");
 const { pipelineReaquecimentoLead } = require("../Services/ServicesKommo/pipelineReaquecimentoLead");
 const { pipelineTarefaAgendada } = require("../Services/ServicesKommo/pipelineTarefaAgendada");
+const { pipelineAtendimentoHumanoBoleto } = require("../Services/ServicesKommo/pipelineAtendimentoHumanoBoleto");
+
 
 
 
@@ -84,7 +86,37 @@ const recipientId = normalizarSenderId(chat.id);
       } catch (error) {
         console.error(`❌ Erro ao mover para atendimento humano:`, error.message);
       }
-    }   
+    } 
+
+     
+    const comandosAtendimentoHumanoBoleto = [
+      "oi amadinha aqui vamos falar sobre boleto",
+      "oi felipe aqui vamos falar sobre boleto",
+      "oi vitor aqui vamos falar sobre boleto"
+    ];
+    
+    if (comandosAtendimentoHumanoBoleto.includes(comando)) {
+      console.log(`📨 Comando de atendimento humano boleto detectado para ${recipientId}`);
+    
+      // ⏸️ 1. Pausar bot individualmente
+      try {
+        await pausarBotParaUsuario(recipientId);
+        console.log(`⏸️ Bot pausado individualmente para ${recipientId}`);
+      } catch (err) {
+        console.warn(`⚠️ Erro ao pausar bot para ${recipientId}:`, err.message);
+      }
+    
+      // 🔁 2. Mover lead para "Atendimento Humano Boleto" (somente string!)
+      try {
+        await pipelineAtendimentoHumanoBoleto(recipientId); // ✅ aqui corrigido
+        console.log("✅ Lead movido para Atendimento Humano Boleto com sucesso.");
+      } catch (err) {
+        console.error("❌ Erro ao mover para Atendimento Humano Boleto:", err.message);
+      }
+    }
+    
+    
+    
     
     
     
@@ -93,7 +125,7 @@ const recipientId = normalizarSenderId(chat.id);
       console.log(`✅ Bot retomado individualmente para ${recipientId}`);
     }
 
-    if (comando === "beleza vou deixar agendado para entrar em contato novamente"
+    if (comando === "ahhh entendi"
     ) {
       console.log(`♻️ Comando de reaquecimento detectado para ${recipientId}`);
       try {

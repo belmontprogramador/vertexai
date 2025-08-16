@@ -530,7 +530,7 @@ if (modeloFocado) {
       "referencia": "Mesma calçada da loteria e xerox do bolão, em frente à faixa de pedestre",
       "horarioFuncionamento": "De 09:00 às 19:00, de segunda a sábado"
 
-      **NOS NÃO POSSUIMOS IPHONE PARA EVNDA NA LOJA, DIGA DE MODO SUAVE QUE TRABALHAMOS APENAS COM A LINHA REDMI POCO E REALME**
+  **NOS NÃO POSSUIMOS IPHONE PARA EVNDA NA LOJA, DIGA DE MODO SUAVE QUE TRABALHAMOS APENAS COM A LINHA REDMI POCO E REALME, HIPOTESE NENHUMA RESPONDE QUE TRABALHOMOS COM IPHONE**
   
   🧠 Última mensagem do cliente:
       "${entrada}"

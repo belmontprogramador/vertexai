@@ -7,6 +7,7 @@ const KOMMO_TOKEN = process.env.KOMMO_TOKEN;
 
 const PIPELINE_ID = 7471539; // NOVO COMERCIAL VERTEX
 const STAGE_ID_REAQUECIMENTO = 89013640; // REAQUECIMENTO LEAD
+const TAG_REAQUECIMENTO = "ReaquecimentoLead";
 
 const headers = {
   Authorization: `Bearer ${KOMMO_TOKEN}`,
@@ -34,6 +35,37 @@ async function findContactAndLeads(phone) {
   return { contact, leads };
 }
 
+// 🏷 Adiciona tag ao lead
+// ✅ Corrigido: adiciona tag via PATCH no lead
+// ✅ Adiciona nova tag sem remover as existentes
+async function adicionarTagAoLead(leadId, novaTag) {
+  try {
+    // Passo 1: Buscar tags atuais do lead
+    const { data: lead } = await axios.get(`${KOMMO_BASE_URL}/api/v4/leads/${leadId}`, { headers });
+    const tagsAtuais = lead._embedded?.tags?.map(tag => tag.name) || [];
+
+    // Passo 2: Verificar se a tag já existe
+    if (tagsAtuais.includes(novaTag)) {
+      console.log(`ℹ️ Tag '${novaTag}' já presente no lead ${leadId}`);
+      return;
+    }
+
+    // Passo 3: Enviar todas as tags antigas + nova tag
+    const payload = {
+      _embedded: {
+        tags: [...tagsAtuais.map(name => ({ name })), { name: novaTag }],
+      },
+    };
+
+    await axios.patch(`${KOMMO_BASE_URL}/api/v4/leads/${leadId}`, payload, { headers });
+    console.log(`🏷 Tag '${novaTag}' adicionada ao lead ${leadId}`);
+  } catch (err) {
+    console.warn(`⚠️ Erro ao adicionar tag ao lead ${leadId}:`, err.response?.data || err.message);
+  }
+}
+
+
+
 // 🆕 Criação de novo lead em REAQUECIMENTO
 async function createLead(contactId, name) {
   const payload = [
@@ -49,6 +81,7 @@ async function createLead(contactId, name) {
   const leadId = res.data._embedded?.leads?.[0]?.id;
 
   console.log("🆕 Novo lead criado no pipeline 'NOVO COMERCIAL VERTEX' em 'REAQUECIMENTO LEAD':", leadId);
+  await adicionarTagAoLead(leadId, TAG_REAQUECIMENTO);
   return leadId;
 }
 
@@ -64,6 +97,7 @@ async function moveLeadToReaquecimento(leadId) {
 
   await axios.patch(`${KOMMO_BASE_URL}/api/v4/leads`, payload, { headers });
   console.log(`♻️ Lead ${leadId} movido para 'REAQUECIMENTO LEAD' no pipeline 'NOVO COMERCIAL VERTEX'`);
+  await adicionarTagAoLead(leadId, TAG_REAQUECIMENTO);
 }
 
 // 🚀 Função principal

@@ -340,7 +340,120 @@ const getUsuariosComBotPausado = async () => {
   }
 };
 
+const setUserStageApiOficial = async (userId, stage) => {
+  try {
+    await redis.set(`user_stage_api_oficial:${userId}`, stage);
+    await redis.set(`user_stage_api_oficial_time:${userId}`, Date.now());
+  } catch (error) {
+    console.error(`❌ Erro ao definir estágio (API Oficial): ${error.message}`);
+  }
+};
 
+const getUserStageApiOficial = async (userId) => {
+  try {
+    const stage = await redis.get(`user_stage_api_oficial:${userId}`);
+    return stage;
+  } catch (error) {
+    console.error(`❌ Erro ao obter estágio (API Oficial): ${error.message}`);
+    return null;
+  }
+};
+
+const deleteUserStageApiOficial = async (userId) => {
+  try {
+    await redis.del(`user_stage_api_oficial:${userId}`);
+    await redis.del(`user_stage_api_oficial_time:${userId}`);
+    console.log(`🧹 Estágio da API oficial removido para ${userId}`);
+  } catch (error) {
+    console.error(`❌ Erro ao remover estágio da API oficial: ${error.message}`);
+  }
+};
+
+const setLastInteractionApiOficial = async (userId) => {
+  try {
+    const timestamp = Date.now();
+    await redis.set(`last_interaction_api_oficial:${userId}`, timestamp);
+  } catch (error) {
+    console.error(`❌ Erro ao definir última interação (API Oficial): ${error.message}`);
+  }
+};
+
+const getLastInteractionApiOficial = async (userId) => {
+  try {
+    const timestamp = await redis.get(`last_interaction_api_oficial:${userId}`);
+    return timestamp ? parseInt(timestamp, 10) : null;
+  } catch (error) {
+    console.error(`❌ Erro ao obter última interação (API Oficial): ${error.message}`);
+    return null;
+  }
+};
+
+const deleteLastInteractionApiOficial = async (userId) => {
+  try {
+    const key = `last_interaction_api_oficial:${userId}`;
+    await redis.del(key);
+    console.log(`🧹 Última interação da API oficial removida para ${userId}`);
+  } catch (error) {
+    console.error(`❌ Erro ao remover última interação (API Oficial): ${error.message}`);
+  }
+};
+
+const storeNomeUsuarioApiOficial = async (sender, nome) => {
+  try {
+    const redisKey = `user_nome_api_oficial:${sender}`;
+    await redis.set(redisKey, nome);
+    console.log(`📝 [API Oficial] Nome armazenado para ${sender}: ${nome}`);
+  } catch (error) {
+    console.error(`❌ [API Oficial] Erro ao armazenar nome do usuário: ${error.message}`);
+  }
+};
+
+const getNomeUsuarioApiOficial = async (sender) => {
+  try {
+    const redisKey = `user_nome_api_oficial:${sender}`;
+    return await redis.get(redisKey);
+  } catch (error) {
+    console.error(`❌ [API Oficial] Erro ao recuperar nome do usuário: ${error.message}`);
+    return null;
+  }
+};
+
+const deleteNomeUsuarioApiOficial = async (sender) => {
+  try {
+    const redisKey = `user_nome_api_oficial:${sender}`;
+    await redis.del(redisKey);
+    console.log(`🧹 [API Oficial] Nome do usuário ${sender} removido.`);
+  } catch (error) {
+    console.error(`❌ [API Oficial] Erro ao deletar nome do usuário: ${error.message}`);
+  }
+};
+
+// 👉 adicione junto das outras funções:
+const setUltimaInteracaoPorLeadId = async (leadId, ts = Date.now()) => {
+  try {
+    await redis.set(`lead_last_interaction:${leadId}`, ts);
+  } catch (e) {
+    console.error(`❌ Erro ao definir última interação por leadId: ${e.message}`);
+  }
+};
+
+const getUltimaInteracaoPorLeadId = async (leadId) => {
+  try {
+    const ts = await redis.get(`lead_last_interaction:${leadId}`);
+    return ts ? parseInt(ts, 10) : null;
+  } catch (e) {
+    console.error(`❌ Erro ao obter última interação por leadId: ${e.message}`);
+    return null;
+  }
+};
+
+const deleteUltimaInteracaoPorLeadId = async (leadId) => {
+  try {
+    await redis.del(`lead_last_interaction:${leadId}`);
+  } catch (e) {
+    console.error(`❌ Erro ao remover última interação por leadId: ${e.message}`);
+  }
+};
 
 
 
@@ -379,5 +492,17 @@ module.exports = {
   resetarTodosRemarketingStatus,
   getRemarketingStatus,
   getUsuariosComBotPausado,
+  getUserStageApiOficial,
+  setUserStageApiOficial,
+  deleteUserStageApiOficial,
+  setLastInteractionApiOficial,
+  getLastInteractionApiOficial,
+deleteLastInteractionApiOficial,
+storeNomeUsuarioApiOficial,
+getNomeUsuarioApiOficial,
+deleteNomeUsuarioApiOficial,
+setUltimaInteracaoPorLeadId,
+  getUltimaInteracaoPorLeadId,
+  deleteUltimaInteracaoPorLeadId,
   redis
 };

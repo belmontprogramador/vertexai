@@ -157,10 +157,13 @@ ${modelo.fraseImpacto ? `\n\n${modelo.fraseImpacto}` : ""}
   });
 
   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-  await delay(1000);
+  await delay(2000);
+
+  await delay(2000);
+  await sendBotMessage(sender, "*Por que na Vertex Store?\n📲 *Sai com tudo configurado, transferência de dados e suporte de verdade.*\n⚙️ *Se rolar garantia, é rápido e tem celular reserva.*\n*Simples assim. Padrão Vertex.* 💜")
 
   const nome = await getNomeUsuario(sender);
-  await sendBotMessage(sender, `📣 ${nome} temos esse modelo a pronta entrega. Vou te passar todas a informações sobre ele?`);
+  await sendBotMessage(sender, `📣 ${nome} temos esse modelo a pronta entrega. Gostaria de mais informações sobre ele?`);
   await setUserStage(sender, "agente_de_demonstracao_pos_decisao_por_boleto");
 };
 

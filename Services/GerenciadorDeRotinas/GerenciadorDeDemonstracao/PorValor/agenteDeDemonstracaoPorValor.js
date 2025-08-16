@@ -134,8 +134,9 @@ if ((!textoDeReferencia || textoDeReferencia.toLowerCase().includes("esse")) && 
 
     await sendBotMessage(
       sender,
-      `📊 Com base no seu investimento aproximado de *R$${numeroExtraido.toFixed(2)}*, aqui estão algumas opções:`
+      `Boa! Com essa faixa de valor eu tenho uns aparelhos que entregam muito 🔥`
     );
+    
 
     for (const modelo of modelosFiltrados) {
       const copy = [
@@ -176,8 +177,8 @@ if ((!textoDeReferencia || textoDeReferencia.toLowerCase().includes("esse")) && 
     console.log(`📶 [DEBUG] Stage atualizado para: ${stage}`);
     const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     await delay(2000);
-    await sendBotMessage(sender, "Por que na Vertex Store?\n*Troca em até 7 dias*, *aparelho reserva* se precisar de garantia, *configuração e transferência* de dados na hora.");
-    await delay(1000);
+    await sendBotMessage(sender, "*Por que na Vertex Store?*\n\n📲 *Sai com tudo configurado, transferência de dados e suporte de verdade*.\n⚙ *Se rolar garantia, é rápido e tem celular reserva.*\n\n_*Simples assim. Padrão Vertex.*_ 💜");
+    await delay(2000);
     await sendBotMessage(sender, "➡️ *Desses, qual mais te chamou atenção?*");
      
   } catch (error) {

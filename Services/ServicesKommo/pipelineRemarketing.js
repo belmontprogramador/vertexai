@@ -13,7 +13,7 @@ const headers = {
   "Content-Type": "application/json",
 };
 
-// Busca o contato e retorna o primeiro lead que NÃO tem a tag "boletopipeline"
+ 
 async function findContactAndLeadByPhone(phone) {
   const telefoneComMais = phone.startsWith("+") ? phone : `+${normalizePhone(phone)}`;
   const res = await axios.get(`${KOMMO_BASE_URL}/api/v4/contacts`, {
@@ -32,10 +32,13 @@ async function findContactAndLeadByPhone(phone) {
   for (const l of leads) {
     const { data: leadData } = await axios.get(`${KOMMO_BASE_URL}/api/v4/leads/${l.id}`, { headers });
 
-    const hasBoletoTag = (leadData._embedded?.tags || []).some(tag => tag.name === "boletopipeline");
+    const tags = leadData._embedded?.tags || [];
+    const tagNames = tags.map(tag => tag.name);
+
+    const hasBlockedTag = tagNames.includes("boletopipeline") || tagNames.includes("TarefaAgendada") || tagNames.includes("ReaquecimentoLead");
     const isAtivo = !leadData.is_deleted;
 
-    if (!hasBoletoTag && isAtivo) {
+    if (!hasBlockedTag && isAtivo) {
       return {
         contact,
         lead: {
@@ -49,6 +52,8 @@ async function findContactAndLeadByPhone(phone) {
 
   return { contact, lead: null };
 }
+
+
 
 // Atualiza o lead para o estágio REMARKETING no pipeline "NOVO COMERCIAL VERTEX"
 async function updateLeadToRemarketing(leadId) {

@@ -14,6 +14,7 @@ const headers = {
 };
 
 // Busca o contato e retorna o primeiro lead ativo com a tag "boletopipeline"
+// e que NÃO tenha as tags "TarefaAgendada" ou "ReaquecimentoLead"
 async function findContactAndLeadWithBoletoTag(phone) {
   const telefoneComMais = phone.startsWith("+") ? phone : `+${normalizePhone(phone)}`;
 
@@ -34,9 +35,13 @@ async function findContactAndLeadWithBoletoTag(phone) {
     const { data: leadData } = await axios.get(`${KOMMO_BASE_URL}/api/v4/leads/${lead.id}`, { headers });
 
     const isAtivo = !leadData.is_deleted;
-    const hasBoletoTag = (leadData._embedded?.tags || []).some(tag => tag.name === "boletopipeline");
+    const tags = leadData._embedded?.tags || [];
+    const tagNames = tags.map(tag => tag.name);
 
-    if (isAtivo && hasBoletoTag) {
+    const hasBoletoTag = tagNames.includes("boletopipeline");
+    const hasBlockedTag = tagNames.includes("TarefaAgendada") || tagNames.includes("ReaquecimentoLead");
+
+    if (isAtivo && hasBoletoTag && !hasBlockedTag) {
       return {
         contact,
         lead: {
@@ -50,6 +55,7 @@ async function findContactAndLeadWithBoletoTag(phone) {
 
   return { contact, lead: null };
 }
+
 
 // Atualiza o lead para o estágio "REMARKETING TAG"
 async function updateLeadToRemarketingTag(leadId) {

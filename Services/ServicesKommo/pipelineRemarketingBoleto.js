@@ -14,6 +14,8 @@ const headers = {
 };
 
 // Busca o contato e retorna o primeiro lead encontrado com tag "boletopipeline"
+// Busca o contato e retorna o primeiro lead encontrado com a tag "boletopipeline"
+// e que NÃO tenha as tags "TarefaAgendada" ou "ReaquecimentoLead"
 async function findContactAndLeadByPhone(phone) {
   const telefoneComMais = phone.startsWith("+") ? phone : `+${normalizePhone(phone)}`;
   const res = await axios.get(`${KOMMO_BASE_URL}/api/v4/contacts`, {
@@ -32,10 +34,14 @@ async function findContactAndLeadByPhone(phone) {
   for (const l of leads) {
     const { data: leadData } = await axios.get(`${KOMMO_BASE_URL}/api/v4/leads/${l.id}`, { headers });
 
-    const hasBoletoTag = (leadData._embedded?.tags || []).some(tag => tag.name === "boletopipeline");
+    const tags = leadData._embedded?.tags || [];
+    const tagNames = tags.map(tag => tag.name);
+
+    const hasBoletoTag = tagNames.includes("boletopipeline");
+    const hasBlockedTag = tagNames.includes("TarefaAgendada") || tagNames.includes("ReaquecimentoLead");
     const isAtivo = !leadData.is_deleted;
 
-    if (hasBoletoTag && isAtivo) {
+    if (hasBoletoTag && isAtivo && !hasBlockedTag) {
       return {
         contact,
         lead: {

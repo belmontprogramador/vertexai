@@ -31,8 +31,8 @@ const handlers = {
     const { content, pushName } = args;
     
     await setUserStage(sender, "agente_de_demonstracao_por_boleto");
-    await sendBotMessage(sender, `📱 Entendi, ${nome}! No momento disponível no boleto temos esses modelos e preços.`);
-    await sendBotMessage(sender, `📱 Lembrando que todas as definições de preço devem ser feitas após análise de crédito feita em loja.`);
+    await sendBotMessage(sender, `Entendi, ${nome}! No momento disponível no boleto temos esses modelos e preços.`);
+    await sendBotMessage(sender, `Lembrando que todas as definições de preço devem ser feitas após análise de crédito feita em loja.`);
     return await agenteDeDemonstracaoPorBoleto({ sender, msgContent: content, pushName });
   }
 };

@@ -6,8 +6,8 @@ const rotinaDeDemonstracaoDeCelularPorValor = async ({ sender, msgContent, pushN
   await setUserStage(sender, "filtro_de_valor"); 
 
   // Envia a pergunta principal
-  await sendBotMessage(sender, `Na Vertex Store, sempre temos a solução exata para o que você precisa. 💜 `);
-  return await sendBotMessage(sender, `${nome} para eu te trazer as melhores opções,  me diz quanto quer investir no aparelho. Ou me fale o modelo de interesse. 😃`);
+  await sendBotMessage(sender, `Aqui na Vertex a gente sempre tenta achar o melhor custo-benefício pro cliente. 💜 `);
+  return await sendBotMessage(sender, `${nome} para eu te trazer as melhores opções. Me fala quanto tá pensando em investir ou se tem algum modelo em mente que eu já te mostro umas opções certeiras.😃`);
      
   };
   

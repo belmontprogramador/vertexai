@@ -3,10 +3,10 @@ const { sendBotMessage } = require("../../Services/messageSender");
 
 // 📱 Lista fixa de números que receberão o resumo
 const numerosDestino = [
-  "5521983735922",
-  "5522992484280",
+  "5522991059167",
+   
   "5522988319544",
-"5522999018533",
+ 
 "5522998668966",
 ];
 

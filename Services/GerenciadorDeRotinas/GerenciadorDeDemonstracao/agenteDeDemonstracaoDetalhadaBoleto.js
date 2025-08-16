@@ -18,8 +18,8 @@ const { objeçõesVertexBoleto } = require("../../utils/documentacoes/objecoesBo
 const { tomDeVozVertexData } = require("../../utils/documentacoes/tomDeVozVertexData");
 const { extrairTextoDoQuotedMessage } = require("../../utils/utilitariosDeMensagem/extrairTextoDoQuotedMessage");
 const { sanitizarEntradaComQuoted } = require("../../utils/utilitariosDeMensagem/sanitizarEntradaComQuoted");
-const { prepararContextoDeModelosRecentes } = require("../../utils/utilitariosDeMensagem/prepararContextoDeModelosRecentes");
-const { pipelineAtendimentoHumano } = require("../../ServicesKommo/pipelineAtendimentoHumano");
+const { prepararContextoDeModelosRecentes } = require("../../utils/utilitariosDeMensagem/prepararContextoDeModelosRecentes"); 
+const { pipelineAtendimentoHumanoBoleto } = require("../../ServicesKommo/pipelineAtendimentoHumanoBoleto");
 
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -212,7 +212,7 @@ const handlers = {
   mostrarResumoModeloBoleto: async (sender, args, extras) => {
     await setUserStage(sender, "agente_de_demonstracao_detalhada_boleto");
     try {
-      await pipelineAtendimentoHumano(sender);
+      await pipelineAtendimentoHumanoBoleto(sender);
     } catch (err) {
       console.warn("⚠️ Erro ao mover lead para atendimento humano:", err.message);
     }
@@ -272,6 +272,8 @@ const handlers = {
   Pule uma linha entre o resumo e o tom de voz.
   Dê preferência ao preço parcelado.
   Parcelamento em 18x no boleto
+
+  ***AO FALAR DOS VALORES SEMPRE DEIXE BEM CLARO QUE ESSES VALORES SÃO ESTIMATIVAS E PODEM VARIAS DE ACORDO COM A APROVAÇÃO DA PAYJOY***
   
   Nome do cliente: ${nome}
   
@@ -444,6 +446,8 @@ await appendToConversation(sender, {
       "endereco": "Av. Getúlio Varga, 333, Centro, Araruama - RJ, Brasil. CEP 28979-129",
       "referencia": "Mesma calçada da loteria e xerox do bolão, em frente à faixa de pedestre",
       "horarioFuncionamento": "De 09:00 às 19:00, de segunda a sábado"
+
+      ***AO FALAR DOS VALORES SEMPRE DEIXE BEM CLARO QUE ESSES VALORES SÃO ESTIMATIVAS E PODEM VARIAS DE ACORDO COM A APROVAÇÃO DA PAYJOY***
 
   📜 Histórico da conversa:
         ${conversaCompleta}

@@ -332,6 +332,9 @@ const handlers = {
     }
 
   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+   
+  await delay(2000);
+  await sendBotMessage(sender, "*Por que na Vertex Store?\n📲 *Sai com tudo configurado, transferência de dados e suporte de verdade.*\n⚙️ *Se rolar garantia, é rápido e tem celular reserva.*\n*Simples assim. Padrão Vertex.* 💜")
   await delay(2000);
   
     await sendBotMessage(sender, "➡️ *Desses, qual mais te chamou atenção?*");

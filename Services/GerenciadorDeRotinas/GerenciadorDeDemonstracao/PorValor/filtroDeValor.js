@@ -10,6 +10,8 @@ const { registrarOuAtualizarMensagem } = require("../../../GerenciadorDeRotinas/
 const { identificarModeloPorNome } = require("../PorNome/identificarModeloPorNome");
 const { atualizarValorVendaDoLead } = require("../../../ServicesKommo/atualizarValorVendaDoLead");
 const { getAllCelulares } = require("../../../dbService");
+const { pipelineAtendimentoAI } = require("../../../ServicesKommo/pipelineAtendimentoAI");
+
 
 // 🔤 Remove prefixo "again"
 function limparPrefixoAgain(texto) {
@@ -87,9 +89,8 @@ const filtroDeValor = async ({ sender, msgContent, pushName, messageId }) => {
     if (modeloDetectado) {
       await setUserStage(sender, "identificar_modelo_por_nome");
 
-      await pipelineContatoInicial({ name: pushName, phone: sender });
-      await new Promise(resolve => setTimeout(resolve, 5000));
-      await pipelineConhecendoALoja(sender);
+      await pipelineAtendimentoAI({ name: pushName, phone: sender });
+
 
       return await identificarModeloPorNome({
         sender,
@@ -102,9 +103,8 @@ const filtroDeValor = async ({ sender, msgContent, pushName, messageId }) => {
       await setUserStage(sender, "agente_de_demonstracao_por_valor");
       await storeUserResponse(sender, "sondagem", "investimento", respostaLimpa);
 
-      await pipelineContatoInicial({ name: pushName, phone: sender });
-      await new Promise(resolve => setTimeout(resolve, 5000));
-      await pipelineConhecendoALoja(sender);
+      await pipelineAtendimentoAI({ name: pushName, phone: sender });
+
 
       // 💰 Extrai valor numérico para o campo price
       const valorNumerico = parseFloat(

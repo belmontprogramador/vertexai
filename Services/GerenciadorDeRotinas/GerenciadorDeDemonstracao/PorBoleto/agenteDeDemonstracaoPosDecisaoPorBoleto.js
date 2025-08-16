@@ -17,8 +17,8 @@ const { agenteDeDemonstracaoPorNomePorBoleto } = require("./agenteDeDemonstracao
 const { enviarResumoParaNumeros } = require("../../../utils/enviarResumoParaNumeros");
 const { registrarTagModeloConfirmado } = require("../../../ServicesKommo/registrarTagModeloConfirmado");
 require("dotenv").config();
-const { pipelineAtendimentoHumano } = require("../../../ServicesKommo/pipelineAtendimentoHumano");
 const { atualizarValorVendaDoLead } = require("../../../ServicesKommo/atualizarValorVendaDoLead");
+const { pipelineAtendimentoHumanoBoleto } = require("../../../ServicesKommo/pipelineAtendimentoHumanoBoleto");
 
 
 
@@ -324,7 +324,7 @@ const handlers = {
 
     // ✅ Movimenta o lead para o pipeline de atendimento humano, se necessário
   try {
-    await pipelineAtendimentoHumano(sender);
+    await pipelineAtendimentoHumanoBoleto(sender);
   } catch (err) {
     console.warn("⚠️ Erro ao mover lead para atendimento humano:", err.message);
   }
@@ -460,7 +460,7 @@ const handlers = {
   📌 Referência: Mesma calçada da loteria e xerox do bolão, em frente à faixa de pedestre
   🕘 Atendimento: De 09:00 às 19:00, de segunda a sábado
 
-  **NOS NÃO POSSUIMOS IPHONE PARA EVNDA NA LOJA, DIGA DE MODO SUAVE QUE TRABALHAMOS APENAS COM A LINHA REDMI POCO E REALME**
+  **NOS NÃO POSSUIMOS IPHONE PARA EVNDA NA LOJA, DIGA DE MODO SUAVE QUE TRABALHAMOS APENAS COM A LINHA REDMI POCO E REALME, HIPOTESE NENHUMA RESPONDE QUE TRABALHOMOS COM IPHONE**
   
   🧠 Última mensagem do cliente:
   "${entrada}"

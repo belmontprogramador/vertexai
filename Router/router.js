@@ -6,6 +6,7 @@ const { webhookControllerSent } = require("../Controller/webhookControllerSent")
 const { refreshToken } = require("../Controller/blingTokenController");
 const autenticarToken = require("../Services/GerenciadorDeRotinas/middlewares/authMiddleware");
 const { validarNumerosEmLoteController } = require ("../controller/validarNumerosController")
+const webhookController = require("../Controller/webhookController");
 
 
 const {
@@ -34,6 +35,8 @@ const {
 
 const { login } = require("../Services/dbService");
 
+
+
 const {
   createCelularVideo,
   getAllCelularVideos,
@@ -47,9 +50,38 @@ const {
   deleteCelularVideoBoleto,
 } = require("../Services/dbService");
 
+const { redirecionarParaWhatsApp } = require("../Controller/redirect.controller");
+// const { webhookKommo } = require("../Controller/webhookControllerKommo");
+
+const { redirecionarParaExclusao } = require("../Controller/redirecionarParaExclusao")
+const { enviarNotaFiscalTemplate } = require("../Controller/whatsappController");
+const { getTemplatesAprovados } = require("../Controller/whatsappControllerCampanhaBoleto");
+const { receberWebhook } = require("../Controller/teste");
+const { webhookKommoSalesbot } = require("../Controller/kommoWebhook.controller");
  
 
-const router = express.Router();  
+
+
+const router = express.Router();
+
+router.post("/webhook/kommo-salesbot", webhookKommoSalesbot);
+
+router.get("/whatsapp/templates-aprovados", getTemplatesAprovados);
+
+ 
+router.post('/webhooktest', receberWebhook)
+
+// router.post("/webhook/kommo", webhookKommo);
+router.get("/excluir-lead", redirecionarParaExclusao);
+
+// 📤 Envio de template WhatsApp via Kommo
+router.post("/enviar-nota", enviarNotaFiscalTemplate);
+
+
+router.get("/webhook", webhookController.verifyWebhook);
+router.post("/webhook", webhookController.receiveWebhook);
+
+router.get("/credito-boleto", redirecionarParaWhatsApp);
 
 router.post("/webhookreceived", webhookControllerReceived);
 router.post("/webhooksent", webhookControllerSent);
